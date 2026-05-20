@@ -1,0 +1,8 @@
+playwright==1.44.0
+pandas
+psycopg2-binary
+textblob
+scikit-learn
+streamlit
+wordcloud
+matplotlib

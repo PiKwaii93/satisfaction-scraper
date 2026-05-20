@@ -1,0 +1,35 @@
+services:
+  # Service 1 : La base de données PostgreSQL
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: satisfaction_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: satisfaction_client
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+
+  # Service 2 : Ton Scraper / Dashboard (Playwright + Streamlit)
+  scraper:
+    image: satisfaction-scraper:latest
+    container_name: satisfaction_scraper
+    build: .
+    depends_on:
+      - postgres_db
+    volumes:
+      - .:/app
+    environment:
+      - DB_HOST=postgres_db
+      - DB_USER=admin
+      - DB_PASSWORD=password123
+      - DB_NAME=satisfaction_client
+    ports:
+      - "8501:8501"
+
+volumes:
+  postgres_data:
