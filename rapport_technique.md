@@ -1,4 +1,4 @@
-# Rapport de Projet : Pipeline de Collecte et Analyse d'Avis Clients
+# Rapport Technique : Pipeline de Collecte et Analyse d'Avis Clients
 
 ## 1. Introduction & Objectif Métier
 * **Objectif :** Automatiser la veille concurrentielle sur Trustpilot pour la marque Showroomprivé afin d'identifier les leviers d'amélioration de la satisfaction client.
@@ -26,15 +26,15 @@
 * **Interprétation :** Une note moyenne proche de 3/5 et un sentiment NLP neutre suggèrent que les avis sont majoritairement factuels et pointent des processus opérationnels spécifiques (délais, logistique) plutôt que des expériences purement émotionnelles.
 
 ## 4. Défis rencontrés & Solutions
-* **Défi 1 : Format des données :** Les dates "relatives" de Trustpilot n'étaient pas directement exploitables par SQL. 
+* **Défi 1 : Format des données :** Les dates "relatives" de Trustpilot n'étaient pas directement exploitables par SQL.
     * *Solution :* Développement d'une fonction de parsing Python robuste.
 * **Défi 2 : Orchestration Docker :** Communication entre conteneurs.
     * *Solution :* Utilisation des réseaux Docker privés (`satisfaction-scraper_default`) et configuration stricte des variables d'environnement (`DB_HOST`).
 
 ## 5. Conclusion & Perspectives
 * **Conclusion :** Le système permet de générer un rapport de satisfaction en temps réel sans intervention manuelle, prouvant la robustesse de l'approche conteneurisée.
-* **Perspectives :** * Déploiement d'un dashboard **Streamlit** pour visualiser l'évolution des sentiments dans le temps.
+* **Perspectives :**
+    * Déploiement d'un dashboard **Streamlit** pour visualiser l'évolution des sentiments dans le temps.
     * Affinement du modèle NLP pour catégoriser automatiquement les avis par thèmes (Livraison, SAV, Qualité).
 
----
 *Projet réalisé dans le cadre de la formation DataScientest.*
