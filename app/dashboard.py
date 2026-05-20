@@ -14,7 +14,7 @@ def clean_data(df):
     df['verbatim'] = df['verbatim'].str.strip()
     return df
 
-# Connexion BDD
+# Connexion BDD et récupération des données enrichies
 def get_data():
     try:
         conn = psycopg2.connect(
@@ -23,13 +23,14 @@ def get_data():
             user=os.getenv("DB_USER", "admin"),
             password=os.getenv("DB_PASSWORD", "password123")
         )
-        query = "SELECT rating, verbatim FROM fact_reviews"
+        # On récupère maintenant aussi les colonnes sentiment_label et sentiment_score
+        query = "SELECT rating, verbatim, sentiment_label, sentiment_score FROM fact_reviews"
         df = pd.read_sql(query, conn)
         conn.close()
         return clean_data(df)
     except Exception as e:
         st.error(f"Erreur de connexion à la base de données : {e}")
-        return pd.DataFrame(columns=['rating', 'verbatim'])
+        return pd.DataFrame(columns=['rating', 'verbatim', 'sentiment_label', 'sentiment_score'])
 
 # Configuration du dashboard
 st.set_page_config(page_title="Dashboard Satisfaction", layout="wide")
@@ -39,13 +40,23 @@ df = get_data()
 
 if not df.empty:
     # 1. KPIs
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     col1.metric("Nombre d'avis analysés", len(df))
     col2.metric("Note Moyenne", f"{df['rating'].mean():.2f}")
+    col3.metric("Sentiment Moyen (Score)", f"{df['sentiment_score'].mean():.2f}")
 
-    # 2. Histogramme
-    st.subheader("Distribution des notes")
-    st.bar_chart(df['rating'].value_counts().sort_index())
+    # 2. Graphiques : Distribution des notes ET des sentiments
+    st.subheader("Analyse de la satisfaction")
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        st.write("Distribution des notes")
+        st.bar_chart(df['rating'].value_counts().sort_index())
+    
+    with col_b:
+        st.write("Répartition des sentiments (NLP)")
+        # On compte le nombre d'avis par catégorie (Positif/Négatif/Neutre)
+        st.bar_chart(df['sentiment_label'].value_counts())
 
     # 3. Nuage de mots
     st.subheader("Analyse sémantique (Nuage de mots)")
@@ -57,8 +68,9 @@ if not df.empty:
     ax.axis('off')
     st.pyplot(fig)
 
-    # 4. Derniers avis
+    # 4. Tableau des avis (pour consultation directe)
     st.subheader("Derniers avis collectés")
-    st.dataframe(df.sort_index(ascending=False).head(10))
+    st.dataframe(df[['rating', 'sentiment_label', 'verbatim']].head(10))
+
 else:
-    st.warning("Aucune donnée disponible ou erreur de connexion.")
+    st.warning("Aucune donnée disponible. Vérifie que le pipeline ETL a bien tourné.")
