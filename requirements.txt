@@ -1,8 +1,18 @@
+# Scraping
 playwright==1.44.0
+
+# Data Engineering & Science
 pandas
 psycopg2-binary
-textblob
 scikit-learn
+mlflow
+
+# Analyse & NLP
+textblob
+# NLTK est souvent requis par TextBlob pour les téléchargements de ressources
+nltk
+
+# Visualisation
 streamlit
 wordcloud
 matplotlib

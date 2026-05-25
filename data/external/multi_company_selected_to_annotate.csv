@@ -1,0 +1,529 @@
+﻿id,source_company,source_review_id,author,rating,date,verbatim,model_suggested_label,model_confidence,selection_reason,manual_label,label_confidence,issue_type,is_mixed,justification_courte
+1524,www.decathlon.fr,5,Semat,1,Il y a un jour,"Ne pas se fier aux avis qui sont trafiqués - J'ai découvert récemment que Décathlon truquait les avis clients. Je m'explique : je note systématiquement les produits achetés. Les bons avis sont acceptés, les mauvais refusés pour des motifs bidons : ""hors sujet"" alors que je parle du produit , ""avis publicitaire"" alors que je ne cite aucune autre marque !!!! , ""non conforme"", ""incohérent"" euh là je n'ai même pas de piste. Je ne vois pas comment un commentaire d'un excellent sportif sur un produit sportif peut être incohérent. C'est un avis ! je ne serais pas sportif ok...
+Bref tout avis négatif argumenté est refusé.
+J'ai fait des tests sur des articles. Je reposte des commentaires refusés cette fois plus conformes, épurés de commentaires. Ou mettant en avant des problèmes différents. ça ne passe jamais.",Négatif,0.93,negative_rating_positive_terms|mixed_text,,,,,
+1525,www.decathlon.fr,6,Wildermuth,1,Il y a un jour,"Je suis passé Decathlon Forbach pour acheter une trottinette électrique à 699 €, malheureusement elle n’était plus disponible au magasin et c’était pas possible de la faire livrer au magasin. Ils m’ont conseillé de la faire livrer à mon domicile avant le 18 mai qui était le jour de l’anniversaire de mon petit-fils pour son cadeau. Mais la commande n’est jamais arrivée. J’ai contacté le 19. Le service après-vente qui m’a dit, ils vont faire une enquête et qu’ils reviennent vers moi dans les 48 heures. Aujourd’hui 48 heures après j’ai toujours pas eu de nouvelles du service après-vente, donc je les ai contactés et ils ont toujours pas de nouvelles où est passé cette commande. J’aurais mieux fait de la commander chez Amazon. Je l’aurais eu dans les trois jours et sans frais de livraison. C’est la dernière fois que j’ai fait confiance à décathlon.",Négatif,0.94,mixed_text,,,,,
+1526,www.decathlon.fr,10,Mélina Loupia,1,ll y a 3 jours,"Atelier réparation vélo nullissime - Je viens d'effectuer des achats au Décathlon Perpignan (Avenue André Tourne) et me suis arrêtée à l'atelier de réparation vélo pour prendre un renseignement sur la réparation de la batterie de mon vélo électrique (qui n'est pas un produit acheté chez Décathlon). Non seulement j'ai été très mal accueillie (et ce n'est pas la première fois, quelle que soit la personne qui était présente), mais encore m'a-t-on dit que si le matériel n'avait pas été acheté chez Décathlon, ce n'était pas possible.
+
+Or, je lis sur votre FAQ ceci:
+
+""Oui, nous réparons tous les vélos, même ceux qui n’ont pas été achetés chez Decathlon. Nos techniciens sont qualifiés pour travailler sur toutes les marques et modèles. Nous vous invitons à apporter votre vélo dans l'atelier le plus proche pour un diagnostic et un devis gratuit"".
+
+Très insatisfaite de l'accueil et du service.",Négatif,0.91,negative_rating_positive_terms|mixed_text,,,,,
+1527,www.decathlon.fr,15,NC,1,13 mai 2026,"1 étoile c'est un peu sévère mais sont à 1,6 et je viens pas là pour augmenter leur note.
+La gamme est mal pensée et on trouve jamais ce qu'on cherche. Faut virer des gens à la direction produit.
+Et c'est un peu devenu très mauvais sur certains produits.
+S'il faut montez en prix mais arrêtez de vendre de la m*.",Négatif,0.84,mixed_text,,,,,
+1528,www.decathlon.fr,17,Cedric De Haro,1,12 mai 2026,"Ne respecte pas ses engagements - J’ai commandé un vélo sur le site décathlon car en magasin il n’y a strictement très peu de choix.
+
+J’ai acheté ce vélo pour l’anniversaire de ma fille. Livraison était prévu le samedi, le jour de l’anniversaire de ma fille impec.
+
+Or il n’a jamais été livré. Et nous sommes désormais mardi et toujours rien. Ma fille n’a pas eu son cadeau principal pour son anniversaire…
+
+J’ai laissé un avis sur le site décathlon qui n’a pas été validé bien sûr…",Négatif,0.87,negative_rating_positive_terms|mixed_text,,,,,
+1529,www.decathlon.fr,18,Grazemile Bertrand,1,12 mai 2026,"proposition de reprise seconde vie - Apres avoir fait une simulation de reprise d'un vélo 500E sur le site decathlon on me propose 603 euros. Arrivé au centre decathlon de Geispolsheim pour control du vélo avant rachat on cherche par tout les moyens de faire baisser le tarif , 2eme proposition 558 euros pour soit disant une vitesse qui passe mal, mais on me dit que c'est certainement qu'un réglage, ensuite faut passer par un test batterie et là surprise faut payer 20 euros pour le test, après ce test concluant batterie a 99 pour cent on me demande de retourner au rayon vélo pour finaliser la reprise et là nouvelle surprise on me dit tout compte fait il faut changer la casette pour un cout de 150 euros mais on vous le fait a 50 euros.
+Faudrait cesser de prendre les gens pour des jambons, je suis ressorti avec mon vélo en me jurant ne plus jamais mettre mes pieds dans cette enseigne",Négatif,0.91,mixed_text,,,,,
+1530,www.decathlon.fr,19,Virginie B.,1,9 mai 2026,"Ne vous fiez pas aux avis sur le site, ils sont CONSTAMENT rejetés si négatifs. Produits de mauvaise qualité, quel magasin de sport vend des t-shirt avec un compo à 40% d polyester C'EST POUR FAIRE DU SPORT",Négatif,0.91,negative_rating_positive_terms,,,,,
+1531,www.decathlon.fr,21,lafitte,1,7 mai 2026,"livraison non tenue et mené en bateau - J'ai commandé un masque de plongée sur internet avec livraison dans un point retrait car c'était l'option la plus rapide. Délai de livraison prévu le 6 mai. J'ai reçu un message de mondial relay qui m'indiquait livraison le 9 mai. J'ai donc contacté Decathlon par Whatsapp tous les jours et tous les jours, on m'a dit que je serai livré dans les temps et que je ne devais pas tenir compte de l'information Mondial relay et que decathlon faisait tout pour que je sois livré avant mon départ à l'étranger le 8 mai. Nous sommes le 7 au soir et toujours rien chez le point retrait. je vais donc partir sans mon masque de plongée et Decathlon m'a bien mené en bateau. Étant client de leurs magasins, je suis extrêmement déçu et ne commanderai plus jamais chez eux.",Négatif,0.94,negative_rating_positive_terms|mixed_text,,,,,
+1532,www.decathlon.fr,23,Thierry Pastori,1,6 mai 2026,"Invalide , j'ai commandé un produit à livrer à la maison ,livraison chronopost que j'ai payé mais je dois me déplacer à 10km de chez moi car déposé sans me l avoir demandé dans un centre de dépôt. Aucun respect !",Négatif,0.93,mixed_text,,,,,
+1533,www.decathlon.fr,29,marc Rinaldi,2,11 mai 2026,"J'ai apporté mon vtt stilus électrique pour un changement de durite du frein arrière, après 12 jours celui m'a été rendu avec le guide chaine cassé et la durite pincée à 2 endroits. Après avoir appelé le service réclamation la personne m'a dit que ce n'était pas grave et qu'il me recontacterait pour un éventuel geste commercial ; j'attends toujours. C'est mon 3ème vtt que j'achète chez decathlon !!!",Négatif,0.91,mixed_text,,,,,
+1534,www.decathlon.fr,30,caramelad,2,8 mai 2026,"J'ai acheté un vélo enfant 2 en 1 Btwin Discover 500 en avril 2026 à Décathlon La Rochelle.
+Voici l'avis que j'avais déposé sur le site de Décathlon (à leur demande), cet avis reflétant strictement mon vécu et mes conseils d'amélioration de leur service :
+
+Le vélo en lui même est parfait : freins coloré pour les distinguer, carter de chaine et surtout pédales amovibles pour commencer par le mode draisienne.
+Cependant, j'ai du retourner chez Décathlon pour chercher une rondelle de roue avant qui manquait (un écrou se baladait seul dans le carton) et je constate quelques jours plus tard que la roue avant se dégonfle lentement.
+Enfin, pour le montage, il faut savoir régler les freins ce qui n'est pas forcément donné à tout le monde (un patin frottait en permanence sur la roue avant). Je pense que Décathlon devrait monter ce vélo au moment de l'achat. Ca ne leur prendrai que 5 minutes et éviterait la plupart des difficultés que j'ai rencontré.
+
+Et j'avais mis 4 étoiles...
+CET AVIS A ETE REFUSE CAR JUGE NON CONFORME !
+Du coup, ici je ne met que 2 * car Décathlon ne souffre visiblement pas de recevoir des conseils avisés pour qu'ils s'améliorent.
+J'en déduis aussi que le site Décathlon n'accepte que les commentaires élogieux... et qu'il ne faut donc pas s'y fier !",Négatif,0.92,negative_rating_positive_terms|mixed_text,,,,,
+1535,www.decathlon.fr,31,Cédric,2,25 avr. 2026,"J'ai passé une commande hier sur decathlon.fr en demandant un livraison express à domicile ce matin.
+1- Le livreur dépose le colis en point relais alors que je l'attendais à mon domicile.
+Point positif, après une réclamation auprès du service client, ils ont acceptés de me rembourser les frais de livraison.
+2- J'ai acheté un lot de 3 boxer. Ces derniers sont cousus entre eux par des petits points de coutures très serrés.
+Lorsque j'ai réussi à défaire les liens, les boxers sont abîmés aux points de coutures.
+Le service client, après consultation des photos refuse le remboursement en arguant que j'aurai arraché les boxers au lieu d'utiliser des ciseaux.
+Sauf que si c'était le cas, il n'y aurait pas eu 2 trous de part et d'autre des points de coutures mais 1 seul gros trou.
+Résultat soit j'irai en magasin, soit je n'achèterai plus de lots en tout cas sur decathlon.fr.
+Je précise que ça fait plus de 6 ans que j'achète ces lots et que c'est la 1ère fois que je les achète en ligne et que je rencontre ce problème.",Négatif,0.93,mixed_text,,,,,
+1536,www.decathlon.fr,34,Cossart,2,30 mars 2026,"Livraison du produit en retard, le transport livre à son bon vouloir ! Produit cassé à l'intérieur ! Enfin bref zéro pointé. Le transporteur en plus ment mais bon une fois que le produit est payé, tout le monde s'en fou!",Négatif,0.89,mixed_text,,,,,
+1537,www.decathlon.fr,38,Bruno DEROCHE,2,5 mars 2026,J'ai acheté un vélo EACT-900 à 2790 euros il y a 15 mois. Le moteur est déjà à changer après 4500 km. Cela fait 3 semaines que j'attend que l'on me rende mon vélo mais toujours pas de nouvelle de sa réparation...,Négatif,0.9,mixed_text,,,,,
+1538,www.decathlon.fr,40,Gilda Anglade,2,Actualisé le 17 févr. 2026,"Mauvaise expérience accueil rayon montre Décathlon Bercy - Bonjour, je désirais acheter une montre connectée, j’ai remarqué plusieurs modèles à Décathlon Bercy.
+J’y suis allée, c'était en fin d’après midi le mardi 3 février.
+Il y avait un vendeur à ce rayon qui m’a un peu renseignée
+sur les modèles exposées .
+C’était un peu tard donc je suis revenue le lendemain pour en acheter une, mon choix se portait sur une fitbit 100 s.
+Je retrouve le vendeur, lui pose quelques questions, mais celui ci ne faisait aucun cas de moi, continuait de mettre en rayon et me dire de façon plutôt grossière : « vous êtes déjà venue hier! »
+J’ai trouvé ce vendeur très désagréable surtout aucun professionnalisme!
+À Bercy, les autres vendeurs étaient tous corrects et aimables !!!!
+J’avais trouvé le modèle de montre connectée qui me plaisait,
+donc, je suis partie à Décathlon Madeleine pour acheter ma montre connectée .
+Et là vraiment, j’ai eu un vendeur exceptionnel, qui m’a expliqué les différentes spécificités des modèles décathlon: Fitbit, décathlon Coros ….ect
+J’étais ravie et j’ai pu faire mon choix avec toutes les options désirées
+Cependant le modèle que je voulais, était en rupture, finalement, je l’ai commandé sur le site, quelques jours après un exemplaire était en ligne!
+
+J’ai décidé que je ne remettrai plus les pieds a Décathlon Bercy!",Négatif,0.9,negative_rating_positive_terms|mixed_text,,,,,
+1539,www.decathlon.fr,41,Bernadette Leclaire,2,15 févr. 2026,"Imposer au client App.decathlon sur tel portable??? - Bonjour
+Depuis des années la validation des points fidélité était d une simplicité enfantine. Depuis qq mois vs ns imposez de rentrer l application Decathlon sur Tel portable pr faire valoir ns points fidélité.
+Je trouve ce procédé incongru, sans considération de l avis du client, on n a pas le choix! Ou alors on perd nos points fidélité !
+C est rentrer l app. ou alors on perd nos points fidélité !!!! Où est le choix ?
+Je suis une cliente assidue depuis des années mais au vu de ce procédé qui ne me convient pas je vais me diriger vers un magasin concurrent.
+Arrêtez de ns obliger à rentrer sur nos tel les App.
+Et pr quelqu un qui n' a pas de tel portable, vs proposez quoi ,?
+Jusqu'à maintenant la carte fidélité, non contraignante était parfaite.",Négatif,0.88,mixed_text,,,,,
+1540,www.decathlon.fr,43,YERMIA,2,1 févr. 2026,"J'ai acheté des lunettes de natation et les ai mises de côté. C'était il y a deux mois (décembre)
+Aujourd'hui j'ai ouvert la boîte qui était ...vide !
+J'ai appelé le service conso mais ils m'ont dit que c'était trop tard. Que je pourrais très bien mentir car cela fait plus d'un mois (je ne comprends pas le raisonnement mais bon) En attendant j'ai dépensé 25 Euros pour rien.",Négatif,0.91,negative_rating_positive_terms|mixed_text,,,,,
+1541,www.decathlon.fr,44,Jeremy Pouteau,2,29 janv. 2026,"Carte fidélité et organisation magasin - Bonjour,
+Cette note vaut uniquement sur le programme fidélité de Décathlon. Avant au bout de 400 points on avait un chèque de 6€ qu'on recevait par la poste, le top ! J'ai moi même participer à fideliser les clients ayant été membres Décathlon.
+Maintenant rien de fait si on a pas l'application, on n'attire pas les moins jeunes en ce sens c'est certain. Le système de points est incompréhensible, nous devons générer les choses par nous même... Je viens de recevoir un mail sur le changement sur la carte fidélité mais je ne m'en sert plus. Ayant participé au programme fidélité d'avant je trouve cela bien dommage pour le groupe...
+L'autre point est le fait de copier-coller les autres magasins en obligeant le client à faire tous els rayons. Un manque de personnalité qui fait fuir le client...
+Sinon Décathlon est un très bon magasin mais tout cela ne me donne plus envie de venir souvent...",Négatif,0.92,negative_rating_positive_terms|mixed_text,,,,,
+1542,www.decathlon.fr,47,Sonia Sanchez,2,27 nov. 2025,"Conditionnement négligé et dangereux pour le matériel - J'ai acheté pour l'offrir à une adepte du badminton une raquette de très bonne qualité. J'ai réceptionné mon colis à la poste. La postière était désolée par l'état du carton mais m'a-t-elle dit, il est arrivé ainsi. Effectivement le manche de la raquette,non protégé,dépassait du carton, car celui-ci, bien que volumineux était bien trop court. La raquette avait été sortie de son étui. Le carton était ouvert et défoncé. J'ai contrôlé le contenant pour voir si la poche de protection était présente ainsi que le sac de badminton que j'avais acheté en plus. Tout y était la pochette, le sac même le bandeau publicitaire de la raquette. La raquette n'avait absolument aucune protection. On aurait pu y mettre de la mousse, des papiers pour rembourrer. Mais non rien, ceci expliquait que le carton se soit affaissé lors du transport. J'ai accepté ma commande et j'espère ne pas avoir à le regretter car la raquette ne semble pas avoir souffert de cette négligence, mais je ne suis pas une joueuse et je n'ai aucune certitude qu'elle n'ait pas subi de dommages.
+Je ne recommanderai plus sur ce site, ça par contre c'est certain.",Négatif,0.92,negative_rating_positive_terms|mixed_text,,,,,
+1543,www.decathlon.fr,52,Sachot,3,Actualisé il y a 2 jours,"2 Expériences au magasin de Colomiers. - Expérience au magasin de Colomiers.
+J'ai demandé l'application de la garantie sur un lancer léger DAIWA Presso 602 UL pour un scion cassé le 7 mai 2026.
+12 jours plus tard, toujours pas de nouvelle. J'appelle alors on me dit que la commande a été oubliée. Que la livraison sera assez longue : peut-être une dizaine de jours...
+J'ai acheté le 7 mai un deuxième lancer. Le scion est très fragile. J'en ai cassé un deuxième.J'ai demandé une deuxième garantie le 19 mai 2026.
+Voila 13 jours que j'ai demandé le premier scion de rechange pour mon lancer. Dès que j'aurai de nouvelles informations, je mettrais les commentaires à jour.
+Bonne nouvelle, lors de mon déplacement du 20 mai 2026, j'ai pu obtenir un avoir pour remplacer le deuxième lancer par un modèle plus résistant.
+
+Un bémol cependant, le scion de remplacement pour le premier lancer ne serait disponible qu'en décembre 2026 soit 7 mois plus tard ! Ça n'est pas le service après vente efficace que j'attends quand j'achète dans un magasin en France !",Négatif,0.5,rating_3|low_confidence|mixed_text,,,,,
+1544,www.decathlon.fr,53,dreamer Fine,3,22 avr. 2026,"Une honte - Alors que d'habitude je suis satisfait de ce que j'achète, mais la plupart du temps en magasin, (d'où les 3 étoiles au lieu d'1 seule), là impossible de ne pas laisser un mauvais avis.
+D'abord, car comme souvent sur le site, on nous met en relation avec des vendeurs du bout du monde, ensuite car ledit livreur fait appel à l'un des pires services de livraison, DPD, et qu'enfin, quand rien ne va, que la livraison ne se fait pas, que le site de DPD bug, et que l'on tente de contacter Décathlon, impossible, car on a affaire à une de ces I.A. si stupide, qui nous rendent fous à ne pas vouloir comprendre notre souhait de nous mettre en relation avec quelqu'un qui pourra répondre à nos attentes.
+Bref, sans mon passif en magasin, j'aurai mis 0 si c'était possible, car il a fallu 6 jours, beaucoup de mails, de persistance et de rage, et surtout, des journées passées à attendre rien du tout, heureusement que je ne travaillais pas, car je ne sais pas comment font ceux qui bossent de 8h à 18h, pour recevoir un colis de votre part",Négatif,0.5,rating_3|low_confidence|mixed_text,,,,,
+1545,www.decathlon.fr,54,Luis Rochat,3,5 mars 2026,"J’ai acheté un pantalon de ski en ligne, mais je ne l’ai jamais reçu… Heureusement, le service client m’a remboursé, mais c’est quand même une sacrée perte de temps",Négatif,0.53,rating_3|low_confidence|mixed_text,,,,,
+1546,www.decathlon.fr,55,Diego,3,Actualisé le 8 mars 2026,"Je viens d'avoir un schmilblick avec Décathlon et j'attends la livraison de ma commande pour finaliser mon avis vers le ""plus"" ou vers le ""moins"" !
+Je développerai les détails avec mon avis finalisé, la livraison étant prévue dans sept jours.
+
+La livraison est finalement bien arrivée et le produit est conforme à mes attentes.
+
+S'il manque 2 étoiles à mon avis, c'est principalement dû au fait qu'au moment de la commande sur le site, on m'avait promis une livraison sous 2 jours et, après paiement, le délai s'était transformé en 11 jours !
+
+Après rappel de ma part, on m'a promis qu'on allait faire quelque chose, mais en fin de compte, rien n'a été fait !
+Lors de mon rappel, mon interlocuteur m'a très rapidement proposé d'annuler ma commande sans même tenter de trouver une solution intermédiaire. On sentait visiblement qu'il n'en avait rien à faire.
+
+Je compatis avec les autres ""victimes"" et je comprends mieux la moyenne des notes très basses.",Neutre,0.57,rating_3|low_confidence|mixed_text,,,,,
+1547,www.decathlon.fr,56,Alexandre L,3,25 févr. 2026,"Expérience mitigée. J’adore les produits, je donnerais bien 4-5 étoiles pour ça mais coté expérience client c’est pas top…
+Déjà les délais de livraison indiqués ne sont jamais respectés. Ça peut poser pb si vous comptez dessus.
+Ensuite les points fidélités ne sont pas crédités (j’en ai pour plusieurs centaines d’euros)
+Et ensuite pour un soucis que j’ai eu le service client était incapable de faire quoi que ce soit, j’ai du coup pu utiliser le retour sous un an afin de me faire rembourser intégralement. (Un point positif)",Négatif,0.76,rating_3|mixed_text,,,,,
+1548,www.decathlon.fr,57,Clovis,3,18 févr. 2026,"Je suis très déçu que le rayon seconde vie et été supprimé dans le décathlon Annemasse
+Avant je passais plus souvent dans le magasin pour voir s’il i avait de bonne opportunité",Négatif,0.5,rating_3|low_confidence,,,,,
+1549,www.decathlon.fr,58,Catheryn Michel,3,Actualisé le 28 févr. 2026,"Apres une arnaque sur ma commande de Baskets Nike BQ9810 007 en exclusivité web d'une valeur près de 100 euro effectuée en ligne.
+Commande passée le 8 février dernier avec un deuxième article de moindre valeur. Avec des obligations
+de livraison à domicile.
+Mail de communication pour le suivi et une Livraison le 16 02 2026 pour le colis des Baskets en question. 10 h25 un autre mail d'avertissement que la livraison a été effectuée le 16 06 2026 par fedex. Or, aucun colis n'est arrivé. Appelant le service clients décathlon pour les avertir de cette anomalie. Un deuxième envoi a été effectué via, cette fois-ci par USP avec une obligation de signature à la livraison.
+Donc, tout est OK. Mais bon. Option Livraison à domicile obligatoire sous surveillance.
+A bon entendeur.",Négatif,0.48,rating_3|low_confidence|mixed_text,,,,,
+1550,www.decathlon.fr,59,Ricardo,3,27 janv. 2026,Facture non fournie automatiquement - Pas d’envoi de la facture avec la commande par email et pas de facture telechargeable… besoin de perdre du temps pour la demander… on verra le délai d’envoi.,Neutre,0.47,rating_3|low_confidence,,,,,
+1551,www.decathlon.fr,60,Julian Valette,3,10 déc. 2025,"Pantalon de marque Forclaz - Pantalon parfait jusqu’au jour où j’ai fait tomber un peu d’acide dessus. Le pantalon a pris feu, les matériaux doivent être chimiques. Sinon réception nickel accueil chaleureux les coutures c’est un peu fragile au bout de quelques mois.",Neutre,0.62,rating_3|low_confidence|mixed_text,,,,,
+1552,www.decathlon.fr,61,claire L,3,8 déc. 2025,Pas de souci avec les produits de décathlon. Mais la livraison avec chronopost est une catastrophe! Les livreurs ne ce presente même pas au domicile et mettent en livraison dans un relais !! La livraison part chronopost est a fuir!!!,Négatif,0.52,rating_3|low_confidence|mixed_text,,,,,
+1553,www.decathlon.fr,62,Kim,3,12 oct. 2025,"Avant j'apprécié pour leur offre sur le ping pong, à présent ils n'ont pas plus de bois et revetement que les autres",Neutre,0.52,rating_3|low_confidence,,,,,
+1554,www.decathlon.fr,63,Tony,3,2 oct. 2025,"Produit de qualité, reçu assez rapidement.",Neutre,0.67,rating_3,,,,,
+1555,www.decathlon.fr,64,ASPE,3,20 août 2025,"Le pb ne concerne ni l'agence (COLOMIERS en 31) ni le personnel mais du matériel vendu avec des causes que vous ne pouvez deviner.
+Je suis un gros marcheur et fonctionne avec du haut de gamme dont SALOMON.
+C'est sur cette marque que le pb s'est manifesté avec très rapidement voûte plantaire droite en feu - orteils(pouce et index) avec grosse douleur et certainement, douleur antalgique sur le genou gauche.
+Par hasard, j'ai rencontré des collègues qui ont eu exactement le même pb avec la même marque. Il semblerait donc qu'il y ait pb lié à la chaussure elle même, un défaut de fabrication sur une série axé sur la partie gauche du côté droit.
+Notez que j'ai du user une douzaine de paires SALOMON sans pb jusqu'ici. En gros 4000km de marche par paire.
+Les vendeurs à COLOMIERS, m'ont conseillé et j'ai axé sur des chaussures de trek de marque MERRELL.
+J'ai dépassé les cent km avec ces dernières et la douleur a pratiquement disparu (Voûte plantaire et orteils mais aussi genou gauche) même si par précaution, je fais faire une infiltration de SINOVIAL ONE sur le genou gauche.
+Quel est votre avis de techniciens?",Neutre,0.52,rating_3|low_confidence|mixed_text,,,,,
+1556,www.decathlon.fr,65,jean-louis KEMPF,3,25 juil. 2025,"Service après vente peu réactif - La tente a été livrée avec un défaut non reconnu par le fournisseur Star Union de Décathlon, alors que nous avions pris la peine de transmettre plusieurs photos avec la mesure dimensionnelle du défaut ( écart de 10 cm entre le sol de tente et le terrain au niveau d'un angle) et une mesure de niveau pour montrer l'horizontalité du sol. Ce défaut pouvait occasionner un risque de chute en entrant ou en sortant de la tente. La réactivité de leur fournisseur Star Union a été très faible, il lui fallait entre 48 h et 72h pour répondre à chaque échange, alors qu'il aurait pu considérer qu'il y avait une urgence à régler le problème en période de vacances. Après deux semaines et 4 échanges avec Décathlon, nous avons opté pour le retour. En effet, si le fournisseur ne reconnait pas l'écart avec toutes les preuves apportées, c'est que le produit n'est pas parfaitement fabriqué et qu'un échange aurait conduit probablement à nous envoyer une nouvelle tente avec le même défaut.",Négatif,0.48,rating_3|low_confidence,,,,,
+1557,www.decathlon.fr,66,arthas,3,Actualisé le 29 juil. 2025,"Commande d'un vélo à 500 euros le 12 juillet, livraison prévue le 17 juillet.
+Nous sommes le 24 juillet aucune nouvelle et au service client c'est limite si on nous raccroche pas au nez sans solutions.
+Livré le 29 juillet je modifie donc mon avis",Négatif,0.54,rating_3|low_confidence,,,,,
+1558,www.decathlon.fr,67,Pascal-Pierre,3,21 juil. 2025,"Après les prix ronds en euros comme du temps du franc, Décathlon redécouvre les cents....hélas, ils ne connaissent que le 99 cents....alors que l'euro se divise en 100 cents....mais il y a un léger progrès mais je préfère d'autres enseignes.....que je trouve moins chères...",Neutre,0.59,rating_3|low_confidence|mixed_text,,,,,
+1559,www.decathlon.fr,68,Alain Dupin,3,15 juil. 2025,"Insatisfait - Livraison rapide, par contre matériel cassé à l'intérieur et pourtant très bien protégé donc le produit à obligatoirement été cassé avant conditionnement par contre il fonctionne mais Pas acceptable de la part d'une entreprise comme Decathlon. Client perdu.",Négatif,0.56,rating_3|low_confidence|mixed_text,,,,,
+1560,www.decathlon.fr,69,Clément Lefèvre,3,11 juil. 2025,Le vélo est très stable et parfait pour les débutants. Le montage a pris environ 1 heure avec l'aide des instructions en ligne. Seul bémol : les freins nécessitent un réglage minutieux après l'assemblage.,Neutre,0.54,rating_3|low_confidence|mixed_text,,,,,
+1561,www.decathlon.fr,70,Valérie DESPIT,3,4 juil. 2025,"Manque de sérieux - Cela fait plusieurs fois que je passe des commandes chez Decathlon et à chaque fois il y a un problème. Cette fois, j'ai reçu un 1er mail me disant qu'il y avait une rupture sur 1 article et aujourd'hui 2ème mail pour me dire que ma commande aurait du retard car 1 article n'est pas prêt. Si il leur faut quinze jours pour faire une commande, il faut changer de métier. Dans le magasin sur Dreux, on en parle même pas, plus ça va et moins ils ont d'articles. Je suis très déçue et je trouve çà lamentable pour un grand nom de magasins.",Négatif,0.66,rating_3,,,,,
+1562,www.decathlon.fr,71,Helene,3,17 juin 2025,"Pas mal, pour les achats en magasin... Prix parfois plus attractifs que dans d'autres boutiques de sport pour une qualité similaire... Mais les livraisons.... Faut pas être pressé... La prochaine fois, je commande sur Temu, au moins je serais prête a poireauter ainsi... C'est loooooonnnggg!! Je regrette d'avoir commandé...",Neutre,0.61,rating_3|low_confidence|mixed_text,,,,,
+1563,www.decathlon.fr,76,Stephanie T,4,13 mai 2026,"Très satisfaite - J’étais très déçue par un premier accueil à l’atelier des vélos. Puis Gautier, le responsable de ses services m’a donné une entière satisfaction. Il a été aimable et compressif et très efficace. Je recommande vivement.",Positif,0.83,positive_rating_negative_terms|mixed_text,,,,,
+1564,www.decathlon.fr,77,Jasmine,4,8 mai 2026,"Avis sur un trampoline grande dimension 4.07m rectangulaire avec renforts au bout de même pas trois d installation tout de déchire de partout le support ,le filet
+Prix d achat plus de 500e quand même
+Des photos peuvent être fournies
+Très déçue 😞",Négatif,0.62,low_confidence|rating_label_conflict|positive_rating_negative_terms,,,,,
+1565,www.decathlon.fr,79,Jack Gomaway,4,6 janv. 2026,Toujours satisfait par le net et en phisyque. Livraison ultra rapide . La qualité correspond au prix .,Positif,0.85,positive_rating_negative_terms|mixed_text,,,,,
+1566,www.decathlon.fr,80,NATHALIE,4,12 déc. 2025,"Problème de livraison resolu - Suite a une commande pour les fêtes. Chronopost m'a repousse la livraison chaque jour. Après un premier appel, pas de résultat. J'ai donc rappelé le service client et demande s'il etait possible d'annuler et d'aller chercher en magasin. Résultat la personne en ligne a fait la recherche de la disponibilité vennmgasin proche de chez moi. En 24 h le remboursement etait sur ma carte. ... le tout il est peut être important de ne pas agresser la personne en ligne qui ne fait que son travail. La courtoisie est de mise. Bonne fete",Positif,0.6,low_confidence|positive_rating_negative_terms,,,,,
+1567,www.decathlon.fr,82,Bob,4,5 sept. 2025,"Service clients compétent et politique de retour intéressante - Cela fait maintenant plus de dix ans que j'achète des produits Decathlon pour diverses raisons :
+- Des vélos pour toute la famille ;
+- Des produits pour mes activités sportives (principalement la musculation).
+- Des consommables tels que des chaussettes, des maillots de bain, des vestes, des chaussures, etc.
+
+Ce que j'ai toujours apprécié, c'est la cordialité et la compétence des vendeurs en magasin. De plus, l'une des raisons pour lesquelles j'achète en toute sérénité est la politique de retour valable pendant un an.
+J'ai utilisé ce service à quelques reprises, par exemple lorsqu'un produit (un vélo) était défectueux, ou lorsque j'ai acheté récemment un banc de musculation qui s'est finalement avéré trop encombrant dans ma chambre. J'ai pu effectuer le retour au bout de trois semaines sans aucun problème et j'ai reçu un remboursement sous forme de cartes-cadeaux valables deux ans (que j'ai bien sûr dépensées bien avant !).
+Si je donne quatre étoiles et non cinq, c'est parce que je trouve que la politique de la carte de fidélité est un peu radine. Il faut vraiment dépenser beaucoup pour obtenir un bon de 5 ou 10 euros... Je pense que Decathlon a une marge de profit plus importante pour inciter ses clients à acheter davantage en récompensant les clients fidèles. Mais mon avis général reste très positif.",Positif,0.6,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1568,www.decathlon.fr,85,Philippe Frere,4,29 juin 2025,"Je commande fréquemment des articles de pêche sur le site web de decathlon.fr qui est bien fourni, mais un peu brouillon. J’ai commandé récemment 2 articles qui étaient en rupture de stock. Je l’ai signalé au service client d’Auxerre qui a fait le maximum pour trouver ces articles dans d’autres agences. Finalement j’ai reçu le colis au bout de 17 jours. J’étais un peu déçu mais ils ont fait quand même tout pour me satisfaire. Alors merci à eux et surtout mettez vos stock à jour sur le Web.",Positif,0.6,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1569,www.decathlon.fr,87,Pybot,4,16 mai 2025,Satisfait de la livraison,Positif,0.75,positive_rating_negative_terms|mixed_text,,,,,
+1570,www.decathlon.fr,88,M F,4,25 mars 2025,"Avis produits rejeté - Sur le site de Décathlon si vous mettez la moindre critique sur un produit l avis sera rejeté !!!
+Impossible de leur exprimer une légère insatisfaction ou juste un conseil encore une fois rejeté!!!
+ou une remarque.
+A quoi cela sert il alors???",Négatif,0.65,rating_label_conflict|positive_rating_negative_terms|mixed_text,,,,,
+1571,www.decathlon.fr,89,Rui Peixe,4,20 mars 2025,Pas mal du tout,Positif,0.64,low_confidence,,,,,
+1572,www.decathlon.fr,90,SOPHIE,4,16 févr. 2025,"BUG VELO E ACTIV 900 AVEC APPLI DECATHLON RIDE - J'ai reçu mon vélo E ACTIV 900 fin décembre. Suivant les conseils du vendeur, j'y ai tout de suite connecté l'application Decathlon ride en cochant en mode automatique. Une fois sur deux, le vélo restait bloqué en ""mode de conduite eco"", équivalent à une ""vitesse"" sur un vélo ordinaire (bonjour les montées...). J'ai appelé presque dix fois sans que personne ne comprenne ce qui se passe. Seule réponse : ""Ramenez le vélo au magasin"" - 54km aller retour avec le prêt d'une remorque... Un commentaire négatif a été fait sur le site Décathlon (et pas publié...). BREF, PERSONNE N'A COMPRIS LA ""PANNE"". Sûrement parce que le produit est trop récent. Pour tous ceux qui sont dans mon cas, c'est à dire ""abandonnés"" par Décathlon, voici comment résoudre ce bug : il suffit simplement de NE PAS METTRE L'APPLI SUR MODE AUTOMATIQUE, même si le vendeur vous le conseille. Maintenant, je peux profiter de ce vélo absolument génial !",Positif,0.6,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1573,www.decathlon.fr,92,Olive Azert,4,15 janv. 2025,"Achat d'un tapis de course, je l'utilise depuis 3 semaines sans problème",Positif,0.72,positive_rating_negative_terms|mixed_text,,,,,
+1574,www.decathlon.fr,93,Gwenaëlle Monpays,4,12 déc. 2024,"Site et applications non liés ? - Toutes mes commandes sur le site ont été livrées dans les temps et sans soucis avec les produits.
+
+Par contre, il est vraiment dommage que le site de décathlon.fr et l'application ne soit pas liés ! Quand on met en favoris sur l'appli, on ne le retrouve pas sur le site (malgré un compte client enregistré sur l'appli et le site évidemment). Quand on choisit de conserver un article pour plus tard sur le site, on ne le retrouve pas sur l'appli. Vraiment pas pratique à ce niveau là.
+
+Pas pratique non plus de ne pas forcément voir aisément quand c'est un revendeur et pas décathlon. Ce n'est pas très intuitif globalement au niveau du site internet et de l'application, mais je n'ai rien à redire sur la qualité des articles reçus jusqu'à présent.",Positif,0.64,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1575,www.decathlon.fr,94,P-soudal,4,27 nov. 2024,"Après plusieures commandes en ligne je suis satisfait des produits. Le delai de livraison est respecté.
+Paul Soudal (86)",Positif,0.75,positive_rating_negative_terms|mixed_text,,,,,
+1576,www.decathlon.fr,95,Céline Piguillem,4,23 nov. 2024,"Appel service client pour une commande en ligne - Je n'avais pas vu que des articles de ma commandes n'étaient plus disponibles et j'ai contacté le service client par téléphone quand j'ai vu que mon colis n'était donc pas complet.
+Un samedi soir à 18h passées, je suis directement tombée, sans attente, sur une personne compétente, efficace et aimable qui a su répondre à mes questions et faire un geste commercial pour compenser le désagrément de la rupture de stock, en plus de m'offrir la livraison de ma prochaine commande en ligne.
+
+J'ai enlevé une étoile car l'information quant aux produits manquants n'était pas claire, et la personne que j'ai eu en ligne ne pouvait pas me donner de délai quant au réassort des stocks, mais à part ça je suis très satisfaite de l'appel.",Positif,0.59,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1577,www.decathlon.fr,101,Valentin Ouary,5,13 mai 2026,"Je n’ai jamais eu de problème avec décathlon à chaque fois que j’avais un problème, il s’embête pas, ils reprennent ils nous font un bon d’achat et je trouve ça efficace et c’est pour ça que je continue à venir chez eux. Leur but s’attirent les clients au maximum qui peuvent et ça c’est cool. Continue comme ça.",Positif,0.77,positive_rating_negative_terms|mixed_text,,,,,
+1578,www.decathlon.fr,102,Damien,5,9 mai 2026,Jamais de problèmes. - Je n'ai jamais eu de problème ni de retours à faire parfait.,Positif,0.84,positive_rating_negative_terms|mixed_text,,,,,
+1579,www.decathlon.fr,103,Flo,5,6 mai 2026,"Globalement satisfait des produits proposés par Décathlon. La plupart des produits ne valent pas ceux de marques dédiées (Sooruz pour le surf par exemple) mais présentent une qualité acceptable pour un prix abordable. Les vendeurs en magasin sont souvent agréables et de bon conseil et le click & collect fonctionne très bien. La livraison est passable mais le sujet vient plutôt des livreurs, je conseille d'aller directement en magasin si c'est possible.",Positif,0.8,positive_rating_negative_terms|mixed_text,,,,,
+1580,www.decathlon.fr,105,Pierre MORTREUX,5,23 avr. 2026,"Je suis allé faire réviser mon longtail Decathlon sur le magasin de Campus + un problème de visse qui était cassée dans le cadre
+
+1 - Maintenant on peut réserver en ligne son intervention, c'est vraiment bien
+
+2 - Le technicien a vraiment bien expliqué, et m'a annoncé une intervention sous 1 à 2 jours (la visse étant un problème compliqué)
+
+3 - Révision des freins + changement des plaquettes + changement de la visse pour 56€ (bonus repar inclus), c'est vraiment pas cher
+
+4 - J'ai récupéré mon vélo le soir même, ce qui était bien confort !
+
+Bref, une équipe au top, et une intervention très bien réalisée. Merci l'atelier de Decathlon Campus",Positif,0.8,positive_rating_negative_terms|mixed_text,,,,,
+1581,www.decathlon.fr,106,Vincent Peron,5,16 avr. 2026,Jamais déçu que ce soit dans la choix et la qualité de produit. Et le service client très a l'écoute,Positif,0.86,positive_rating_negative_terms|mixed_text,,,,,
+1582,www.decathlon.fr,108,Theo,5,5 avr. 2026,"Merci decathlon - Jamais déçu des produits des prix et des vendeurs, c’est important de le dire quand on est satisfait aussi !",Positif,0.87,positive_rating_negative_terms|mixed_text,,,,,
+1583,www.decathlon.fr,109,Joëlle Carnan,5,3 avr. 2026,Très bonne expérience pour la commande et le retrait de mon colis !,Positif,0.89,positive_rating_negative_terms,,,,,
+1584,www.decathlon.fr,111,Marchand,5,17 mars 2026,"Un couple de 79 ans en camping en Nouvelle Zélande -Février 2026 - Tente Simond Forclaz MT 900 pour trek
+Nous revenons d'un mois en Nouvelle Zélande avec notre tente. Nous avons subi des vents de 80/100 km/h voir plus puisque les ferry et avions ont été arrêtés pendant 2 jours avec avis de tempête. Nous pensions voir notre tente se déchirer ! Le bruit était infernal. C'était très impressionnant. Le temps était d'automne et pas d'été comme prévu. Le vent a été très présent pendant tout le séjour. Nous avions déjà subi un gros orage en nous sentant très bien abrité.
+Elle est géniale. Habitabilité, légèreté, montage (mais revoir les fourreaux des tubes noirs, séchage rapide...)
+Nous la recommandons à tous nos amis baroudeurs.
+-Une petite critique sur les fourreaux des tubes noirs. Nous avons du mal à les insérer rapidement dans leurs encoches, dommage. C'est une tente que nous avons acheter la première année de sa sortie. Peut-être y avez-vous remédié depuis ?
+- Hélas notre sac s'est envolé sans pouvoir le récupérer ! Est-ce possible d'en racheter un autre ?
+Et nous comptons bien fêter nos 4x20 ans sur les chemins avec notre tente fétiche !",Positif,0.77,positive_rating_negative_terms|mixed_text,,,,,
+1585,www.decathlon.fr,112,Rozenn Leforestier,5,6 mars 2026,Très bon service client,Positif,0.89,positive_rating_negative_terms,,,,,
+1586,www.decathlon.fr,116,Bernard,5,28 févr. 2026,"Très bien, on gagne des points en faisant du sport, 10 pts pour un avis par contre c'est pas terrible vu le temps que ça prend",Positif,0.83,mixed_text,,,,,
+1587,www.decathlon.fr,118,Monéi -,5,11 févr. 2026,Parfait - J'ai eu des problèmes avec un de leur partenaire lors de ma commande sur le site mais ils ont été très gentils et réactifs et se sont même excusés alors qu'ils n'y étaient pour rien.,Positif,0.82,mixed_text,,,,,
+1588,www.decathlon.fr,9,Haripriyā Vishrānti GX,1,ll y a 3 jours,"Confirmé
+06 mai 2026
+
+En préparation
+12 mai 2026
+
+Expédié
+19 mai 2026
+
+Disponible en point relais
+Livraison prévue le
+26 mai 2026
+
+Voici le délais extraordinaire pour livrer deux articles!",Négatif,0.83,coverage_fill,,,,,
+1589,www.decathlon.fr,33,Jules Troupel,2,21 avr. 2026,J’ai comender une canne à pêche sur le cite il y avait marqué livraison sou 48h sa fait 3 jours !!!!,Négatif,0.83,coverage_fill,,,,,
+1590,www.decathlon.fr,8,ca roule jerome,1,ll y a 3 jours,"A propos du sav/service tech: inutile de leur demander par eMail une info technique...idem en magasin à l'atelier Cycle... C'est des commerçants avant tout ,j'te vends 1 produit, puis démerde toi pour les pièces détachées qque années + tard",Négatif,0.86,coverage_fill,,,,,
+1591,www.decathlon.fr,28,Mikael Larose,2,ll y a 2 jours,"Le sav est une catastrophe, j ai un problème avec mon compteur gps et personne pour régler mon problème.
+Mon avis a même été refusé sur l application décathlon.
+J ai multiplié les appels et j ai été ballade de services en services.",Négatif,0.87,coverage_fill,,,,,
+1592,www.decathlon.fr,35,Bernard Tisserant,2,27 mars 2026,"C'est plus ce que c'était . Il y a beaucoup moins de choix, rayon pêche par exemple pas grand choix. Il n'y a pas photo, quoique vous en pensiez. ( Je ne suis pas le seul a l'avoir constaté)",Négatif,0.87,coverage_fill,,,,,
+1593,www.decathlon.fr,14,JefC44,1,13 mai 2026,"matériel incomplet, Connexion au site impossible. - Commande arrivée dans un carton défoncé. Pièces manquante sur le kit demande.
+Difficultés pour se connecter sur le site a cause de l'outil de sécurité sensé envoyé un code d'authentification, donc réclamation impossible.",Négatif,0.88,coverage_fill,,,,,
+1594,www.intersport.fr,4,Fabiana ROCHA,1,Il y a une heure,"SAV Intersport catastrophique – produit perdu, aucune solution - Chaussures ASICS achetées sur le site Intersport, défaut après usage très léger. J’ai suivi exactement leur procédure de retour… pour qu’on m’explique ensuite que c’était “incorrect”.
+Résultat : remboursement refusé sans explication, produit censé être renvoyé mais disparu depuis le 4 mai.
+Malgré de multiples relances : aucune réponse sérieuse, aucun suivi, aucune solution.
+👉 Aujourd’hui : plus de chaussures, pas de remboursement, dossier bloqué.
+Service client totalement incompétent, désorganisé et irrespectueux. On vous balade sans jamais résoudre le problème.
+Franchement inadmissible pour une enseigne de cette taille.",Négatif,0.93,mixed_text,,,,,
+1595,www.intersport.fr,7,Serge VIGOUROUX,1,ll y a 2 jours,Inadmissible - Le produit était conforme mais dans un emballage déchiré et le produit hors de sa boîte a la réception,Négatif,0.84,negative_rating_positive_terms|mixed_text,,,,,
+1596,www.intersport.fr,16,Julien BIBOU,1,ll y a 4 jours,"Maillots abîmés par l'antivol - Après avoir tenté d'acheter un maillot en magasin, celui-ci était troué par l'antivol. Nous avons donc acheté via internet. Malgré une expédition rapide, Nous constatons à la réception que le problème est le même. Le maillot est simplement pris en rayon et après le retrait de l'antivol, il nous a été envoyé. Il est inadmissible qu'un maillot à ce prix présente un tel défaut causé par le magasin lui même.
+Je suis extrêmement déçu par l'enseigne, je pense qu'il s'agit de mon dernier achat chez eux.",Négatif,0.9,negative_rating_positive_terms|mixed_text,,,,,
+1597,www.intersport.fr,17,Salima,1,ll y a 4 jours,Délais non respecté les date change à chaque fois n’importe quoi mieux d’ aller sur place si le produit y es,Négatif,0.84,negative_rating_positive_terms,,,,,
+1598,www.intersport.fr,21,Basile “TAKE A BREATH” Ic,1,ll y a 5 jours,"Le responsable qui ne s'est pas déplacé a refusé de me faire le même prix de mes t-shirts en magasin qu'au prix normal en ligne vendu aussi par Intersport. (Prix qui n'est pas une promotion en ligne). J'ai du faire un click and collect. Et perdre un aller retour supplémentaire.Qu'est ce que c'est idiot et pas commerçant du tout !! Une personne du magasin au téléphone (après 2h30 d'attente) m'a dit qu'il fallait passer demain pour le click and collect... Eh bien... Non en fait ! Je lui ai demandé des explications ... Mais rien. J'ai raconté la même chose ici que sur Google et comme par hasard... SMS reçu 2 min après : ""votre commande est prête"". Et j'ai la carte de fidélité et j'aime bien l'enseigne. Mais là non. Commentaire posté sur Google. C'est normal de le signaler.",Négatif,0.93,mixed_text,,,,,
+1599,www.intersport.fr,30,Tarik,2,ll y a 6 jours,"Première commande chez Intersport et très probablement la dernière. J’ai payé une livraison à domicile, mais Colissimo n’a jamais réellement livré le colis malgré deux prétendues tentatives. Aucune solution satisfaisante proposée et obligation de se déplacer en point relais alors que ce n’était pas le service payé. Le colis repartira donc à l’expéditeur. Très déçu de cette expérience et du manque de suivi concernant la qualité du transporteur utilisé.",Négatif,0.93,negative_rating_positive_terms|mixed_text,,,,,
+1600,www.intersport.fr,31,Schmitt Michelle,2,11 mai 2026,"Commande effectué avec un bon d'achat de 20 euros mais commande incomplète et non remboursé.
+De plus , 1 article n'était pas de la bonne couleur... déçu",Négatif,0.91,mixed_text,,,,,
+1601,www.intersport.fr,32,Ambre,2,9 mai 2026,"L'emballage des baskets est très très mauvais car il n'existe pas.
+Aucune protection des baskets en plus en daim.
+Pas de papier de soin de protection, ni à l'intérieur de la basket
+Les baskets sont justes déposés dans leur boîte.
+Dommage !!!
+Car la rapidite est très bonne et ma basket est belle, sinon j'aurais mis 1 étoile.",Négatif,0.89,mixed_text,,,,,
+1602,www.intersport.fr,33,Bruno Dubois,2,8 mai 2026,"Une commande disponible en magasin mais qui en drive fait finalement 500 kms de transit.
+Peut mieux faire non ?",Négatif,0.86,mixed_text,,,,,
+1603,www.intersport.fr,34,Catherine FERRIE,2,8 mai 2026,"poche cadeau payante chez intersport. - Allant chez intersport hier,j achète pour près de 60 € d articles pour 1 article je demande un paquet cadeau, on me présente une petite poche facturée 25 c j ai la carte ,je suis cliente,mais je trouve le principe honteux, la prochaine fois j irai chez sport 2000. Il ne faut pas s étonner si ces magasins se vident petit à petit. Pourr les autres articles on repart en les tenant au bout des doigts....",Négatif,0.88,mixed_text,,,,,
+1604,www.intersport.fr,35,Emi,2,7 mai 2026,"Nous sommes passée en caisse avec…TMAEVA - Nous sommes passée en caisse avec TMaeva a 17h35:41
+Accueil désagréable très froide comme ci elle n’avait pas envie de travailler mon coin joint lui demande gentille ment si les sac sont payant elle le lui a répondu que Non mais qu’il ne proposait pas de sac vraiment très froide je suis vraiment déçu parce que j’adore ce magasin et jamais eu de soucis",Négatif,0.89,negative_rating_positive_terms|mixed_text,,,,,
+1605,www.intersport.fr,37,Chantal LEFEBVRE,2,5 mai 2026,Erreur sur la commande. Commande en 3 paquets donc heureusement que j’ai vérifié et obligée de repayer plus cher l’article qui n’était pas à la bonne taille car du coup je n’en commandais plus qu’un au lieu de 3 initialement,Négatif,0.89,mixed_text,,,,,
+1606,www.intersport.fr,39,Laetitia Gautier Thomas,2,3 mai 2026,"Le délai de livraison donné n'a pas été respecté.
+Ne donnez pas de date ni heure de récupération si vous ne pouvez pas le respecter",Négatif,0.87,negative_rating_positive_terms|mixed_text,,,,,
+1607,www.intersport.fr,40,Flavie Cote,2,3 mai 2026,"0 nouvelle après 1 semaine de commande
+Habituellement c'est rapide
+Cette fois ci très déçue dommage",Négatif,0.89,negative_rating_positive_terms|mixed_text,,,,,
+1608,www.intersport.fr,47,Michel Durey,2,25 avr. 2026,"Délai livraison non respecté - Vacances obligent, malgré une livraison annoncée dans les temps - délai sur commande non respecté",Négatif,0.87,negative_rating_positive_terms|mixed_text,,,,,
+1609,www.intersport.fr,52,Claudine,3,Il y a 19 heures,"La qualité des boxers est très bien.
+Néamoins je ne suis pas satisfaite concernant la livraison.
+J'ai passé une commande de 4 boxers de bains le 12 mai.
+J'ai reçu 1 boxer assez rapidement. Puis 2 autres le 21 mai (aujourd'hui).
+J'attends le 4ème boxer ??? Mais pas de réponse à mon mail ou/et date approximative de livraison.",Neutre,0.53,rating_3|low_confidence|mixed_text,,,,,
+1610,www.intersport.fr,53,Farah Kasby,3,ll y a 2 jours,L’attente au niveau du retrait commande si on commande sur le site c’est justement pour pas faire la queue. Dans le magasin il n’y a personne pour nous renseigner je cherchais une taille mais personne à l’horizon et quand on fini par en croiser un à l’autre bout du magasin ni bonjour ni rien.De plus les réductions fidélité la semaine d’avant j’avais le droit à 5€ et quand je suis revenue ils étaient expirés vous croyez qu’à la caisse on vous le signale évidemment que non.,Négatif,0.58,rating_3|low_confidence|mixed_text,,,,,
+1611,www.intersport.fr,54,Elodie Schneider,3,ll y a 2 jours,Le prix indiqué était plus élevé que le prix en magasin. Heureusement la vendeuse m'a fait un avoir.,Neutre,0.52,rating_3|low_confidence|mixed_text,,,,,
+1612,www.intersport.fr,55,Christophe R,3,ll y a 2 jours,"Beaucoup d'attente et délais non respecté - Lorsque tu valides ta commande, le Délais de retrait est indiqué à 2h et à chaque fois il est dispo en fait pas avant 24h. Beaucoup d'attente en magasin pour le retrait.",Neutre,0.61,rating_3|low_confidence|mixed_text,,,,,
+1613,www.intersport.fr,56,sergeM,3,ll y a 2 jours,Soigner l’emballage des produits enveloppe déchiré et produit visible le point relais était d’accord avec moi,Neutre,0.41,rating_3|low_confidence,,,,,
+1614,www.intersport.fr,57,Monique,3,ll y a 3 jours,Envoyer un produit conforme et en bon état,Neutre,0.38,rating_3|low_confidence,,,,,
+1615,www.intersport.fr,58,Laeti C,3,ll y a 6 jours,"Il serait bien de faire attention aux emballages qu'ils ne soient pas déchirés, et surtout une araignée en est sortie lors de l'ouverture du colis. La première fois que cela m'arrive depuis que je fais des achats chez vous.",Neutre,0.48,rating_3|low_confidence,,,,,
+1616,www.intersport.fr,59,Maurane,3,13 mai 2026,Mon avis - Déçue de pas pouvoir faire renvoyer mon produit,Négatif,0.51,rating_3|low_confidence,,,,,
+1617,www.intersport.fr,60,cliente,3,13 mai 2026,"J’ai reçu le cartable avec un antivol, donc j’ai été obligée de me déplacer au magasin pour le faire enlever.",Neutre,0.53,rating_3|low_confidence,,,,,
+1618,www.intersport.fr,61,Nico_H,3,10 mai 2026,"Le site est complet. Le choix varié. Les stocks ne sont pas à jour. Régulièrement, les commandes ne sont pas complètes. Il est plus facile d'aller en magasin pour éviter les mauvaises surprises et commande incomplète",Neutre,0.73,rating_3,,,,,
+1619,www.intersport.fr,62,Vincent Rouquet,3,10 mai 2026,mon expérience est la suivante. Je commande des bermudas à ma taille ( 42 ) mais il semble que cela taille un peu grand. Impossible de renvoyer le paquet. Je dois l'amener dans un magasin pour être rembourser et recommander l'article en taille 40 ... Très pratique ! alors qu'il suffirait d'échanger les articles par voix postale et le problème serait réglé sans avoir à faire autant de démarches,Négatif,0.5,rating_3|low_confidence|mixed_text,,,,,
+1620,www.intersport.fr,63,Christophe Titeuf,3,7 mai 2026,"Erreur de couleur - En commandant sur le site, j’ai reçu mon sous-vêtement d’une couleur différente de celle que j’ai commandé",Négatif,0.59,rating_3|low_confidence,,,,,
+1621,www.intersport.fr,64,Camille Freyermuth,3,7 mai 2026,"Emballage très moyen, la raquette de tennis même pas calée avec du plastique, elle se baladait dans le carton, des trucs envoyés en même temps et rentrant largement dans le carton de la raquette ont été envoyé individuellement et tour de poignets que j'ai acheté sont arrivé en couleur bleu nuit presque noir alors qu'ils étaient sensé être bleu clair",Négatif,0.5,rating_3|low_confidence,,,,,
+1622,www.intersport.fr,65,Joëlle,3,5 mai 2026,"Paire de solaire, sans protection - J'ai acheté une paire de solaire pour offrir. Les lunettes sont arrivés dans le sachet Intersport sans protection.
+Il serait à l'avenir bien de retirer l'antivol, de nettoyer les verres (traces de doigts) et enfin de les mettre dans un pochon ou boîtier. Heureusement, elles sont arrivées sans dommage. J'ai dû aller en boutique pour avoir un pochon, histoire que ça fasse un peu plus cadeau.",Neutre,0.58,rating_3|low_confidence|mixed_text,,,,,
+1623,www.intersport.fr,66,Jonathan,3,5 mai 2026,Livraison avec antivol.,Neutre,0.7,rating_3,,,,,
+1624,www.intersport.fr,67,Florence,3,4 mai 2026,"Attention aux tee-shirts, car les coutures sur le devant au lieu d'être sur les côtés rendent le vêtement impossible à mettre.",Négatif,0.66,rating_3,,,,,
+1625,www.intersport.fr,68,JFH,3,4 mai 2026,première expérience compliquée - Dommage que cette première expérience ne ce soit pas déroulée comme prévu (délais de traitement de ma commande et de livraison de l'article longs) car au final le vélo reçu est plus que satisfaisant à première vue ; reste à confirmer à l'usage... à suivre ?,Neutre,0.57,rating_3|low_confidence|mixed_text,,,,,
+1626,www.intersport.fr,69,Lesaffre,3,4 mai 2026,De pas ce trompé dans la commande,Neutre,0.57,rating_3|low_confidence,,,,,
+1627,www.intersport.fr,70,Sylvie,3,4 mai 2026,Ne pas oublier de retirer les antivols avant d'expedier les vêtements - Commande d'un vêtement reçu rapidement .Conforme mais l'antivol n'a pas été retiré .Je vais donc devoir aller en magasin afin de regler ce problème .Quel dommage!,Négatif,0.55,rating_3|low_confidence|mixed_text,,,,,
+1628,www.intersport.fr,71,Marc K,3,4 mai 2026,"Deux produits sur quatre défectueux - Rien à dire sur le site pour passer la commande, pareil pour le retrait en magasin. Par contre sur quatre produits commandés deux sont défectueux. Valves des chambres à air bloquées et après déblocage ne tiennent pas l'air.",Neutre,0.55,rating_3|low_confidence|mixed_text,,,,,
+1629,www.intersport.fr,76,anne-laure potdvin,4,Il y a un jour,Achat tapis yoga - Ma commande est arr6dans le délai donné 👍😃,Positif,0.62,low_confidence|positive_rating_negative_terms,,,,,
+1630,www.intersport.fr,77,Carotte,4,ll y a 2 jours,Site de confiance. Nombreux articles de marque. Livraison sans problème. Facilité de renvoi.,Positif,0.73,positive_rating_negative_terms|mixed_text,,,,,
+1631,www.intersport.fr,81,Client petit,4,ll y a 4 jours,"Agréable mais manque de personnel!, - Agréable mais manque depe",Positif,0.72,mixed_text,,,,,
+1632,www.intersport.fr,84,lolo18,4,ll y a 6 jours,"Produits de qualite, sauf pour la marque intersport en vêtements. Les tailles ne correspondent pas toujours.
+Personnel compétent
+Programme fidélité interessant.
+Devrait agrandir le magasin de saint doulchard",Positif,0.63,low_confidence,,,,,
+1633,www.intersport.fr,86,Fra,4,ll y a 6 jours,"Mini soucis mais super enseigne - Ca fait 2 fois que je commande des baskets et le carton arrive très endommagé la ca ma beaucoup gêné car c'était un cadeau , mais je met 10 pour tout le reste 😊",Positif,0.69,mixed_text,,,,,
+1634,www.intersport.fr,87,Valérie MARTOS,4,ll y a 7 jours,"Satisfaite de ma commande, de la remise appliquée, des délais de livraison respectés",Positif,0.55,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1635,www.intersport.fr,88,victoire,4,15 mai 2026,"Le délai de livraison en magasin était top!
+Par contre il n’y avait pas beaucoup de réductions.",Positif,0.66,positive_rating_negative_terms|mixed_text,,,,,
+1636,www.intersport.fr,90,PIERRE,4,13 mai 2026,Qualité des services et des produits. Rapidité de la livraison.,Positif,0.77,positive_rating_negative_terms|mixed_text,,,,,
+1637,www.intersport.fr,91,JJBEL,4,11 mai 2026,"Facilité de passer commande.
+Livraison plus rapide que prévue",Positif,0.79,positive_rating_negative_terms|mixed_text,,,,,
+1638,www.intersport.fr,92,Brigitte,4,10 mai 2026,"Rapidité de livraison, cagnotte possible et prix abordables.",Positif,0.74,positive_rating_negative_terms,,,,,
+1639,www.intersport.fr,94,elite jet,4,10 mai 2026,"j'ai bien reçu le colis, conforme à la description, tout est ok! cependant le systeme anti-vol des jeans commandé n'était pas enlever.",Positif,0.69,positive_rating_negative_terms|mixed_text,,,,,
+1640,www.intersport.fr,95,Messaouda H.,4,9 mai 2026,Livraison rapide et produit conforme à celui du site. Il manquait juste des indications sur la taille des baskets : pieds forts ou pieds fins.,Positif,0.82,positive_rating_negative_terms|mixed_text,,,,,
+1641,www.intersport.fr,101,Simon,5,Il y a 4 heures,"Bon Service Client - Je cherchais à acheté une vis pour réparer la pédale de vélo, il n'en vendait pas mais le sav m'a gentiment offert une vis de récupération",Positif,0.7,positive_rating_negative_terms|mixed_text,,,,,
+1642,www.intersport.fr,103,PEREIRA JEAN-MARC,5,Il y a un jour,Article facile à trouver et livraison rapide en magasin,Positif,0.92,positive_rating_negative_terms|mixed_text,,,,,
+1643,www.intersport.fr,106,Patricia Morineau,5,Il y a un jour,"Site sérieux. Il me semble que le produit acheté est de bonne qualité, comme annoncé, à voir à l usage.
+Livraison rapide.",Positif,0.92,positive_rating_negative_terms|mixed_text,,,,,
+1644,www.intersport.fr,107,Nicolas Gil,5,Il y a un jour,"Qualité prix, et livraison fiable",Positif,0.91,positive_rating_negative_terms|mixed_text,,,,,
+1645,www.intersport.fr,110,Patrice,5,ll y a 2 jours,Excellent rapport qualité prix. - La fiabilité d'une grande enseigne et le choix/prix d'un site internet. La livraison a été faite en un jour en cette période de ponts.,Positif,0.87,positive_rating_negative_terms|mixed_text,,,,,
+1646,www.intersport.fr,112,Fabienne,5,ll y a 2 jours,"Large choix de grandes marques de sport, avec de multiples articles.
+Rapport qualité prix
+Livraison rapide",Positif,0.93,positive_rating_negative_terms|mixed_text,,,,,
+1647,www.intersport.fr,114,Nathy,5,ll y a 3 jours,Au top - Commande facile sur le site. Livraison rapide et respect des délais.,Positif,0.93,positive_rating_negative_terms|mixed_text,,,,,
+1648,www.intersport.fr,115,Yasmina Carlier,5,ll y a 3 jours,Colis reçu dans les temps et en très bon état…,Positif,0.91,positive_rating_negative_terms,,,,,
+1649,www.intersport.fr,116,brigitte fourtane,5,ll y a 3 jours,Livraison très rapide,Positif,0.95,positive_rating_negative_terms|mixed_text,,,,,
+1650,www.intersport.fr,118,nathalie,5,ll y a 3 jours,Baskets puma - Site facile d'utilisation. La commande et le suivi se sont bien passés. Livraison la date prévue. Baskets au top. Je recommande.,Positif,0.86,positive_rating_negative_terms|mixed_text,,,,,
+1651,www.intersport.fr,119,durand,5,ll y a 4 jours,j'ai fait plusieurs achat en magasin et je trouve qu'il y a du choix à des prix moins cher que d'autre magasin de sport et j'ai toujours trouver ce que je cherchais .j'ai fait quelque achats en ligne et je n'ais jamais été déçu. Je l'ais même recommandé à des amis qui en sont satisfait,Positif,0.79,positive_rating_negative_terms|mixed_text,,,,,
+1652,www.intersport.fr,11,yann dubois,1,ll y a 3 jours,"Retour chez amazon - 1 délai de livraison très long
+2 l indication concernant les délais de livraison accessoire vélo est très peu visible
+3 votre transporteur a perdu le colis
+Plus d' une semaine de perdu
+Tant pis pour moi, j' aurais essayer
+Du coup commande chez amazon livrer 48h plus tard",Négatif,0.74,coverage_fill,,,,,
+1653,www.intersport.fr,36,Edwige Saycocie,2,5 mai 2026,J’ai tapé short homme et je me suis retrouvé avec un short enfants taille M,Négatif,0.78,coverage_fill,,,,,
+1654,www.intersport.fr,19,Jeremy Farges,1,ll y a 4 jours,Trop cher le produit,Négatif,0.83,coverage_fill,,,,,
+1655,www.intersport.fr,38,Userducoin,2,4 mai 2026,Plusieurs commandes annulées alors que les produits sont bien en stock au moment de la commande ... et le sont encore plusieurs jours après l'annulation de mes commandes !,Négatif,0.83,coverage_fill,,,,,
+1656,www.intersport.fr,6,RAHM,1,ll y a 2 jours,"livraison trop lente, toujours pas été livré",Négatif,0.86,coverage_fill,,,,,
+1657,www.intersport.fr,9,Margaux Coutier,1,ll y a 2 jours,Mon jean est arrivé tâché. Aucune réponse du sav à ce jour,Négatif,0.86,coverage_fill,,,,,
+1658,www.intersport.fr,23,Damien,1,ll y a 5 jours,"Chaussures neuves d’occasions .
+Elles ont déjà été portées.
+Semelles sales . Lacets déjà fait et chaussures disposés de manière très aléatoire dans la boite.
+Déception .",Négatif,0.86,coverage_fill,,,,,
+1659,www.intersport.fr,29,tess misiaczyk,2,ll y a 5 jours,"Colis reçu avec antivol, deux aller retours et une perte de temps! Une semelle intérieur qui se décolle comme si le produit était défectueux. Cette fois, je suis très déçu!",Négatif,0.86,coverage_fill,,,,,
+1660,www.intersport.fr,18,Jordan Amaral,1,ll y a 4 jours,"Maillot de Foot a 160 € arrivé tâché + forte odeur de transpiration
+Pas ce qu'on attends d'un maillot EDF neuf....",Négatif,0.87,coverage_fill,,,,,
+1661,www.intersport.fr,15,Mr. Burkh,1,ll y a 4 jours,"Erreur de livraison - J’ai commander 2 cagoules homme pour la moto
+J’ai recu 2 cagoules junior …",Négatif,0.88,coverage_fill,,,,,
+1662,www.intersport.fr,46,Sabrina Serra,2,25 avr. 2026,"Lors de la réception de mon colis. Mes chaussures étaient sales à l' intérieur, plein de poils d'animaux et une semelle était manquante. Mon colis était en mauvais état à l intérieur comme a l'extérieur.",Négatif,0.88,coverage_fill,,,,,
+1663,www.intersport.fr,41,Rve,2,3 mai 2026,"Commande incomplète, le service client ne répond pas.",Négatif,0.89,coverage_fill,,,,,
+1664,www.cdiscount.com,5,Christophe Bonnin,1,Il y a 3 heures,"Pas recu mon colis . La photo de colissimo ne conrespond pas du tout a ma boite au lettre . Mon gendre qui a commandé la meme chose le meme jour a exactement le meme probleme. Î y a anguille sous roche avec ce vendeur mais cdiscount l'approuve .pour moi cdiscount c'est fini. Cest pas le 5 e de dédomagement proposé qui vont me faire change d'avis. Cdiscount ecoute plutot les vendeurs que les clients . Honte a vous . Un client, voir 2 avec ma fille de perdus",Négatif,0.93,mixed_text,,,,,
+1665,www.cdiscount.com,6,Gil LOR,1,Actualisé il y a 19 heures,"Manque de S.A.V. - J'ai passé commande pour une Station Météo Connectée et je reçoi un colis avec un autre article, un autre modèle de station météo bas de gamme ne correspondant en rien avec le descriptif. J'ai contacté le vendeur pour un retour avec échange ou remboursement.
+Je justifie ma note par le manque de contact avec le S.A.V et le renvoi directement avec le vendeur.
+Autrement dit, pour commander tout va bien mais quand il y a problème, débrouillez-vous.",Négatif,0.91,mixed_text,,,,,
+1666,www.cdiscount.com,7,Grassy,1,Il y a un jour,"Commande passée le 06/05, proposée avec un rabais de 100€ pour une ouverture de carte cdiscount x FLOA, ainsi qu’une livraison express pour la journée même. Demande de carte validée immédiatement auprès de FLOA, j’attends donc tout impatient ma commande. Au 21 mai, (16 jours après)j’ai été en contact (de mon fait) pas moins de 6 fois avec le service client Cdiscount pour essayer de comprendre pourquoi ma commande est toujours en attente de validation et non pas confirmée. Ladite équipe m’assure (les 6 fois) que ma demande est transmise au service « compétent » et que je serais relancé sous 48h. Vous aurez compris que je n’ai reçu aucune relance. Lors de mes deux derniers échanges à 96h d’intervalle, l’équipe Cdiscount m’indique que le problème viendrait de FLOA et qu’il y a un problème de paiement avec ma commande. Le service client FLOA non moins désastreux m’assure que tout est ok de leur côté (j’ai d’ailleurs bien été débité des frais bancaires liés à la carte très rapidement).
+J’en suis arrivé aujourd’hui à annuler ma commande (sous conseil de votre conseillère et heureusement les appels sont enregistrés ;) prêt à tout recommencer et, quelle surprise, le rabais de 100€ n’est évidemment plus disponible puisque c’est de mon fait si ma commande est annulée.
+Je me retrouve donc 16 jours après ma commande, sans téléphone, les nerfs à vifs, et avec une jolie carte de paiement que je n’utiliserai jamais parce que MON DIEU je n’ai jamais eu une expérience aussi catastrophique. Encore une fois, un groupe où quand tout se passe bien, il n’y a rien à redire, par contre au moindre problème : démerde toi.
+
+Pour finir, je tiens à souligner que : proposer un rabais pour l’ouverture d’une carte pour une commande qui n’arrivera jamais, et faire payer une livraison express pour la même finalité, cela ressemble étrangement à de la publicité mensongère voire à une fraude ! :)",Négatif,0.94,negative_rating_positive_terms|mixed_text,,,,,
+1667,www.cdiscount.com,10,Claire Ludault,1,ll y a 2 jours,"J'ai reçu un téléphone qui est sorti illégalement de l'usine.
+Je le leur est renvoyé mais le téléphone a été volé lors du transport.
+C discount me réclame le remboursement en tentant de prélever sur mon compte sans autorisation et en faisant intervenir un huissier.
+J'ai heureusement conservé le numéro emei du téléphone pour le tracer.
+J'ai le sentiment de me faire racketer par l'entreprise",Négatif,0.92,mixed_text,,,,,
+1668,www.cdiscount.com,11,Gregorie Certain,1,ll y a 2 jours,"Mépris total du client et prélèvement abusif : à fuir ! - Suite à une commande d'un produit que je n'ai jamais reçu, Cdiscount a scandaleusement donné raison au vendeur. Le comble ? Ils ont prélevé la somme directement sur mon compte sans m'en avertir, sachant qu'ils m'avaient pourtant remboursé cette même commande quelques jours plus tôt !
+
+C'est inadmissible pour deux raisons :
+
+Premièrement, le vendeur obtient gain de cause sans même avoir à fournir la moindre preuve de livraison.
+
+Deuxièmement, Cdiscount se permet de prélever de l'argent sur ma carte bancaire en toute opacité, sans la moindre prévention.
+
+Bravo pour une entreprise française... aujourd'hui, même les sites chinois se montrent bien plus respectueux et professionnels envers leurs acheteurs. J'étais un client régulier et fidèle depuis des années, je n'avais jamais eu de souci auparavant, mais face à de telles pratiques, c'est terminé. Vous venez de me perdre définitivement.",Négatif,0.92,mixed_text,,,,,
+1669,www.cdiscount.com,13,Med,1,ll y a 2 jours,"Une très mauvaise expérience avec la plateforme qui ne statue pas avec impartialité mais favorise les revendeurs.
+J'ai acheté un produit qui était défectueux que j'ai renvoyé à la demande du vendeur avec numéro de suivi en colissimo.
+Ces derniers m'indique dans un premier temps qu'il va se charger de la réparation maintenant qu'il a reçu le produit, confirmant donc qu'il a le produit entre les mains, et qui prétend par la suite (2 mois plus tard) ne finalement pas l'avoir reçu. Malgré toutes les preuves de livraison Cdiscount me donnera pas suite à ma requête.
+Je me retrouve donc sans l'argent et sans le produit . J'aurais dû passer par Amazon ce type de problème aurait été réglé beaucoup plus rapidement.
+
+Bonne chance à ceux qui auront un litige...",Négatif,0.94,mixed_text,,,,,
+1670,www.cdiscount.com,14,FR,1,ll y a 2 jours,Ayant commandé un iphone 13 mini reconditionné a neuf en mars 26 vendu par smd-tech et envoyer par Cdiscount ce téléphone livré rapidement l état esthétique était bon mais matériel une catastrophe telephone qui chauffe écran qui beug et reste bloqué signal réseau inexistant et son très mauvais aucune pièce d origine reconditionné avec du matériel plus que bas de gamme vendeur sois disant en Europe et qui viens de chine ne veux pas assurer la garantie ni Cdiscount qui couvre ces vendeurs malhonnête résultat du dossier tout part chez litige.fr et bon courage n acheter pas de l électronique ou du matériel électrique ils assume pas la garantie legale,Négatif,0.91,mixed_text,,,,,
+1671,www.cdiscount.com,16,Mathis BELLON,1,ll y a 3 jours,"Cdiscount cautionne la vente de contrefaçons sur sa Marketplace / Dossier SignalConso en cours. - J'ai acheté un Google Pixel 8 Pro vendu comme ""NEUF"" sur Cdiscount il y a moins d'un an. Suite à une panne, un réparateur professionnel a ouvert l'appareil et a découvert un écran de contrefaçon (tampon d'usine tierce ""TK""). C'est une pratique commerciale trompeuse majeure (reconditionné masqué).
+J'ai dû débourser 59,90 € de ma poche pour remettre l'appareil en conformité constructeur. Le vendeur envoie des copier-coller automatiques inutiles et Cdiscount refuse d'assumer ses responsabilités d'hébergeur en se dédouanant, me proposant un bon d'achat dérisoire de 20 €.
+Je refuse de me laisser faire. Le dossier est entre les mains de la FEVAD et de SignalConso. Je demande le remboursement légal et intégral de mes frais de réparation (59,90 €). @Cdiscount , prenez vos responsabilités face aux fraudeurs de votre plateforme.",Négatif,0.9,negative_rating_positive_terms|mixed_text,,,,,
+1672,www.cdiscount.com,17,Diegg Zz,1,ll y a 3 jours,Des illettrés ! Je commande une cuisine complète et je reçois que un meuble au lieu de tout livrer en même temps. Comme si t’achete une paire de chaussures mais ils t’envoient d’abord la droite et une semaine après la gauche. Bref essayer de réfléchir des fois merci,Négatif,0.9,negative_rating_positive_terms|mixed_text,,,,,
+1673,www.cdiscount.com,19,Rody,1,ll y a 4 jours,Le SAV a des procédures doutables Ca protege leurs vendeurs qui eux ont faites de faux promesses dans mon cas le vendeur a proposé de remplacer au lieu de réparer Après qq jours le vendeur m'a dit je n'ai pas de stock je voudrais vous rembourser jau dit Non et j'ai fait intervenir cdiscount qui après qq jours ont donne l OK pour rembourser car le vendeur n'a pas donné suite à une solution Super leur vendeur à ce qu'il voulait Cdiscount et content de leur interaction et moi j'ai rien plus mon.tel juste une remboursement qui ne prend pas compte de mes frais de transport kon plus Top,Négatif,0.94,negative_rating_positive_terms|mixed_text,,,,,
+1674,www.cdiscount.com,20,TOP MODEL,1,ll y a 4 jours,"SAV inefficace - Produit défectueux signalé dès le 23 octobre 2025.
+Casque envoyé en janvier 2026 comme demandé.
+À ce jour le 18 mai 2026 : aucune solution concrète, aucun remplacement, délais extrêmement longs et service après-vente inefficace.
+
+Depuis des mois je me retrouve sans casque fonctionnel malgré plusieurs relances.
+
+Très déçu par la gestion du dossier et le manque de suivi client.",Négatif,0.88,mixed_text,,,,,
+1675,www.cdiscount.com,23,Martine LAHELLEC,1,ll y a 6 jours,"J'ai jusqu'au 22 mai 2026 possibilité d'avoir une livraison expresse
+Mais aucun accès pour prendre cette option",Négatif,0.87,mixed_text,,,,,
+1676,www.cdiscount.com,28,jean luc ducombs,2,Il y a un jour,"Je commande de moins en moins chez cdiscount. Encore une fois un produit abimé et mon ancienne commande d 'un PC portable en 1 an deux fois en panne. Pardonnez-moi mais j'ai effectué plus de 20 commandes chez AMAZON, jamais un soucis. Total déception avec cdiscount",Négatif,0.91,mixed_text,,,,,
+1677,www.cdiscount.com,32,David chal,2,ll y a 6 jours,"4 commandes 1 problème, une bien et 2 annulations après 10 j - Sur mes 4 dernières commandes une a pris 15 jours et 3 contacts avant que l article ne me parvienne.1 s'est bien passée.La 3eme le vendeur n a jamais envoyé la commande mais m a fourni un numéro de suivi.J ai appelé le transporteur le colis ne m était pas du tout destiné et avait été livré.le vendeur a annulé a la suite de ça .la dernière annulée sans explication après plusieurs jours de ' en cours de préparation '",Négatif,0.93,mixed_text,,,,,
+1678,www.cdiscount.com,35,alain,2,13 mai 2026,beaucoup de produits etrangers et non respect du delais - je commande pour le prix mais délais non respecte et beaucoup de produits étrangers pas souvent de bonnes qualité,Négatif,0.79,negative_rating_positive_terms|mixed_text,,,,,
+1679,www.cdiscount.com,36,Testeur FR,2,13 mai 2026,"Malheureusement ils ont perdu tout intérêt depuis quelques années, avant on avait des produits style téléshopping à prix intéressant, des téléphones du marché gris à bon prix, mais c'était des versions EU/Global, maintenant c'est uniquement du dropshipping ou des prix absolument démesurés, comme par exemple 5€ le paquet de 100g de bonbons, c'est aberrant, et la qualité des produits est exécrable, des couvertures tellement fines qu'on dirait des plaids, des tapis tellement petits qu'on dirait des paillassons... Quand tu crois avoir une bonne offre pour un smartphone nouvelle gen en fait c'est une version US bridée/incompatible, les vendeurs sont de plus en plus malhonnête, ils expédient depuis la Chine sans le dire ! Il n'y à aucun moyen de contacter les vendeurs avant d'acheter sauf que leurs description génériques indiquent parfois une chose et son contraire, où une double description car copié-collé d'une page produit avec sélecteur (2 modèles) 😮‍💨. Je pense qu'il n'y à plus aucun intérêt d'acheter sur Cdiscount malheureusement, la marketplace l'a ruiné.
+
+✅👍 Le seul atout positif de Cdiscount c'est les coupons gratuits par exemple 5€ offerts pour 5€ d'achats, avec un peu de persévérance t'arrive à trouver un objet avec livraison gratuite à 5€ mais bon, ce sera genre un paquet de bonbons, un câble de basse qualité...",Négatif,0.89,negative_rating_positive_terms|mixed_text,,,,,
+1680,www.cdiscount.com,37,M.MENEAU,2,13 mai 2026,"Veut rivaliser avec le géant américain mais reste beaucoup a faire notamment sur la tech et la téléphonie fournie dans des pays tiers, on ce retrouve avec des objets connecter qui ne sont pas compatibles ou qui sont des séries réservé a d'autre pays donc des prix très abordable mais de piètre qualités !!",Négatif,0.86,mixed_text,,,,,
+1681,www.cdiscount.com,38,HUGO,2,13 mai 2026,pas super content du service client ....,Négatif,0.86,negative_rating_positive_terms|mixed_text,,,,,
+1682,www.cdiscount.com,40,Dramé,2,12 mai 2026,"STOP: arrêtez de travailler avec votre partenaire FLOA BANK ils ne sont pas de tout sérieux, ils arnaques vos c'est mon quand leur carte de chez DISCOUNT j'ai pu la utilisé que une fois, depuis ils m'ont bloqué la carte et le plus grave dans tous ça, ils ont continuent à me prélevés 16€50 au lieu de 1€25 pour la cotisation de la carte par mois, c'est la raison pour la quelle je vous mets 2 étoiles, sinon j'aurai mis 5 étoiles, ATTENTION A FLOA BANK la reine des arnaqueuses.",Négatif,0.89,mixed_text,,,,,
+1683,www.cdiscount.com,42,Pitt,2,10 mai 2026,Frais de livraison élevés et peut de choix d'adresse de point retrait,Négatif,0.64,low_confidence,,,,,
+1684,www.cdiscount.com,45,G.L,2,Actualisé le 9 mai 2026,"Faites attention aux vendeurs CDiscount de Market place - J’ai commandé deux arbres à chats.
+
+Un petit le 1er pas de souci avec un autre vendeur très correct.
+
+Mais beaucoup de problèmes avec le 2 eme !
+
+Un arbre à chat d’une hauteur de 1,45 cm sur la plate forme CDiscount place Market via Walkers01 qui m’a été conseillé par l’IA de CDiscount et avec de bons avis sauf deux mécontents.
+
+Reçu le 4 mai, l’arbre à chat monté et on s’aperçoit qu’il n’est pas stable du tout et ne convient pas à des chats de 4 kgs .
+Je demande le jour même le retour du produit par le service clients de CDiscount car sur le site CDiscount le retour de l’article ne fonctionne pas .
+
+On le démonte, le remballe dans son carton d’origine et j’attends la réponse du vendeur via CDiscount.
+
+Le vendeur me répond par l’intermédiaire de CDiscount « je vous propose 7€ de dédommagement et vous garder l’arbre à chat car vous allez payer plus cher le retour que le prix du produit ».
+
+Ce dernier me donne l’adresse pour un retour.
+Pour 9,900kgs, le retour me coûterait 24,95€ par Mondial Relay ou 35€ par la Poste.
+L’arbre à chat m’a coûté 24,95€ plus 9,90€ de frais de livraison soit 39,95€.
+
+Je préviens Paypal qui me rembourse l’article intégralement et que je remercie mais ce jour paypal me demande de renvoyer la somme car j’ai effectivement reçu l’article.
+
+CDiscount fait un bon d’achat en geste commercial de 15€ pour palier aux frais de retour.
+Gentil or de question de passer une prochaine commande je veux seulement retourner l’article au vendeur sans avoir à débourser 24,95€ pour le retour dans le 95.
+Personne ne prend en compte que l’acheteur est perdant face à des ennuis comme ça.
+CDiscount ne me rembourse pas le bon d’achat
+Et me dit c’est une rétractation c’est à vous de prendre les frais de retour à votre charge..
+Des frais de retour onéreux de cette hauteur là c’est impossible.
+Je vais signaler mon problème à Signal Conso également.
+Je propose de déposer l’article en mains propres fin juin à l’adresse de retour émise par le vendeur..
+CDiscount me répond : »vous avez 14 jours pour le retour de votre colis à l’expéditeur dont l’adresse de retour est exacte.
+Nous ne pouvons pas transformer le bon d’achat de 15€ que nous vous avons offert pour régler une partie de votre retour en virement bancaire.
+Donc retour effectué par mes soins via Mondial Relay soit 24,95 € de perdu pour moi pour rien.
+N’achetez plus sur Market Place.
+
+Le vendeur a remboursé les 39,95€ à Paypal.
+Je suis la perdante car j’ai renvoyé l’article s/c de Mondial Relay pour 24,95€..
+Regardez bien à deux fois avant d’acheter sur CDiscount Market Place..
+C’est le conseil que je donnerai et cela n’engage que moi.
+Le vendeur m’a proposé 10€ de dédommagement si je gardais l’arbre à chat instable mais savait que j’avais déjà acheté l’étiquette de retour à 24,95€ puisque j’ai envoyé le suivi et la facture via CDiscount qui lui transférait nos échanges.
+Voici ma triste expérience !!!",Négatif,0.94,negative_rating_positive_terms|mixed_text,,,,,
+1685,www.cdiscount.com,46,Patrick,2,Actualisé le 6 mai 2026,"Expérience très décevante : commande annulée suite à une erreur interne, et aucun vrai geste commercial - J’ai commandé le 03 mai 2026 un écran MSI sur Cdiscount pendant la French Week, affiché en promotion à 749 €, avec en plus un bon de réduction de 15 €.
+
+Lors de l’achat, il m’était également proposé de créer une carte Floa Bank, ce qui permettait de bénéficier de 150 € de remise. J’ai bien renseigné ma carte bancaire pour le débit, la validation bancaire a fonctionné correctement, et j’ai reçu la notification de ma banque. Deux jours plus tard, j’ai également reçu la confirmation de Floa Bank / Cdiscount concernant la création de la carte, ce qui confirmait indirectement l’éligibilité à la remise de 150 €.
+
+Malheureusement, ma commande Cdiscount a ensuite été annulée à cause d’une erreur interne. Le service client m’a simplement conseillé de recommander le produit. Problème : entre-temps, le prix de l’écran est repassé à 849 €, soit 100 € de plus.
+
+Cdiscount m’a proposé un bon d’achat de 60 €, et m’a indiqué de voir avec Floa Bank pour obtenir éventuellement les 150 € sous forme de bon également. Résultat : même en supposant que tout soit accepté, je me retrouve quand même perdant de 40 €, uniquement à cause d’une erreur interne de leur côté.
+
+La personne du service client m’a clairement fait comprendre qu’elle ne pouvait rien faire de plus. Je trouve cela très décevant : le client respecte toutes les étapes, la banque valide, la carte Floa est créée, mais la commande est annulée par Cdiscount, et c’est finalement au client d’assumer une partie de la différence de prix.
+
+Pour une enseigne de cette taille, je m’attendais à une vraie prise en charge du problème, ou au minimum à pouvoir recommander le produit au prix initialement validé.
+
+Très mauvaise expérience, sentiment d’être lésé malgré une erreur reconnue côté Cdiscount.
+
+Commande N°2605031902UMNL3",Négatif,0.94,negative_rating_positive_terms|mixed_text,,,,,
+1686,www.cdiscount.com,47,David,2,5 mai 2026,"Client depuis 23 ans, j'ai toujours fait la promotion de Cdiscount contre Amazon, alors même que certains produits étaient plus chers.
+Seulement voilà, plusieurs problèmes de suite sur leur market avec des vendeurs peu scrupuleux (dont le dernier : Santidevlop...) et Cdiscount qui laisse des annonces fake, des paiements se faire,et ne gère le SAV qu'avec des bots incapables d'intervenir.
+23 ans de fidélité à une boutique en ligne pour subir des arnaques et n'être ni entendu ni protégé... j'espère au moins être rapidement remboursé des 305 euros dépensés pour un téléphone que j'ai dû renvoyer car ne correspondant pas du tout à l'annonce initiale.
+Le manque de réactivité de Cdiscount a fait que je n'aurais pas le cadeau prévu pour la date d'anniversaire de ma fille, malgré les nombreux messages envoyés pour qu'ils fassent pression sur le vendeur afin de recevoir le produit commandé à la place d'un produit destinéau marché americain et non conforme à l'Europe.
+Un gâchis.
+Pas encore de remboursement.
+Aucun message humain en réponse aux miens... désespérant.",Négatif,0.94,negative_rating_positive_terms|mixed_text,,,,,
+1687,www.cdiscount.com,52,jean,3,ll y a 2 jours,Pas de disponibilité de retrait en point de retrait pour certains petits articles.,Neutre,0.47,rating_3|low_confidence,,,,,
+1688,www.cdiscount.com,53,Eric JAN,3,ll y a 4 jours,"suggestion - il conviendrait d'ajouter comme critères de rangement des résultats de recherche:
+-la date de livraison la plus proche
+-la possibilité de se faire livrer en relai colis",Neutre,0.64,rating_3|low_confidence,,,,,
+1689,www.cdiscount.com,54,SOPHIE PAVADE,3,ll y a 6 jours,Ce fut compliqué pour activer la carte mais merci,Neutre,0.54,rating_3|low_confidence|mixed_text,,,,,
+1690,www.cdiscount.com,55,Henrititi,3,14 mai 2026,"+ cher que chez Amazon - j'ai choisi Cdiscount parce que j'avais des bons d'achats mais le produit est moins cher chez Amazon à 183,50€ soit 33€ de différence",Négatif,0.56,rating_3|low_confidence|mixed_text,,,,,
+1691,www.cdiscount.com,56,Christophe Saint Martin,3,14 mai 2026,"recherche de produit - quand je cherche un produit , il me sort d'autres produits qui n'on aucun rapport avec ma recherche, sur Amazon ce n'est pas le qu'a !!!",Neutre,0.65,rating_3,,,,,
+1692,www.cdiscount.com,57,Crazyjac,3,13 mai 2026,Trop de pièges avec les bonus,Neutre,0.64,rating_3|low_confidence,,,,,
+1693,www.cdiscount.com,58,jerome,3,13 mai 2026,Livraison KO par Chronopost/Relay - J'ai du acheter de nouveau le PC car le sous traitant livreur (Chronopost jusqu'à des boites de relay dans un carrefour city) a mis plus de 3 jour à me dire qu'il livrait dans la journée sans que rien ne se passe,Neutre,0.55,rating_3|low_confidence,,,,,
+1694,www.cdiscount.com,59,michel ubiedo,3,12 mai 2026,dommage que l'on ne puissent pas payer en 4 fois avec paypall,Négatif,0.58,rating_3|low_confidence|mixed_text,,,,,
+1695,www.cdiscount.com,60,rose lemerre,3,12 mai 2026,"j'ai rentré des soucis avec une commande je me retrouve 3 fois la même maintenant il faut que j'attende pour le remboursement je suis un peu déçu sa fait des années que je suis cliente chez Cdiscount sinon la matériel l'électro tout est souvent impecable
+
+cordialement",Négatif,0.5,rating_3|low_confidence|mixed_text,,,,,
+1696,www.cdiscount.com,61,MARIE LAURE DARENNE,3,12 mai 2026,moins de choix qu'auparavant,Neutre,0.7,rating_3,,,,,
+1697,www.cdiscount.com,62,Nadine,3,10 mai 2026,"il faudrait mieux choisir vos photos de contrôle si ""c'est un humain qui passe la commande""
+la série "" objets cassables"" on ne distingue rien du tout !",Neutre,0.54,rating_3|low_confidence,,,,,
+1698,www.cdiscount.com,63,cliente,3,10 mai 2026,Pour la recherche de hamac pour arbre a chat ou remplacement ce fût très compliqué,Neutre,0.47,rating_3|low_confidence,,,,,
+1699,www.cdiscount.com,64,maissara elcarhy,3,6 mai 2026,"L 'entreprise est bien ,mais des fois quand une commande abîmer ils ont du mal à nous rembourser ou échanger à une autre produits, exemple chateau gonflable enfant, des fois c'est abîmé, il faut quand mieux bien vérifier vos produits avant , svp
+Merci...",Négatif,0.57,rating_3|low_confidence|mixed_text,,,,,
+1700,www.cdiscount.com,65,GREGOR BAILE,3,5 mai 2026,Il me manque des informations pour le paiement en plusieurs fois et notamment le coût total de l’achat.,Neutre,0.64,rating_3|low_confidence,,,,,
+1701,www.cdiscount.com,66,Jess GAILLARD,3,5 mai 2026,"CDiscount se dégrade ! - Clients fidèles depuis de nombreuses années nous voyons le service se dégrader. Il serait temps de faire un tri chez les vendeurs ! En quelques semaines, 3 colis ne sont jamais arrivés (dont 2 en 3 jours) car numéros de suivi de d'autres colis de d'autres clients... Un vendeur m'a fourni 3 fois un numéro de colis différent avant de m'envoyer mon colis hors délais... Je paye CDiscount à volonté pour recevoir mes colis hors délais quand je les reçois. Mes commandes sont pour mon entreprise individuelle, ne pas recevoir mes produits me porte préjudice ! Faut-il que je commande en double pour être sûre d'en recevoir au moins 1 ? Je compte changer de plateforme d'achat espérant trouver plus de sérieux ! Je mets 3 étoiles pour les quelques vendeurs qui respectent encore leurs clients !",Neutre,0.57,rating_3|low_confidence,,,,,
+1702,www.cdiscount.com,67,Didier V.,3,4 mai 2026,Commande tres difficile à passer vu l'obligation d'avoir un smartphone par Floa Bank . Reussi au 3eme appel de CDiscount,Neutre,0.45,rating_3|low_confidence,,,,,
+1703,www.cdiscount.com,68,eric b,3,4 mai 2026,augmentation en 48h - j avais mis dans le panier une paire de docksides samedi a et lundi qd j ai valide 20e de plus,Négatif,0.46,rating_3|low_confidence,,,,,
+1704,www.cdiscount.com,69,FEVRE,3,3 mai 2026,"Lessive podds - Je n'ai pas retrouvé le même produit que la dernière fois , dommage ...",Négatif,0.53,rating_3|low_confidence|mixed_text,,,,,
+1705,www.cdiscount.com,70,PAGES ODERA nicole,3,Actualisé le 4 mai 2026,"Je suis très déçue de l'entreprise C DISCOUNT
+J'ai commandé un article avec livraison à domicile, et GLS l'entreprise de livraison l'a déposé à plusieur kilomètres de chez moi
+L'entreprise SEB vendeur refuse de m'aider pour faire changer le lieu de livraison, et C DISCOUNT malgré ses reponses rapides, ne m'aide pas beaucoup contrairement à ses promesses Handicapée il m'est impossible de récupérer ma commande et en prime C DISCOUNT se moque des clients avec un service client lamentable",Négatif,0.55,rating_3|low_confidence|mixed_text,,,,,
+1706,www.cdiscount.com,71,Jopy,3,2 mai 2026,Livraison très lente bien que ce soit un produit cdiscount à volonté,Neutre,0.53,rating_3|low_confidence,,,,,
+1707,www.cdiscount.com,78,PASCALE OCANA,4,Il y a 4 heures,"Problème de paiement pas le même montant que la commande, j'ai eu un conseillé qui m'a expliqué (en faite ce n'est pas les même fournisseurs donc 2 paiement, mais tout se fait automatiquement",Positif,0.6,low_confidence|positive_rating_negative_terms|mixed_text,,,,,
+1708,www.cdiscount.com,84,GILBERT BENEDETTI,4,Il y a un jour,Pas de problème,Positif,0.64,low_confidence|positive_rating_negative_terms,,,,,
+1709,www.cdiscount.com,87,Gilles Bererd,4,ll y a 2 jours,"Petit bug lors de la saisie des éléments de CB : impossible de saisir la date d'expiration !
+J'ai recommencé du début, mais rien de très grave ....",Positif,0.7,positive_rating_negative_terms|mixed_text,,,,,
+1710,www.cdiscount.com,89,M. Alain FILLIUNG,4,ll y a 2 jours,"J'ai trouvé facilement le produit que je cherchais à un prix correct.
+En livraison à domicile gratuite.",Positif,0.71,positive_rating_negative_terms,,,,,
+1711,www.cdiscount.com,90,dominique,4,ll y a 3 jours,rapide a suivre pour le delai de livraison,Positif,0.75,positive_rating_negative_terms|mixed_text,,,,,
+1712,www.cdiscount.com,93,Loi,4,ll y a 4 jours,Du choix en doublon propose dans les diverses catégories du site ce qui peut embrouiller l'esprit mais y a des bon produits de qualité.,Positif,0.74,mixed_text,,,,,
+1713,www.cdiscount.com,95,kate,4,ll y a 4 jours,"choix important - rapidité - facile d'utilisation.
+Bémol : pas assez de produits en livraison en point relais.",Positif,0.78,positive_rating_negative_terms|mixed_text,,,,,
+1714,www.cdiscount.com,101,jean-pierre,5,Il y a 14 minutes,je commande souvent sur votre site parce que déjà Français. souvent gratuité pour la livraison et des produits souvent moins cher que sur d'autre sites,Positif,0.78,positive_rating_negative_terms,,,,,
+1715,www.cdiscount.com,110,NIna,5,Il y a 6 heures,Satisfaction= Cdiscount - Cela fait neuf ans que je suis cliente chez vous et je n’ai jamais été déçu… cela veut tout dire ! MERCI🙏 et bonne continuation.,Positif,0.88,positive_rating_negative_terms|mixed_text,,,,,
+1716,www.cdiscount.com,118,Herve CAYLAR,5,Il y a 19 heures,"Du choix, une livraison rapide",Positif,0.93,positive_rating_negative_terms|mixed_text,,,,,
+1717,www.cdiscount.com,43,gilbert auragnier,2,10 mai 2026,Oups - Bien passer,Négatif,0.72,coverage_fill,,,,,
+1718,www.cdiscount.com,39,pierre ARNAUD,2,13 mai 2026,trop de choix,Négatif,0.74,coverage_fill,,,,,
+1719,www.cdiscount.com,31,Joelle Jusic,2,ll y a 5 jours,Je dois profiter des moins 15 et jamais lespromo je me demande pourquoi je commande encore,Négatif,0.82,coverage_fill,,,,,
+1720,www.cdiscount.com,44,Keiss,2,8 mai 2026,Pas sérieux du tout la market place ! ils vendent des produits contrefais !,Négatif,0.85,coverage_fill,,,,,
+1721,www.cdiscount.com,22,gerard chauvin,1,ll y a 5 jours,Problème connexion avec PayPal,Négatif,0.86,coverage_fill,,,,,
+1722,www.cdiscount.com,29,PATRICE RATEL,2,ll y a 2 jours,"je crois que cdiscount veut faire de concurence a temu - je crois que cdiscount veut faire de la concurence a temu pour les delais de livraison... c'est juste abusé... j'aurai du commander avec amazon , au moins pour le meme produit , on attend presque pas.... livraison prevue a la fin du mois ...",Négatif,0.86,coverage_fill,,,,,
+1723,www.cdiscount.com,21,BERNARD SYLVIE,1,ll y a 4 jours,Trés mécontente ... que des problèmes sur mes dernières commandes.. vraiment déçue,Négatif,0.87,coverage_fill,,,,,
+1724,www.cdiscount.com,34,Martine Vincent,2,14 mai 2026,"Je viens d annuler cette première commande j avais cliqué sur payer en 4 fois vous m avez fait payer en 1 fois
+Donc je commande à nouveau en payant en 4 fois.",Négatif,0.87,coverage_fill,,,,,
+1725,www.cdiscount.com,30,Jean RATHGEBER,2,ll y a 4 jours,Commande : plus possible de commander en seule fois les achats. Il est regrettable que vs n'avertissiez le client qui au bout d'échecs successifs finit par comprendre qu'il faut commander un à un les articles souhaités.,Négatif,0.88,coverage_fill,,,,,
+1726,www.cdiscount.com,8,LIONNEL PAPON,1,Actualisé il y a un jour,"N A PAS ACCEPTE BON CADEAU x par deux
+POUR MOTIF NON VENDU CDISCOUNT
+
+CDISCOUNT N EST QU UN VITRINE
+ALORS POURQUOI ACHETER DES BONS CADEAU CE",Négatif,0.9,coverage_fill,,,,,
+1727,www.cdiscount.com,41,Labu,2,10 mai 2026,"BUG lors du paiement par carte CDiscount - Cdiscount a confondu « Achat d’alcool en plusieurs fois » (ce qui est interdit par la loi) et « paiement par carte de crédit »
+Dès lors, dès qu’une bouteille de vin figure dans le panier, impossible de payer la commande avec la carte Cdiscount AU COMPTANT !
+Impossible également d’utiliser les bons d’achats liés à l’utilisation de la carte.
+
+Cher Cdiscount : Quand pensez-vous corriger ce bug ?
+
+C'est le paiement à crédit qu'il faut interdire (NE PAS PERMETTRE DE PAYER EN PLUSIEURS FOIS DE L’ALCOOL), pas le paiement par carte de crédit (PAYER AU COMPTANT UN ACHAT D’ALCOOL)",Négatif,0.9,coverage_fill,,,,,
+1728,www.cdiscount.com,15,Magali GONNET FOUILLOUX,1,ll y a 2 jours,J'ai acheté un aspirateur. La livraison a été assez longue : 9 jours. Surtout l'aspirateur ressemble à un jouet et tient dans un petit carton type boîte à chaussures. Cet aspirateur est en kit. Il est plus léger qu'un simple balai. Tout ça pour 40 €. C'est honteux que Cdiscount ne vérifie pas ce que vendent les vendeurs,Négatif,0.91,coverage_fill,,,,,
+1729,www.cdiscount.com,9,Damien F,1,Il y a un jour,"Service client qui ne fait rien suite litige - Service client qui ne fait rien suite à téléphone neuf qui ne fonctionne pas sur réseau français (mobile américain commercialisé par un vendeur français...). Procédure de retour et de remboursement interminable. J’ai perdu des heures pour un téléphone à 126 euros... Le vendeur refuse de me rembourser le montant intégral car Cdiscount a pris une commission lors de la vente... et Cdiscount fait le mort... la prochaine fois, j’achèterai sur un site sérieux (américain malheureusement ! )",Négatif,0.92,coverage_fill,,,,,
+1730,www.cdiscount.com,12,M Amine,1,ll y a 2 jours,Catastrophique je commande le 8 mai on dit que j ai été livré le 26 février mes coordonnées sont exactes sur mon compte on me dit que le transporteur n arrive pas à me joindre je reconfirme mon téléphone et mon adresse toujours aucun SMS ou appel 2 fois que je commande et 2 problèmes a chaque fois je déconseille ce site,Négatif,0.92,coverage_fill,,,,,
+1731,www.cdiscount.com,18,Dase Phor,1,ll y a 3 jours,"Produit jamais livré, aucune solution proposée - Produit commandé d'une valeur supérieur à 100€, suivi de livraison affiché comme livré. Après plusieurs réclamations au service client, aucune solution proposée. J'ai juste perdu mon argent. Dernière fois que je commande chez Cdiscount.",Négatif,0.92,coverage_fill,,,,,
+1732,www.cdiscount.com,4,Jean-Luc Hubaut,1,Il y a 2 heures,"Service client déplorable - Bonjour. Cdiscount n'offre pas le meilleur service client. J'ai acheté un article qui m'a été livré. Celui-ci ne me convenant pas j'ai demandé un retour et remboursement. D'une part j'ai dû contacté le fournisseur, d'autre part celui-ci me demande de retourner l'article, A MES FRAIS, EN BUREAU DE POSTE.
+Les concurrents remboursent sans démarche spéciale et on dépose l'article en point relais sans frais. N'ACHETEZ PAS CHEZ CDISCOUNT;",Négatif,0.94,coverage_fill,,,,,
+1733,www.cdiscount.com,33,Gabi du 13,2,Actualisé il y a 2 jours,"J'ai choisi et commandé un sac à dos type eastpak que je trouvais joli et à un tarif raisonnable.
+Vendu par une boutique tiers comme c'est souvent le cas .
+Ce marchand semblait se trouver en Europe.
+J'ai validé la commande, première déconvenue c'est que une fois payé le délai de livraison était proche de 4 semaines...
+Lorsque j'ai voulu suivre l'expédition de cet article j'ai découvert que mon sac à dos était expédié de Chine....🥵
+En tant que consommateur j'ai des valeurs et je n'ai jamais souhaité acheter un article fabriqué à 15.000 kilomètres par des enfants sous payés !!!🤕
+Si j'avais eu connaissance de ces éléments je n'aurais jamais commandé .
+Je viens de recevoir la commande le 20 Mai mes craintes ce sont avérées juste, produit sans aucune étiquette de conformité CEE ,ni étiquette de composition produit ultra basique avec des matériaux low cost et des finitions pitoyables ,en plus ce sac dégage une forte odeur de solvant, pas question de l'utiliser !🤕🤒
+Je vais faire un signalement à la répression des fraudes et envoyer le produit pour analyse.",Négatif,0.94,coverage_fill,,,,,

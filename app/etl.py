@@ -7,23 +7,25 @@ from app.sentiment_analysis import get_sentiment
 
 def parse_relative_date(date_text):
     now = datetime.now()
+    if not date_text or not isinstance(date_text, str):
+        return now
     date_text = date_text.lower().strip()
-    if "minute" in date_text:
-        minutes = int(re.search(r'\d+', date_text).group())
-        return now - timedelta(minutes=minutes)
-    elif "heure" in date_text:
-        hours = int(re.search(r'\d+', date_text).group()) if re.search(r'\d+', date_text) else 1
-        return now - timedelta(hours=hours)
-    elif "jour" in date_text:
-        days = int(re.search(r'\d+', date_text).group()) if re.search(r'\d+', date_text) else 1
-        return now - timedelta(days=days)
-    elif "semaine" in date_text:
-        weeks = int(re.search(r'\d+', date_text).group()) if re.search(r'\d+', date_text) else 1
-        return now - timedelta(weeks=weeks)
+    match = re.search(r'\d+', date_text)
+    if not match:
+        if "jour" in date_text: return now - timedelta(days=1)
+        if "semaine" in date_text: return now - timedelta(weeks=1)
+        if "heure" in date_text: return now - timedelta(hours=1)
+        if "minute" in date_text: return now - timedelta(minutes=1)
+        return now
+    value = int(match.group())
+    if "minute" in date_text: return now - timedelta(minutes=value)
+    elif "heure" in date_text: return now - timedelta(hours=value)
+    elif "jour" in date_text: return now - timedelta(days=value)
+    elif "semaine" in date_text: return now - timedelta(weeks=value)
     return now
 
-def run_etl():
-    json_path = "/app/data/showroom_reviews.json"
+def run_etl(json_path=None):
+    json_path = json_path or os.getenv("REVIEWS_JSON_PATH", "/app/data/showroom_reviews.json")
     if not os.path.exists(json_path):
         print("[-] Fichier JSON introuvable.")
         return
@@ -39,7 +41,6 @@ def run_etl():
     )
     cursor = conn.cursor()
 
-    # 1. Insertion de l'entreprise (avec les champs complets)
     cursor.execute("""
         INSERT INTO dim_companies (company_name, company_url, theme, total_reviews_count, trustscore)
         VALUES (%s, %s, %s, %s, %s)
@@ -50,41 +51,48 @@ def run_etl():
     
     company_id = cursor.fetchone()[0]
 
-    # 2. Insertion des avis
     inserted_count = 0
     for review in data["reviews"]:
-        try:
-            rating_int = int(review["rating"]) if review["rating"].isdigit() else 3
-        except:
-            rating_int = 3
+        raw_rating = str(review["rating"])
+        nums = re.findall(r'\d+', raw_rating)
+        rating_int = int(nums[0]) if nums else 3 
             
-        verbatim_text = review["verbatim"]
+        verbatim_text = review["verbatim"].strip()
 
-        # --- LOGIQUE HYBRIDE NLP + RÈGLE MÉTIER ---
-        sentiment_label, sentiment_score = get_sentiment(verbatim_text)
-        
-        if rating_int <= 2:
-            sentiment_label, sentiment_score = "Négatif", -0.5
-        elif rating_int >= 4:
-            sentiment_label, sentiment_score = "Positif", 0.5
+        # --- NOUVELLE STRATÉGIE : LE TEXTE FAIT FOI ---
+        if not verbatim_text:
+            # Cas 1 : Pas de texte -> Les étoiles restent la seule source d'info
+            if rating_int <= 2: sentiment_label = 'Négatif'
+            elif rating_int == 3: sentiment_label = 'Neutre'
+            else: sentiment_label = 'Positif'
+            sentiment_score = 1.0
+        else:
+            # Cas 2 : Il y a du texte -> L'IA décide seule (sans intervention des étoiles)
+            sentiment_label, sentiment_score = get_sentiment(verbatim_text, rating_int)
+            
+            # Note : Nous avons supprimé le bloc "if sentiment_score < 0.55" 
+            # pour que l'IA ne soit pas contrainte par la note utilisateur.
 
-        # Insertion avec TOUTES les colonnes (dont company_responded)
+        # Insertion en base
         cursor.execute("""
             INSERT INTO fact_reviews (
                 company_id, author_name, rating, review_date, verbatim, 
                 company_responded, sentiment_label, sentiment_score
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (author_name, review_date, verbatim) DO NOTHING;
         """, (
             company_id, review["author"], rating_int, parse_relative_date(review["date"]), 
             verbatim_text, review["company_responded"], sentiment_label, sentiment_score
         ))
-        inserted_count += 1
+        
+        if cursor.rowcount > 0:
+            inserted_count += 1
 
     conn.commit()
     cursor.close()
     conn.close()
-    print(f"[+] ETL réussi : {inserted_count} avis insérés avec hybridation.")
+    print(f"[+] ETL réussi : {inserted_count} avis traités. L'IA est désormais le seul juge.")
 
 if __name__ == "__main__":
     run_etl()

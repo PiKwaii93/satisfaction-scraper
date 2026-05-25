@@ -1,0 +1,1201 @@
+id,manual_label,justification_courte
+362,Négatif,Signal négatif fort: 'service client déplorable'
+280,Négatif,Signal négatif fort: 'honteux'
+332,Négatif,Déception/problème: 'retard'
+876,Positif,Signal positif fort: 'service client au top'
+299,Négatif,Signal négatif fort: 'très mauvais'
+529,Négatif,Signal négatif fort: 'très déçu'
+598,Négatif,Déception/problème: 'retard'
+776,Neutre,"Avis mixte équilibré, note 3/5"
+1037,Positif,Signal positif fort: 'excellent'
+1193,Positif,Signal positif fort: 'rien à dire'
+867,Positif,"Avis mixte, note 4/5 → Positif"
+924,Positif,Satisfaction exprimée: 'super'
+1038,Positif,Signal positif fort: 'tip top'
+1081,Positif,Satisfaction exprimée: 'super'
+1165,Positif,Signal positif fort: 'excellent'
+470,Négatif,Déception/problème: 'retard'
+593,Négatif,Signal négatif fort: 'très déçu'
+250,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+383,Négatif,Déception/problème: 'déçu'
+978,Positif,Satisfaction exprimée: 'top'
+404,Négatif,Signal négatif fort: 'catastrophique'
+411,Négatif,Signal négatif fort: 'inacceptable'
+646,Neutre,"Avis mixte équilibré, note 3/5"
+733,Neutre,"Avis mixte équilibré, note 3/5"
+966,Positif,"Avis mixte, note 4/5 → Positif"
+291,Négatif,Signal négatif fort: 'inadmissible'
+469,Négatif,Signal négatif fort: 'nul'
+532,Négatif,Déception/problème: 'retard'
+965,Négatif,Déception/problème: 'retard'
+1051,Positif,Signal positif fort: 'service client au top'
+1099,Positif,Signal positif fort: 'les yeux fermés'
+344,Négatif,Signal négatif fort: 'à fuir'
+525,Négatif,"Avis mixte, note 2/5 → Négatif"
+885,Positif,Signal positif fort: 'parfait'
+1031,Positif,Signal positif fort: 'rien à dire'
+1170,Positif,Satisfaction exprimée: 'au top'
+368,Positif,Signal positif fort: 'très satisfait'
+597,Négatif,Déception/problème: 'retard'
+642,Négatif,Signal négatif fort: 'outré'
+333,Négatif,"Avis mixte, note 1/5 → Négatif"
+478,Négatif,Signal négatif fort: 'très déçu'
+601,Négatif,Déception/problème: 'délai trop long'
+664,Négatif,Déception/problème: 'déçu'
+789,Positif,Signal positif fort: 'impeccable'
+907,Positif,Satisfaction exprimée: 'bonne expérience'
+999,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1093,Positif,Signal positif fort: 'parfait'
+1185,Positif,Signal positif fort: 'ravi'
+239,Négatif,Signal négatif fort: 'très mauvais'
+293,Négatif,Signal négatif fort: 'inadmissible'
+515,Négatif,"Avis mixte, note 2/5 → Négatif"
+713,Négatif,Déception/problème: 'souci'
+734,Positif,Satisfaction exprimée: 'top'
+756,Neutre,"Avis mixte équilibré, note 3/5"
+1142,Positif,Signal positif fort: 'très belle qualité'
+320,Négatif,Déception/problème: 'retard'
+364,Négatif,Déception/problème: 'décevant'
+1074,Positif,Satisfaction exprimée: 'top'
+1135,Positif,Satisfaction exprimée: 'super'
+567,Négatif,Signal négatif fort: 'mauvaise expérience'
+685,Négatif,Déception/problème: 'déçu'
+339,Négatif,Déception/problème: 'retard'
+571,Négatif,"Avis mixte, note 2/5 → Négatif"
+628,Négatif,Signal négatif fort: 'très mauvais'
+638,Négatif,Signal négatif fort: 'de pire en pire'
+1061,Positif,Satisfaction exprimée: 'au top'
+1116,Positif,Signal positif fort: 'impeccable'
+238,Négatif,Signal négatif fort: 'à fuir'
+343,Négatif,Signal négatif fort: 'à fuir'
+358,Négatif,"Avis mixte, note 1/5 → Négatif"
+372,Négatif,Signal négatif fort: 'terrible'
+641,Neutre,"Avis factuel neutre, note 3/5"
+745,Neutre,"Avis factuel neutre, note 3/5"
+754,Neutre,"Avis mixte équilibré, note 3/5"
+247,Négatif,Signal négatif fort: 'à fuir'
+447,Négatif,Signal négatif fort: 'terrible'
+475,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+565,Négatif,Signal négatif fort: 'nul'
+868,Positif,Satisfaction exprimée: 'bonne qualité'
+898,Positif,Signal positif fort: 'bravo'
+1139,Positif,Signal positif fort: 'excellent'
+1157,Positif,Signal positif fort: 'nickel'
+665,Neutre,"Avis factuel neutre, note 3/5"
+975,Positif,"Avis mixte, note 4/5 → Positif"
+287,Négatif,Déception/problème: 'déçu'
+644,Négatif,Déception/problème: 'problème'
+682,Négatif,Signal négatif fort: 'catastrophique'
+750,Négatif,Signal négatif fort: 'terrible'
+780,Neutre,"Avis factuel neutre, note 3/5"
+853,Positif,Satisfaction exprimée: 'top'
+887,Positif,"Avis mixte, note 4/5 → Positif"
+926,Positif,Satisfaction exprimée: 'super'
+1105,Positif,Satisfaction exprimée: 'au top'
+1161,Positif,Signal positif fort: 'rien à dire'
+275,Négatif,Déception/problème: 'retard'
+319,Négatif,Déception/problème: 'décevant'
+361,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+553,Négatif,Déception/problème: 'article manquant'
+897,Positif,"Avis mixte, note 4/5 → Positif"
+937,Positif,Signal positif fort: 'livraison au top'
+1110,Positif,Signal positif fort: 'j'adore'
+198,Positif,Satisfaction exprimée: 'satisfait'
+327,Négatif,Signal négatif fort: 'à fuir'
+413,Positif,Satisfaction exprimée: 'satisfait'
+609,Positif,Satisfaction exprimée: 'satisfait'
+651,Négatif,Signal négatif fort: 'terrible'
+663,Négatif,Déception/problème: 'déçu'
+755,Négatif,Signal négatif fort: 'pas remboursé'
+761,Neutre,"Avis mixte équilibré, note 3/5"
+810,Positif,Satisfaction exprimée: 'satisfait'
+973,Positif,Satisfaction exprimée: 'super'
+1002,Positif,Satisfaction exprimée: 'satisfait'
+1068,Positif,Satisfaction exprimée: 'super'
+1070,Positif,Signal positif fort: 'excellent'
+448,Négatif,Signal négatif fort: 'mauvaise qualité'
+507,Négatif,Déception/problème: 'déçu'
+277,Négatif,Signal négatif fort: 'nul'
+285,Négatif,Signal négatif fort: 'très déçu'
+309,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+701,Neutre,"Avis factuel neutre, note 3/5"
+711,Négatif,Signal négatif fort: 'inadmissible'
+784,Positif,Satisfaction exprimée: 'bonne expérience'
+860,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+923,Positif,Signal positif fort: 'excellent'
+1056,Positif,Signal positif fort: 'excellent'
+1166,Positif,Signal positif fort: 'parfait'
+444,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+928,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+318,Négatif,Déception/problème: 'déçu'
+639,Négatif,Déception/problème: 'dommage'
+1134,Positif,Satisfaction exprimée: 'super'
+1164,Positif,Satisfaction exprimée: 'au top'
+204,Positif,Satisfaction exprimée: 'super'
+391,Négatif,Déception/problème: 'problème'
+415,Positif,Satisfaction exprimée: 'super'
+603,Négatif,"Avis mixte, note 2/5 → Négatif"
+611,Positif,Satisfaction exprimée: 'super'
+752,Négatif,Déception/problème: 'déçu'
+812,Positif,Satisfaction exprimée: 'super'
+963,Positif,Satisfaction exprimée: 'satisfait'
+1004,Positif,Satisfaction exprimée: 'super'
+199,Positif,Satisfaction exprimée: 'super'
+354,Négatif,Signal négatif fort: 'nul'
+414,Positif,Satisfaction exprimée: 'super'
+610,Positif,Satisfaction exprimée: 'super'
+811,Positif,Satisfaction exprimée: 'super'
+1003,Positif,Satisfaction exprimée: 'super'
+1049,Positif,Signal positif fort: 'excellent'
+1076,Positif,Satisfaction exprimée: 'top'
+458,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+688,Négatif,Déception/problème: 'déçu'
+832,Positif,"Avis mixte, note 4/5 → Positif"
+1146,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+265,Négatif,Signal négatif fort: 'ne commanderai plus'
+335,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+724,Négatif,Déception/problème: 'décevant'
+592,Négatif,Signal négatif fort: 'très déçu'
+672,Négatif,Déception/problème: 'retard'
+764,Négatif,Déception/problème: 'retard'
+835,Positif,Satisfaction exprimée: 'prix attractif'
+629,Neutre,"Avis mixte équilibré, note 3/5"
+255,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+635,Négatif,Signal négatif fort: 'inacceptable'
+1122,Positif,Satisfaction exprimée: 'bon service'
+1162,Positif,Satisfaction exprimée: 'au top'
+1174,Positif,Signal positif fort: 'excellent'
+373,Négatif,Signal négatif fort: 'inadmissible'
+483,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+508,Négatif,Signal négatif fort: 'nul'
+652,Neutre,"Avis factuel neutre, note 3/5"
+231,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+324,Négatif,Signal négatif fort: 'arnaque'
+403,Négatif,Signal négatif fort: 'plus jamais'
+471,Négatif,Déception/problème: 'problème'
+581,Négatif,"Avis mixte, note 2/5 → Négatif"
+1155,Positif,Signal positif fort: 'parfait'
+233,Négatif,Signal négatif fort: 'service client déplorable'
+262,Négatif,"Avis mixte, note 1/5 → Négatif"
+282,Négatif,"Avis mixte, note 1/5 → Négatif"
+464,Négatif,Signal négatif fort: 'nul'
+920,Positif,"Avis mixte, note 4/5 → Positif"
+315,Négatif,Signal négatif fort: 'très déçu'
+350,Négatif,"Avis mixte, note 1/5 → Négatif"
+378,Négatif,Déception/problème: 'jamais plus'
+394,Négatif,Signal négatif fort: 'très mauvais'
+604,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+657,Neutre,"Avis mixte équilibré, note 3/5"
+730,Négatif,Signal négatif fort: 'nul'
+263,Négatif,Signal négatif fort: 'inadmissible'
+360,Négatif,Signal négatif fort: 'honteux'
+395,Négatif,Signal négatif fort: 'jamais reçu'
+499,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+502,Négatif,Signal négatif fort: 'très déçu'
+543,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+721,Positif,Signal positif fort: 'rien à dire'
+740,Neutre,"Avis factuel neutre, note 3/5"
+889,Positif,Signal positif fort: 'parfait'
+994,Positif,Satisfaction exprimée: 'bonne expérience'
+240,Négatif,Signal négatif fort: 'inadmissible'
+254,Négatif,Signal négatif fort: 'très déçu'
+276,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+311,Négatif,Signal négatif fort: 'à fuir'
+337,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+349,Positif,Satisfaction exprimée: 'facile'
+352,Négatif,Signal négatif fort: 'mauvaise expérience'
+366,Négatif,Signal négatif fort: 'inacceptable'
+452,Positif,Satisfaction exprimée: 'satisfait'
+516,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+578,Négatif,Signal négatif fort: 'très déçu'
+749,Négatif,Signal négatif fort: 'volé'
+772,Neutre,"Avis mixte équilibré, note 3/5"
+837,Positif,"Avis mixte, note 4/5 → Positif"
+891,Positif,Satisfaction exprimée: 'facile'
+906,Positif,Signal positif fort: 'parfait'
+222,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+227,Négatif,"Avis mixte, note 1/5 → Négatif"
+244,Négatif,Déception/problème: 'déçu'
+249,Négatif,Signal négatif fort: 'plus jamais'
+268,Négatif,Signal négatif fort: 'jamais reçu'
+304,Négatif,Signal négatif fort: 'arnaque'
+382,Négatif,Signal négatif fort: 'grosse déception'
+410,Négatif,"Avis mixte, note 1/5 → Négatif"
+433,Négatif,Signal négatif fort: 'non livré'
+445,Négatif,Déception/problème: 'déçu'
+462,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+476,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+480,Négatif,"Avis mixte, note 2/5 → Négatif"
+485,Négatif,Signal négatif fort: 'arnaque'
+520,Négatif,Signal négatif fort: 'honteux'
+537,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+544,Négatif,Signal négatif fort: 'nul'
+548,Positif,Satisfaction exprimée: 'satisfait'
+560,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+574,Négatif,Déception/problème: 'dommage'
+591,Positif,Signal positif fort: 'très rapide'
+607,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+666,Neutre,"Avis factuel neutre, note 3/5"
+708,Neutre,"Avis mixte équilibré, note 3/5"
+726,Positif,Signal positif fort: 'très satisfait'
+737,Neutre,"Avis factuel neutre, note 3/5"
+751,Positif,Satisfaction exprimée: 'super'
+757,Neutre,"Avis factuel neutre, note 3/5"
+801,Négatif,Signal négatif fort: 'nul'
+852,Négatif,Déception/problème: 'hors de prix'
+901,Positif,Satisfaction exprimée: 'je recommande'
+910,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+914,Positif,Signal positif fort: 'rien à dire'
+921,Positif,"Avis mixte, note 4/5 → Positif"
+940,Positif,Signal positif fort: 'très satisfait'
+1036,Positif,Satisfaction exprimée: 'au top'
+1125,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1159,Positif,Signal positif fort: 'parfait'
+235,Négatif,Signal négatif fort: 'arnaque'
+237,Positif,Satisfaction exprimée: 'sérieux'
+266,Négatif,Signal négatif fort: 'très déçu'
+283,Négatif,Déception/problème: 'dommage'
+294,Négatif,Signal négatif fort: 'inadmissible'
+316,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+398,Négatif,Déception/problème: 'décevant'
+399,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+407,Négatif,Déception/problème: 'pire'
+442,Négatif,Déception/problème: 'pas de retour'
+446,Négatif,Signal négatif fort: 'très déçu'
+459,Positif,Satisfaction exprimée: 'sérieux'
+465,Négatif,Déception/problème: 'problème'
+506,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+540,Négatif,Signal négatif fort: 'nul'
+545,Négatif,Signal négatif fort: 'très déçu'
+561,Négatif,Signal négatif fort: 'très déçu'
+564,Négatif,Déception/problème: 'dommage'
+572,Négatif,Déception/problème: 'problème'
+576,Positif,Satisfaction exprimée: 'bon site'
+650,Neutre,"Avis factuel neutre, note 3/5"
+661,Neutre,"Avis factuel neutre, note 3/5"
+668,Neutre,"Avis factuel neutre, note 3/5"
+728,Neutre,"Avis factuel neutre, note 3/5"
+746,Négatif,Déception/problème: 'trop cher'
+766,Neutre,"Avis factuel neutre, note 3/5"
+785,Neutre,"Avis factuel neutre, note 3/5"
+895,Positif,Satisfaction exprimée: 'satisfait'
+929,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+941,Positif,"Avis mixte, note 4/5 → Positif"
+945,Négatif,Déception/problème: 'déçu'
+991,Positif,Signal positif fort: 'très satisfait'
+996,Positif,"Avis mixte, note 4/5 → Positif"
+997,Positif,"Avis mixte, note 4/5 → Positif"
+1054,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1124,Positif,Satisfaction exprimée: 'facile'
+225,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+229,Négatif,Signal négatif fort: 'arnaque'
+260,Négatif,Signal négatif fort: 'arnaque'
+270,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+273,Négatif,Signal négatif fort: 'à fuir'
+279,Négatif,Déception/problème: 'délai trop long'
+300,Négatif,Déception/problème: 'problème'
+392,Négatif,Signal négatif fort: 'honteux'
+393,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+405,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+443,Négatif,Signal négatif fort: 'jamais reçu'
+466,Négatif,Signal négatif fort: 'nul'
+496,Négatif,Signal négatif fort: 'mauvaise qualité'
+512,Négatif,Signal négatif fort: 'très déçu'
+556,Négatif,"Avis mixte, note 2/5 → Négatif"
+558,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+562,Négatif,Déception/problème: 'problème'
+580,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+630,Neutre,"Avis mixte équilibré, note 3/5"
+648,Neutre,"Avis mixte équilibré, note 3/5"
+677,Positif,Signal positif fort: 'ultra rapide'
+680,Neutre,"Avis factuel neutre, note 3/5"
+683,Neutre,"Avis mixte équilibré, note 3/5"
+699,Neutre,"Avis factuel neutre, note 3/5"
+717,Neutre,"Avis mixte équilibré, note 3/5"
+732,Neutre,"Avis factuel neutre, note 3/5"
+748,Neutre,"Avis factuel neutre, note 3/5"
+759,Neutre,"Avis factuel neutre, note 3/5"
+762,Négatif,Signal négatif fort: 'mauvaise qualité'
+771,Négatif,Signal négatif fort: 'pas remboursé'
+792,Positif,Satisfaction exprimée: 'heureuse'
+806,Négatif,Signal négatif fort: 'très déçu'
+836,Positif,"Avis mixte, note 4/5 → Positif"
+854,Positif,Satisfaction exprimée: 'satisfait'
+988,Positif,Signal positif fort: 'rien à dire'
+1067,Positif,Satisfaction exprimée: 'livraison rapide'
+1086,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1133,Positif,Satisfaction exprimée: 'facile'
+1160,Positif,Signal positif fort: 'parfait'
+1199,Positif,Signal positif fort: 'parfait'
+234,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+248,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+256,Négatif,Déception/problème: 'déçu'
+271,Négatif,Signal négatif fort: 'jamais reçu'
+312,Négatif,Déception/problème: 'problème'
+314,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+367,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+396,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+412,Négatif,Signal négatif fort: 'inadmissible'
+457,Négatif,Déception/problème: 'retard'
+473,Négatif,Signal négatif fort: 'très déçu'
+492,Positif,Signal positif fort: 'rien a dire'
+493,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+514,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+519,Négatif,Signal négatif fort: 'non livré'
+583,Négatif,Déception/problème: 'déçu'
+585,Négatif,"Avis mixte, note 2/5 → Négatif"
+600,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+602,Positif,Signal positif fort: 'rien à dire'
+637,Négatif,Signal négatif fort: 'nul'
+669,Neutre,"Avis factuel neutre, note 3/5"
+684,Négatif,Signal négatif fort: 'produit abîmé'
+719,Négatif,Signal négatif fort: 'nul'
+729,Négatif,Signal négatif fort: 'ne correspond pas'
+739,Neutre,"Avis mixte équilibré, note 3/5"
+742,Négatif,Déception/problème: 'déçu'
+753,Négatif,Signal négatif fort: 'zéro'
+763,Positif,Signal positif fort: 'très contente'
+838,Positif,Signal positif fort: 'rien à redire'
+856,Positif,Satisfaction exprimée: 'facile'
+872,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+942,Positif,Satisfaction exprimée: 'j'apprécie'
+948,Positif,Satisfaction exprimée: 'bon service'
+954,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+955,Positif,"Avis mixte, note 4/5 → Positif"
+959,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+968,Négatif,Déception/problème: 'dommage'
+986,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1029,Positif,Satisfaction exprimée: 'satisfait'
+1058,Positif,Signal positif fort: 'parfait'
+1079,Négatif,Déception/problème: 'problème'
+1091,Positif,Satisfaction exprimée: 'prix attractif'
+1096,Positif,Satisfaction exprimée: 'prix attractif'
+1128,Positif,Satisfaction exprimée: 'j'apprécie'
+1144,Positif,Signal positif fort: 'je recommande vivement'
+1168,Positif,"Avis mixte, note 5/5 → Positif"
+1177,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+232,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+242,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+274,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+278,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+303,Négatif,Signal négatif fort: 'très déçu'
+328,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+334,Positif,Satisfaction exprimée: 'content'
+336,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+347,Négatif,Signal négatif fort: 'mauvaise qualité'
+376,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+408,Négatif,"Avis mixte, note 1/5 → Négatif"
+435,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+450,Négatif,Signal négatif fort: 'nul'
+474,Positif,Satisfaction exprimée: 'efficace'
+489,Négatif,Signal négatif fort: 'nul'
+490,Positif,Satisfaction exprimée: 'satisfait'
+505,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+517,Négatif,Déception/problème: 'article manquant'
+527,Négatif,Signal négatif fort: 'nul'
+541,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+550,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+563,Négatif,Déception/problème: 'déçu'
+573,Négatif,Déception/problème: 'pas conforme'
+586,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+587,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+588,Négatif,Signal négatif fort: 'très déçu'
+606,Négatif,Signal négatif fort: 'nul'
+636,Neutre,"Avis factuel neutre, note 3/5"
+659,Neutre,"Avis factuel neutre, note 3/5"
+662,Neutre,"Avis factuel neutre, note 3/5"
+670,Neutre,"Avis factuel neutre, note 3/5"
+686,Négatif,Déception/problème: 'déçu'
+687,Négatif,Déception/problème: 'trop cher'
+691,Neutre,"Avis mixte équilibré, note 3/5"
+700,Négatif,Signal négatif fort: 'non livré'
+705,Positif,Satisfaction exprimée: 'super'
+718,Neutre,"Avis factuel neutre, note 3/5"
+738,Négatif,Signal négatif fort: 'mauvaise qualité'
+774,Négatif,Signal négatif fort: 'très mauvais'
+793,Neutre,"Avis factuel neutre, note 3/5"
+794,Neutre,"Avis mixte équilibré, note 3/5"
+799,Neutre,"Avis factuel neutre, note 3/5"
+804,Neutre,"Avis factuel neutre, note 3/5"
+845,Positif,"Avis mixte, note 4/5 → Positif"
+870,Positif,Signal positif fort: 'parfait'
+875,Positif,Signal positif fort: 'parfait'
+893,Positif,Satisfaction exprimée: 'bon site'
+909,Positif,Satisfaction exprimée: 'sérieux'
+930,Positif,Satisfaction exprimée: 'satisfait'
+932,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+939,Positif,Signal positif fort: 'ravie'
+976,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+992,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1022,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1027,Positif,Signal positif fort: 'parfait'
+1055,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1097,Positif,"Avis mixte, note 5/5 → Positif"
+1103,Positif,Satisfaction exprimée: 'satisfait'
+1119,Positif,Signal positif fort: 'rien a dire'
+1121,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1167,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1196,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+223,Négatif,"Avis mixte, note 1/5 → Négatif"
+224,Négatif,Déception/problème: 'toujours rien'
+236,Négatif,Signal négatif fort: 'incompétent'
+245,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+258,Négatif,Signal négatif fort: 'nul'
+261,Négatif,"Avis mixte, note 1/5 → Négatif"
+264,Négatif,Déception/problème: 'toujours rien'
+267,Négatif,Déception/problème: 'déception'
+290,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+310,Négatif,Déception/problème: 'problème'
+331,Négatif,Signal négatif fort: 'très déçu'
+355,Négatif,Signal négatif fort: 'inadmissible'
+359,Négatif,Déception/problème: 'litige'
+363,Négatif,Signal négatif fort: 'inadmissible'
+369,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+374,Négatif,Signal négatif fort: 'mauvaise qualité'
+384,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+387,Négatif,Déception/problème: 'aucune réponse'
+406,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+449,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+451,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+454,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+472,Négatif,Signal négatif fort: 'très déçu'
+495,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+500,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+504,Négatif,Signal négatif fort: 'dégoût'
+510,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+521,Négatif,Signal négatif fort: 'très déçu'
+530,Négatif,Signal négatif fort: 'ne correspond pas'
+533,Positif,Satisfaction exprimée: 'livraison rapide'
+538,Négatif,Signal négatif fort: 'mauvaise qualité'
+542,Négatif,Déception/problème: 'problème'
+569,Négatif,Déception/problème: 'problème'
+590,Positif,Satisfaction exprimée: 'pratique'
+594,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+599,Négatif,Signal négatif fort: 'ne ressemble pas'
+605,Négatif,Signal négatif fort: 'grosse déception'
+643,Négatif,Déception/problème: 'déçu'
+653,Neutre,"Avis factuel neutre, note 3/5"
+658,Neutre,"Avis factuel neutre, note 3/5"
+675,Négatif,Déception/problème: 'déçu'
+681,Positif,Satisfaction exprimée: 'content'
+690,Neutre,"Avis factuel neutre, note 3/5"
+693,Négatif,Déception/problème: 'dommage'
+694,Négatif,Déception/problème: 'déçu'
+696,Positif,Satisfaction exprimée: 'pratique'
+698,Positif,Signal positif fort: 'ravie'
+703,Neutre,"Avis factuel neutre, note 3/5"
+706,Négatif,Déception/problème: 'déçu'
+709,Neutre,"Avis factuel neutre, note 3/5"
+715,Neutre,"Avis factuel neutre, note 3/5"
+720,Neutre,"Avis factuel neutre, note 3/5"
+727,Neutre,"Avis factuel neutre, note 3/5"
+741,Positif,Satisfaction exprimée: 'pratique'
+765,Neutre,"Avis factuel neutre, note 3/5"
+779,Neutre,"Avis factuel neutre, note 3/5"
+786,Négatif,Déception/problème: 'dommage'
+796,Neutre,"Avis mixte équilibré, note 3/5"
+803,Neutre,"Avis factuel neutre, note 3/5"
+805,Neutre,"Avis factuel neutre, note 3/5"
+807,Neutre,"Avis factuel neutre, note 3/5"
+809,Neutre,"Avis factuel neutre, note 3/5"
+842,Négatif,Déception/problème: 'déçu'
+873,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+888,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+892,Positif,Satisfaction exprimée: 'content'
+894,Positif,Signal positif fort: 'très satisfait'
+905,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+913,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+916,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+918,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+931,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+935,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+944,Négatif,Déception/problème: 'dommage'
+946,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+949,Positif,Signal positif fort: 'parfait'
+957,Positif,Satisfaction exprimée: 'satisfait'
+970,Positif,"Avis mixte, note 4/5 → Positif"
+980,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+982,Positif,Satisfaction exprimée: 'bien emballé'
+987,Positif,Signal positif fort: 'très rapide'
+1030,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1034,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1045,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1062,Positif,Signal positif fort: 'très satisfait'
+1075,Positif,Satisfaction exprimée: 'bon rapport qualité'
+1094,Positif,Satisfaction exprimée: 'bonne qualité'
+1109,Positif,Satisfaction exprimée: 'bien emballé'
+1131,Positif,Satisfaction exprimée: 'bien emballé'
+1141,Positif,Satisfaction exprimée: 'bonnes affaires'
+1149,Positif,Signal positif fort: 'parfait'
+1158,Positif,Satisfaction exprimée: 'bon site'
+1163,Positif,Satisfaction exprimée: 'je recommande'
+1190,Positif,Signal positif fort: 'parfait'
+259,Négatif,Signal négatif fort: 'très déçu'
+284,Négatif,Déception/problème: 'déçu'
+288,Négatif,Déception/problème: 'souci'
+292,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+326,Négatif,Signal négatif fort: 'nul'
+330,Négatif,Signal négatif fort: 'ne commanderai plus'
+340,Négatif,Déception/problème: 'déçu'
+341,Négatif,Déception/problème: 'bof'
+348,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+351,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+365,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+386,Négatif,Signal négatif fort: 'grosse déception'
+397,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+430,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+432,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+468,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+479,Négatif,Déception/problème: 'problème'
+481,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+488,Négatif,Déception/problème: 'déçu'
+494,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+523,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+531,Négatif,Déception/problème: 'déçu'
+534,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+552,Négatif,Déception/problème: 'déçu'
+559,Négatif,Signal négatif fort: 'nul'
+579,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+582,Négatif,Signal négatif fort: 'zéro'
+631,Négatif,Déception/problème: 'problème'
+645,Neutre,"Avis factuel neutre, note 3/5"
+671,Négatif,Déception/problème: 'déçu'
+679,Négatif,Signal négatif fort: 'nul'
+710,Négatif,Signal négatif fort: 'très déçu'
+725,Neutre,"Avis factuel neutre, note 3/5"
+736,Négatif,Déception/problème: 'dommage'
+743,Neutre,"Avis factuel neutre, note 3/5"
+744,Neutre,"Avis factuel neutre, note 3/5"
+747,Neutre,"Avis factuel neutre, note 3/5"
+767,Neutre,"Avis mixte équilibré, note 3/5"
+768,Neutre,"Avis factuel neutre, note 3/5"
+770,Neutre,"Avis factuel neutre, note 3/5"
+773,Neutre,"Avis factuel neutre, note 3/5"
+777,Négatif,Signal négatif fort: 'zéro'
+778,Négatif,Déception/problème: 'dommage'
+782,Neutre,"Avis factuel neutre, note 3/5"
+783,Positif,"Avis mixte, note 4/5 → Positif"
+787,Neutre,"Avis factuel neutre, note 3/5"
+834,Positif,Satisfaction exprimée: 'bon site'
+848,Positif,Satisfaction exprimée: 'bonne expérience'
+855,Positif,Signal positif fort: 'nickel'
+858,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+863,Positif,"Avis mixte, note 4/5 → Positif"
+874,Positif,Satisfaction exprimée: 'facile'
+877,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+883,Positif,Signal positif fort: 'toujours satisfait'
+886,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+890,Positif,Satisfaction exprimée: 'bonne expérience'
+903,Positif,Satisfaction exprimée: 'bonne qualité'
+911,Positif,Signal positif fort: 'parfait'
+919,Positif,"Avis mixte, note 4/5 → Positif"
+925,Positif,"Avis mixte, note 4/5 → Positif"
+947,Positif,Satisfaction exprimée: 'bon rapport qualité'
+956,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+962,Positif,"Avis mixte, note 4/5 → Positif"
+989,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1024,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1025,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1035,Positif,Signal positif fort: 'parfait'
+1044,Positif,Signal positif fort: 'toujours satisfait'
+1048,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1095,Positif,Signal positif fort: 'très contente'
+1102,Positif,Signal positif fort: 'excellent'
+1126,Positif,Signal positif fort: 'très satisfait'
+1130,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1151,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1173,Positif,Signal positif fort: 'ravie'
+1184,Positif,Signal positif fort: 'très contente'
+1188,Positif,Signal positif fort: 'j'adore'
+1198,Positif,Satisfaction exprimée: 'satisfait'
+206,Positif,Signal positif fort: 'rien à redire'
+210,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+246,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+251,Négatif,Signal négatif fort: 'jamais reçu'
+272,Négatif,Déception/problème: 'très élevés'
+297,Négatif,"Avis mixte, note 1/5 → Négatif"
+298,Négatif,Signal négatif fort: 'mauvaise qualité'
+302,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+307,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+353,Négatif,Signal négatif fort: 'pas remboursé'
+375,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+379,Négatif,Déception/problème: 'déçu'
+390,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+402,Négatif,Signal négatif fort: 'nul'
+409,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+417,Positif,Signal positif fort: 'rien à redire'
+421,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+436,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+438,Positif,Signal positif fort: 'parfait'
+455,Négatif,Déception/problème: 'article manquant'
+460,Négatif,Déception/problème: 'déçu'
+477,Négatif,Déception/problème: 'déçu'
+482,Négatif,Déception/problème: 'décevant'
+486,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+503,Négatif,Déception/problème: 'déception'
+518,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+522,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+528,Négatif,"Avis mixte, note 2/5 → Négatif"
+539,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+547,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+549,Négatif,"Avis mixte, note 2/5 → Négatif"
+566,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+568,Négatif,Signal négatif fort: 'nul'
+577,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+584,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+613,Positif,Signal positif fort: 'rien à redire'
+616,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+640,Neutre,"Avis factuel neutre, note 3/5"
+654,Neutre,"Avis factuel neutre, note 3/5"
+655,Négatif,Signal négatif fort: 'ne correspond pas'
+660,Neutre,"Avis factuel neutre, note 3/5"
+667,Neutre,"Avis factuel neutre, note 3/5"
+678,Positif,Satisfaction exprimée: 'bonnes affaires'
+692,Négatif,Signal négatif fort: 'très déçu'
+702,Négatif,Signal négatif fort: 'non livré'
+714,Neutre,"Avis mixte équilibré, note 3/5"
+723,Négatif,Signal négatif fort: 'nul'
+760,Neutre,"Avis factuel neutre, note 3/5"
+769,Négatif,Signal négatif fort: 'ne correspond pas'
+790,Neutre,"Avis factuel neutre, note 3/5"
+795,Neutre,"Avis factuel neutre, note 3/5"
+797,Positif,Signal positif fort: 'très contente'
+798,Neutre,"Avis factuel neutre, note 3/5"
+802,Neutre,"Avis factuel neutre, note 3/5"
+817,Positif,Signal positif fort: 'rien à redire'
+821,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+857,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+861,Négatif,Signal négatif fort: 'très déçu'
+864,Positif,Satisfaction exprimée: 'content'
+878,Négatif,Déception/problème: 'déçu'
+879,Négatif,Déception/problème: 'dommage'
+884,Positif,Satisfaction exprimée: 'livraison rapide'
+904,Positif,Satisfaction exprimée: 'satisfait'
+927,Positif,Satisfaction exprimée: 'bonne qualité'
+933,Positif,Satisfaction exprimée: 'bien reçu'
+938,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+951,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+969,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+971,Positif,Signal positif fort: 'parfait'
+972,Positif,Satisfaction exprimée: 'bon rapport qualité'
+977,Positif,Satisfaction exprimée: 'bien emballé'
+990,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+998,Positif,Satisfaction exprimée: 'article conforme'
+1000,Positif,Satisfaction exprimée: 'bonne qualité'
+1006,Positif,Signal positif fort: 'rien à redire'
+1010,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+1064,Positif,Signal positif fort: 'excellent'
+1065,Positif,Satisfaction exprimée: 'je recommande'
+1077,Positif,Signal positif fort: 'très satisfait'
+1083,Positif,Signal positif fort: 'très rapide'
+1089,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1100,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1101,Positif,Signal positif fort: 'très satisfait'
+1107,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1113,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1115,Positif,Signal positif fort: 'ravi'
+1117,Positif,Satisfaction exprimée: 'livraison rapide'
+1118,Positif,Satisfaction exprimée: 'livraison rapide'
+1123,Positif,Signal positif fort: 'bravo'
+1132,Positif,Signal positif fort: 'très satisfait'
+1145,Positif,Satisfaction exprimée: 'facile'
+1147,Positif,Signal positif fort: 'parfait'
+1150,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1169,Positif,Signal positif fort: 'je conseille vivement'
+1182,Positif,Signal positif fort: 'parfait'
+1189,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1194,Positif,"Avis mixte, note 5/5 → Positif"
+1195,Négatif,Déception/problème: 'problème'
+205,Négatif,"Avis mixte, note 1/5 → Négatif"
+211,Positif,Satisfaction exprimée: 'bon rapport qualité'
+214,Négatif,Déception/problème: 'déçu'
+218,Positif,Satisfaction exprimée: 'bon rapport qualité'
+230,Négatif,Signal négatif fort: 'jamais reçu'
+241,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+252,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+257,Positif,Signal positif fort: 'bravo'
+281,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+286,Négatif,Signal négatif fort: 'nul'
+301,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+305,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+313,Négatif,Signal négatif fort: 'très déçu'
+317,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+321,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+322,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+346,Négatif,Signal négatif fort: 'nul'
+370,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+381,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+385,Positif,Satisfaction exprimée: 'bon rapport qualité'
+389,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+416,Négatif,"Avis mixte, note 1/5 → Négatif"
+422,Négatif,Déception/problème: 'déçu'
+426,Positif,Satisfaction exprimée: 'bon rapport qualité'
+437,Positif,Satisfaction exprimée: 'satisfait'
+441,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+484,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+487,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+491,Négatif,Déception/problème: 'dommage'
+498,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+501,Négatif,Déception/problème: 'déçu'
+509,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+526,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+551,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+557,Négatif,Signal négatif fort: 'ne correspond pas'
+589,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+596,Négatif,Déception/problème: 'aucun geste'
+608,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+612,Négatif,"Avis mixte, note 1/5 → Négatif"
+617,Positif,Satisfaction exprimée: 'bon rapport qualité'
+620,Négatif,Déception/problème: 'déçu'
+624,Positif,Satisfaction exprimée: 'bon rapport qualité'
+633,Positif,Signal positif fort: 'rien à redire'
+647,Négatif,Déception/problème: 'moyen'
+649,Neutre,"Avis mixte équilibré, note 3/5"
+656,Négatif,Déception/problème: 'déçu'
+676,Neutre,"Avis factuel neutre, note 3/5"
+695,Négatif,Signal négatif fort: 'très déçu'
+704,Positif,Satisfaction exprimée: 'efficace'
+716,Neutre,"Avis factuel neutre, note 3/5"
+731,Positif,"Avis mixte, note 4/5 → Positif"
+735,Neutre,"Avis factuel neutre, note 3/5"
+775,Négatif,Signal négatif fort: 'très déçu'
+800,Neutre,"Avis factuel neutre, note 3/5"
+813,Négatif,"Avis mixte, note 1/5 → Négatif"
+815,Négatif,Déception/problème: 'trop cher'
+816,Positif,Satisfaction exprimée: 'bon rapport qualité'
+822,Positif,Satisfaction exprimée: 'bon rapport qualité'
+825,Négatif,Déception/problème: 'déçu'
+828,Positif,Satisfaction exprimée: 'bon rapport qualité'
+839,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+841,Positif,Signal positif fort: 'très satisfait'
+843,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+844,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+850,Positif,Satisfaction exprimée: 'bien reçu'
+865,Positif,Satisfaction exprimée: 'sérieux'
+871,Positif,Satisfaction exprimée: 'bon rapport qualité'
+881,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+896,Positif,Signal positif fort: 'parfait'
+908,Positif,Satisfaction exprimée: 'bonne qualité'
+922,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+934,Positif,"Avis mixte, note 4/5 → Positif"
+943,Positif,Satisfaction exprimée: 'bonne qualité'
+960,Négatif,Déception/problème: 'moyen'
+964,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+983,Positif,Satisfaction exprimée: 'livraison rapide'
+995,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1005,Négatif,"Avis mixte, note 1/5 → Négatif"
+1011,Positif,Satisfaction exprimée: 'bon rapport qualité'
+1014,Négatif,Déception/problème: 'déçu'
+1018,Positif,Satisfaction exprimée: 'bon rapport qualité'
+1026,Positif,Signal positif fort: 'parfait'
+1033,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1041,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1047,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1052,Positif,Satisfaction exprimée: 'livraison rapide'
+1053,Positif,Signal positif fort: 'rien à redire'
+1059,Négatif,Déception/problème: 'problème'
+1080,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1084,Positif,Satisfaction exprimée: 'livraison rapide'
+1087,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1088,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1104,Positif,Satisfaction exprimée: 'livraison rapide'
+1111,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1137,Positif,Satisfaction exprimée: 'bon rapport qualité'
+1138,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1143,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1171,Positif,Satisfaction exprimée: 'bonne qualité'
+1176,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1179,Positif,Satisfaction exprimée: 'satisfait'
+1181,Positif,Satisfaction exprimée: 'livraison rapide'
+1183,Positif,Satisfaction exprimée: 'bonnes affaires'
+1191,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1192,Positif,Satisfaction exprimée: 'content'
+1197,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+181,Positif,Satisfaction exprimée: 'facile'
+212,Positif,Satisfaction exprimée: 'pratique'
+213,Positif,Satisfaction exprimée: 'bien emballé'
+215,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+216,Positif,Satisfaction exprimée: 'je recommande'
+221,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+226,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+228,Négatif,Signal négatif fort: 'arnaque'
+243,Négatif,Signal négatif fort: 'jamais reçu'
+253,Négatif,Signal négatif fort: 'lamentable'
+269,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+289,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+295,Négatif,Déception/problème: 'réclamation'
+306,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+308,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+329,Négatif,Déception/problème: 'dommage'
+342,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+371,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+380,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+400,Positif,Satisfaction exprimée: 'pratique'
+401,Positif,Satisfaction exprimée: 'bien emballé'
+423,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+424,Positif,Satisfaction exprimée: 'je recommande'
+429,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+431,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+434,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+440,Négatif,Signal négatif fort: 'ne correspond pas'
+453,Négatif,Déception/problème: 'déçu'
+456,Négatif,Signal négatif fort: 'qualité médiocre'
+461,Négatif,Déception/problème: 'décevant'
+497,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+511,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+513,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+524,Négatif,Déception/problème: 'problème'
+535,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+554,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+595,Négatif,"Avis mixte, note 2/5 → Négatif"
+618,Positif,Satisfaction exprimée: 'pratique'
+619,Positif,Satisfaction exprimée: 'bien emballé'
+621,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+622,Positif,Satisfaction exprimée: 'je recommande'
+627,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+632,Négatif,Déception/problème: 'déçu'
+634,Neutre,"Avis factuel neutre, note 3/5"
+689,Neutre,"Avis factuel neutre, note 3/5"
+707,Neutre,"Avis factuel neutre, note 3/5"
+712,Neutre,"Avis factuel neutre, note 3/5"
+788,Négatif,Signal négatif fort: 'nul'
+791,Positif,Satisfaction exprimée: 'sérieux'
+808,Négatif,Signal négatif fort: 'très déçu'
+823,Positif,Satisfaction exprimée: 'pratique'
+824,Positif,Satisfaction exprimée: 'bien emballé'
+826,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+827,Positif,Satisfaction exprimée: 'je recommande'
+831,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+833,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+840,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+846,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+847,Négatif,Déception/problème: 'dommage'
+851,Négatif,Déception/problème: 'dommage'
+859,Positif,Satisfaction exprimée: 'commande conforme'
+866,Positif,Signal positif fort: 'très contente'
+880,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+882,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+899,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+902,Positif,Satisfaction exprimée: 'livraison rapide'
+917,Positif,Satisfaction exprimée: 'livraison rapide'
+936,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+950,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+952,Positif,"Avis mixte, note 4/5 → Positif"
+958,Positif,Satisfaction exprimée: 'bon site'
+961,Positif,Signal positif fort: 'parfait'
+967,Positif,Satisfaction exprimée: 'satisfait'
+974,Négatif,Déception/problème: 'problème'
+984,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+993,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1001,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1012,Positif,Satisfaction exprimée: 'pratique'
+1013,Positif,Satisfaction exprimée: 'bien emballé'
+1015,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1016,Positif,Satisfaction exprimée: 'je recommande'
+1021,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1028,Positif,Satisfaction exprimée: 'commande conforme'
+1032,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1042,Positif,Satisfaction exprimée: 'commande conforme'
+1043,Positif,"Avis mixte, note 5/5 → Positif"
+1046,Positif,Signal positif fort: 'parfait'
+1050,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1060,Positif,Signal positif fort: 'très satisfait'
+1066,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1073,Positif,Signal positif fort: 'excellent'
+1085,Positif,Signal positif fort: 'ravie'
+1090,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1106,Positif,Signal positif fort: 'parfait'
+1114,Positif,Satisfaction exprimée: 'satisfait'
+1120,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1127,Positif,Satisfaction exprimée: 'livraison rapide'
+1136,Positif,Satisfaction exprimée: 'content'
+1154,Positif,Signal positif fort: 'parfait'
+1175,Positif,Satisfaction exprimée: 'satisfait'
+1178,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1187,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+92,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+207,Positif,Signal positif fort: 'ravie'
+208,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+209,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+220,Positif,Satisfaction exprimée: 'bonne qualité'
+296,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+323,Négatif,Signal négatif fort: 'volé'
+325,Négatif,Signal négatif fort: 'non livré'
+345,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+377,Négatif,Signal négatif fort: 'inadmissible'
+388,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+418,Positif,Signal positif fort: 'ravie'
+419,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+420,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+428,Positif,Satisfaction exprimée: 'bonne qualité'
+463,Positif,"Avis mixte, note 5/5 → Positif"
+467,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+536,Négatif,Signal négatif fort: 'non livré'
+546,Positif,Satisfaction exprimée: 'livraison rapide'
+555,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+575,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+614,Positif,Signal positif fort: 'ravie'
+615,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+626,Positif,Satisfaction exprimée: 'bonne qualité'
+673,Neutre,"Avis factuel neutre, note 3/5"
+697,Négatif,Déception/problème: 'dommage'
+758,Négatif,Déception/problème: 'déçu'
+781,Neutre,"Avis factuel neutre, note 3/5"
+814,Positif,Signal positif fort: 'très satisfait'
+818,Positif,Signal positif fort: 'ravie'
+819,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+820,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+830,Positif,Satisfaction exprimée: 'bonne qualité'
+849,Positif,Signal positif fort: 'très rapide'
+862,Positif,Satisfaction exprimée: 'livraison rapide'
+869,Positif,Satisfaction exprimée: 'conforme à la description'
+912,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+915,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+953,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+979,Positif,Satisfaction exprimée: 'satisfait'
+981,Positif,Satisfaction exprimée: 'livraison rapide'
+985,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1007,Positif,Signal positif fort: 'ravie'
+1008,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1009,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+1020,Positif,Satisfaction exprimée: 'bonne qualité'
+1023,Positif,Satisfaction exprimée: 'article conforme'
+1039,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1040,Positif,Signal positif fort: 'très rapide'
+1057,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1063,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1069,Positif,Satisfaction exprimée: 'livraison rapide'
+1071,Positif,Signal positif fort: 'très rapide'
+1072,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1078,Positif,Signal positif fort: 'parfait'
+1082,Positif,Satisfaction exprimée: 'livraison rapide'
+1092,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1108,Positif,Satisfaction exprimée: 'bonne qualité'
+1112,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1129,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1140,Positif,Signal positif fort: 'excellent'
+1148,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1153,Positif,Signal positif fort: 'parfait'
+1172,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1180,Positif,Satisfaction exprimée: 'bonnes affaires'
+1186,Positif,Satisfaction exprimée: 'livraison rapide'
+217,Négatif,Déception/problème: 'déçu'
+219,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+338,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+356,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+357,Négatif,Déception/problème: 'déçu'
+425,Négatif,Déception/problème: 'déçu'
+427,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+439,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+570,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+623,Négatif,Déception/problème: 'déçu'
+625,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+674,Neutre,"Avis factuel neutre, note 3/5"
+722,Neutre,"Avis factuel neutre, note 3/5"
+829,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+900,Positif,Satisfaction exprimée: 'bonne qualité'
+1017,Négatif,Déception/problème: 'déçu'
+1019,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1098,Positif,Signal positif fort: 'ravie'
+1156,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+1152,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+0,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+1,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+2,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+3,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+4,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+5,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+6,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+7,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+8,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+9,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+10,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+11,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+12,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+13,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+14,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+15,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+16,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+17,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+18,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+19,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+20,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+21,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+22,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+23,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+24,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+25,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+26,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+27,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+28,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+29,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+30,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+31,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+32,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+33,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+34,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+35,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+36,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+37,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+38,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+39,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+40,Neutre,"Avis factuel neutre, note 3/5"
+41,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+42,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+43,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+44,Négatif,Sans signal lexical; note 1/5 → insatisfaction implicite
+45,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+46,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+47,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+48,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+49,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+50,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+51,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+52,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+53,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+54,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+55,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+56,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+57,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+58,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+59,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+60,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+61,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+62,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+63,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+64,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+65,Neutre,"Avis factuel neutre, note 3/5"
+66,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+67,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+68,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+69,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+70,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+71,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+72,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+73,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+74,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+75,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+76,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+77,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+78,Neutre,"Avis factuel neutre, note 3/5"
+79,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+80,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+81,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+82,Négatif,Sans signal lexical; note 2/5 → insatisfaction implicite
+83,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+84,Neutre,"Avis factuel neutre, note 3/5"
+85,Neutre,"Avis factuel neutre, note 3/5"
+86,Neutre,"Avis factuel neutre, note 3/5"
+87,Neutre,"Avis factuel neutre, note 3/5"
+88,Neutre,"Avis factuel neutre, note 3/5"
+89,Neutre,"Avis factuel neutre, note 3/5"
+90,Neutre,"Avis factuel neutre, note 3/5"
+91,Neutre,"Avis factuel neutre, note 3/5"
+93,Neutre,"Avis factuel neutre, note 3/5"
+94,Neutre,"Avis factuel neutre, note 3/5"
+95,Neutre,"Avis factuel neutre, note 3/5"
+96,Neutre,"Avis factuel neutre, note 3/5"
+97,Neutre,"Avis factuel neutre, note 3/5"
+98,Neutre,"Avis factuel neutre, note 3/5"
+99,Neutre,"Avis factuel neutre, note 3/5"
+100,Neutre,"Avis factuel neutre, note 3/5"
+101,Neutre,"Avis factuel neutre, note 3/5"
+102,Neutre,"Avis factuel neutre, note 3/5"
+103,Neutre,"Avis factuel neutre, note 3/5"
+104,Neutre,"Avis factuel neutre, note 3/5"
+105,Neutre,"Avis factuel neutre, note 3/5"
+106,Neutre,"Avis factuel neutre, note 3/5"
+107,Neutre,"Avis factuel neutre, note 3/5"
+108,Neutre,"Avis factuel neutre, note 3/5"
+109,Neutre,"Avis factuel neutre, note 3/5"
+110,Neutre,"Avis factuel neutre, note 3/5"
+111,Neutre,"Avis factuel neutre, note 3/5"
+112,Neutre,"Avis factuel neutre, note 3/5"
+113,Neutre,"Avis factuel neutre, note 3/5"
+114,Neutre,"Avis factuel neutre, note 3/5"
+115,Neutre,"Avis factuel neutre, note 3/5"
+116,Neutre,"Avis factuel neutre, note 3/5"
+117,Neutre,"Avis factuel neutre, note 3/5"
+118,Neutre,"Avis factuel neutre, note 3/5"
+119,Neutre,"Avis factuel neutre, note 3/5"
+120,Neutre,"Avis factuel neutre, note 3/5"
+121,Neutre,"Avis factuel neutre, note 3/5"
+122,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+123,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+124,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+125,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+126,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+127,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+128,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+129,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+130,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+131,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+132,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+133,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+134,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+135,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+136,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+137,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+138,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+139,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+140,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+141,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+142,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+143,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+144,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+145,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+146,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+147,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+148,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+149,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+150,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+151,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+152,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+153,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+154,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+155,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+156,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+157,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+158,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+159,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+160,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+161,Positif,Sans signal lexical; note 4/5 → satisfaction implicite
+162,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+163,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+164,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+165,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+166,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+167,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+168,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+169,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+170,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+171,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+172,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+173,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+174,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+175,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+176,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+177,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+178,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+179,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+180,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+182,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+183,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+184,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+185,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+186,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+187,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+188,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+189,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+190,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+191,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+192,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+193,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+194,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+195,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+196,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+197,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+200,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+201,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+202,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
+203,Positif,Sans signal lexical; note 5/5 → satisfaction implicite
