@@ -54,7 +54,27 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     command: python app/main.py
 
-  # 4. Service Dashboard
+  # 4. Service API produit
+  api:
+    build: .
+    container_name: satisfaction_api
+    depends_on:
+      - postgres_db
+      - mlflow
+    volumes:
+      - .:/app
+      - mlflow_artifacts:/mlflow/artifacts
+    environment:
+      - DB_HOST=postgres_db
+      - DB_USER=admin
+      - DB_PASSWORD=password123
+      - DB_NAME=satisfaction_client
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    ports:
+      - "8000:8000"
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # 5. Service Dashboard
   dashboard:
     build: .
     container_name: satisfaction_dashboard
