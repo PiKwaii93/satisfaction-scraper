@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # 1. Base de données
   postgres_db:
     image: postgres:15-alpine
     container_name: satisfaction_db
@@ -16,7 +13,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
 
-  # 2. Service MLFlow
   mlflow:
     image: ghcr.io/mlflow/mlflow
     container_name: satisfaction_mlflow
@@ -26,16 +22,14 @@ services:
       - BACKEND_STORE_URI=sqlite:////mlflow/mlflow.db
       - ARTIFACT_ROOT=/mlflow/artifacts
     command: >
-      mlflow server --host 0.0.0.0 --port 5000 
-      --backend-store-uri sqlite:////mlflow/mlflow.db 
-      --default-artifact-root /mlflow/artifacts 
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
       --allowed-hosts "*" --cors-allowed-origins "*"
     volumes:
       - mlflow_data:/mlflow
-      # AJOUT : Partage du dossier d'artéfacts vers le volume nommé
       - mlflow_artifacts:/mlflow/artifacts
 
-  # 3. Service Worker
   worker:
     build: .
     container_name: satisfaction_worker
@@ -44,7 +38,6 @@ services:
       - mlflow
     volumes:
       - .:/app
-      # AJOUT : Accès physique aux artéfacts générés par MLflow
       - mlflow_artifacts:/mlflow/artifacts
     environment:
       - DB_HOST=postgres_db
@@ -54,7 +47,41 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     command: python app/main.py
 
-  # 4. Service Dashboard
+  api:
+    build: .
+    container_name: satisfaction_api
+    depends_on:
+      - postgres_db
+      - mlflow
+    volumes:
+      - .:/app
+      - mlflow_artifacts:/mlflow/artifacts
+    environment:
+      - DB_HOST=postgres_db
+      - DB_USER=admin
+      - DB_PASSWORD=password123
+      - DB_NAME=satisfaction_client
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    ports:
+      - "8000:8000"
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: satisfaction_frontend
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    ports:
+      - "5173:5173"
+    command: npm run dev -- --host 0.0.0.0
+
   dashboard:
     build: .
     container_name: satisfaction_dashboard
@@ -73,8 +100,8 @@ services:
       - "8501:8501"
     command: streamlit run app/dashboard.py
 
-# Déclaration de tous les volumes utilisés
 volumes:
   postgres_data:
   mlflow_data:
-  mlflow_artifacts: # AJOUT : Déclaration du nouveau volume partagé
+  mlflow_artifacts:
+  frontend_node_modules:

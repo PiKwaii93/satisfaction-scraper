@@ -82,13 +82,95 @@ docker-compose build
 Démarrer les services principaux :
 
 ```powershell
-docker-compose up -d postgres_db mlflow dashboard
+docker-compose up -d postgres_db mlflow api dashboard
 ```
 
 Accéder aux interfaces :
 
 - Dashboard Streamlit : <http://localhost:8501>
+- API FastAPI : <http://localhost:8000/docs>
 - MLflow UI : <http://localhost:5000>
+
+## API Produit
+
+Le service `api` pose le socle de la future application client React/Vite. Il historise les analyses au lieu de remplacer les avis affiches dans `fact_reviews`.
+
+Flux cible :
+
+1. l'utilisateur fournit une entreprise ou une URL Trustpilot ;
+2. l'API cree un `analysis_run` ;
+3. le scraping Trustpilot est execute ;
+4. le modele de sentiment predit les labels ;
+5. les irritants metier sont detectes ;
+6. le rapport est consultable par API.
+
+Demarrer l'API avec les autres services :
+
+```powershell
+docker-compose up -d postgres_db mlflow api dashboard
+```
+
+Documentation interactive :
+
+- API FastAPI : <http://localhost:8000/docs>
+
+Endpoints principaux :
+
+```text
+GET    /health
+POST   /analysis-runs
+GET    /analysis-runs
+GET    /analysis-runs/{run_id}
+POST   /analysis-runs/{run_id}/execute
+GET    /analysis-runs/{run_id}/summary
+GET    /analysis-runs/{run_id}/reviews
+GET    /analysis-runs/{run_id}/export
+```
+
+Exemple de lancement d'analyse depuis PowerShell :
+
+```powershell
+$body = @{
+  company = "https://fr.trustpilot.com/review/www.darty.com"
+  source = "trustpilot"
+  stars = @(1, 2, 3, 4, 5)
+  pages_per_star = 1
+  execute_immediately = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -ContentType "application/json" -Body $body
+```
+
+## Frontend React
+
+Le dossier `frontend/` contient la premiere interface client React + Vite + TypeScript.
+
+Elle permet de :
+
+- lancer une nouvelle analyse Trustpilot ;
+- consulter l'historique des analyses ;
+- afficher un rapport entreprise avec KPIs, sentiments et irritants ;
+- filtrer les avis par sentiment ;
+- exporter les avis d'un run en CSV.
+
+Demarrer l'application :
+
+```powershell
+docker-compose up -d postgres_db mlflow api frontend
+```
+
+Acces local :
+
+- Frontend React : <http://localhost:5173>
+- API FastAPI : <http://localhost:8000/docs>
+
+Commandes utiles cote frontend :
+
+```powershell
+cd frontend
+npm install
+npm run build
+```
 
 ## Pipeline Principal
 

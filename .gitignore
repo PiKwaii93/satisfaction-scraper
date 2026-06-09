@@ -119,3 +119,8 @@ venv.bak/
 # On ignore les sauvegardes et gros dumps de données
 data/*.bak
 data/temp_*
+data/api_runs/
+
+# --- Frontend ---
+frontend/node_modules/
+frontend/dist/

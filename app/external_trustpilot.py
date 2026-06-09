@@ -7,8 +7,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from app.sentiment_analysis import get_sentiment
-from etl import run_etl
-from scraper import scrape_trustpilot_by_stars
+
+try:
+    from app.etl import run_etl
+    from app.scraper import scrape_trustpilot_by_stars
+except ImportError:
+    from etl import run_etl
+    from scraper import scrape_trustpilot_by_stars
 
 
 PROJECT_ROOT = Path("/app")

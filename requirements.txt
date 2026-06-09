@@ -16,3 +16,7 @@ nltk
 streamlit
 wordcloud
 matplotlib
+
+# API produit
+fastapi
+uvicorn[standard]
