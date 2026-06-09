@@ -141,6 +141,37 @@ $body = @{
 Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -ContentType "application/json" -Body $body
 ```
 
+## Frontend React
+
+Le dossier `frontend/` contient la premiere interface client React + Vite + TypeScript.
+
+Elle permet de :
+
+- lancer une nouvelle analyse Trustpilot ;
+- consulter l'historique des analyses ;
+- afficher un rapport entreprise avec KPIs, sentiments et irritants ;
+- filtrer les avis par sentiment ;
+- exporter les avis d'un run en CSV.
+
+Demarrer l'application :
+
+```powershell
+docker-compose up -d postgres_db mlflow api frontend
+```
+
+Acces local :
+
+- Frontend React : <http://localhost:5173>
+- API FastAPI : <http://localhost:8000/docs>
+
+Commandes utiles cote frontend :
+
+```powershell
+cd frontend
+npm install
+npm run build
+```
+
 ## Pipeline Principal
 
 Pour relancer le pipeline historique complet :
