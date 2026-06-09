@@ -33,6 +33,15 @@ class AnalysisRunResponse(BaseModel):
     error_message: str | None = None
 
 
+class AnalysisRunEventResponse(BaseModel):
+    event_id: int
+    run_id: int
+    level: str
+    step: str | None = None
+    message: str
+    created_at: str | None = None
+
+
 class ReviewResponse(BaseModel):
     review_id: int
     rating: int | None

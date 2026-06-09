@@ -12,7 +12,13 @@ def build_trustpilot_review_url(company_slug, star, current_page):
     return f"{base_url}?page={current_page}&stars={star}"
 
 
-def scrape_trustpilot_by_stars(company_slug, output_path, stars_list=[1, 2, 3], pages_per_star=2):
+def scrape_trustpilot_by_stars(
+    company_slug,
+    output_path,
+    stars_list=[1, 2, 3],
+    pages_per_star=2,
+    progress_callback=None,
+):
     """
     Scrape Trustpilot en filtrant par note (étoiles) pour équilibrer le dataset
     sans dépasser les pages critiques qui déclenchent les vérifications par email.
@@ -20,6 +26,10 @@ def scrape_trustpilot_by_stars(company_slug, output_path, stars_list=[1, 2, 3], 
     print(f"[*] Démarrage du scraping ciblé pour : {company_slug}")
     print(f"[*] Notes ciblées : {stars_list} ({pages_per_star} page(s) par note)")
     
+    def notify(step, message, level="info"):
+        if progress_callback:
+            progress_callback(step=step, message=message, level=level)
+
     reviews_data = []
     seen_reviews = set()
     
@@ -34,11 +44,19 @@ def scrape_trustpilot_by_stars(company_slug, output_path, stars_list=[1, 2, 3], 
         
         # On boucle d'abord sur chaque note d'étoile configurée
         for star in stars_list:
+            notify(
+                "scrape_star",
+                f"Collecte des avis {star} etoile(s).",
+            )
             print(f"\n[+] Collecte des avis {star} étoile(s)...")
             
             for current_page in range(1, pages_per_star + 1):
                 # Construction de l'URL filtrée dynamiquement
                 url = build_trustpilot_review_url(company_slug, star, current_page)
+                notify(
+                    "scrape_page",
+                    f"Lecture page {current_page} pour {star} etoile(s).",
+                )
                 print(f"    [*] Page {current_page} : {url}")
                 
                 try:
@@ -57,6 +75,11 @@ def scrape_trustpilot_by_stars(company_slug, output_path, stars_list=[1, 2, 3], 
                     review_cards = page.query_selector_all("article[class*='styles_reviewCard']")
                     
                     if not review_cards:
+                        notify(
+                            "scrape_page_empty",
+                            f"Aucun avis trouve page {current_page} pour {star} etoile(s).",
+                            level="warning",
+                        )
                         print(f"    [-] Aucun bloc d'avis trouvé pour {star} étoile(s) à la page {current_page}.")
                         break
                     
@@ -126,6 +149,11 @@ def scrape_trustpilot_by_stars(company_slug, output_path, stars_list=[1, 2, 3], 
                             continue
                             
                 except Exception as page_error:
+                    notify(
+                        "scrape_page_error",
+                        f"Erreur page {current_page} pour {star} etoile(s): {page_error}",
+                        level="warning",
+                    )
                     print(f"    [-] Erreur lors du chargement de la page : {page_error}")
                     break
                     
@@ -141,6 +169,11 @@ def scrape_trustpilot_by_stars(company_slug, output_path, stars_list=[1, 2, 3], 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=4)
+
+    notify(
+        "scrape_output",
+        f"Fichier JSON genere avec {len(reviews_data)} avis.",
+    )
         
     print(f"\n[+] Succès : Extraction terminée. Fichier généré avec {len(reviews_data)} avis.")
 

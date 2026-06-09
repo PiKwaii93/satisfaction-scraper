@@ -108,6 +108,7 @@ a {
 .insight-section,
 .empty-state,
 .processing-state,
+.execution-log,
 .alert {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -589,6 +590,69 @@ tbody tr:last-child td {
   color: var(--muted);
 }
 
+.execution-log {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.event-list {
+  display: grid;
+  max-height: 260px;
+  gap: 10px;
+  margin: 0;
+  overflow: auto;
+  padding: 0 4px 0 0;
+  list-style: none;
+}
+
+.event-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.event-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.event-item.warning .event-dot {
+  background: var(--amber);
+}
+
+.event-item.error .event-dot {
+  background: var(--red);
+}
+
+.event-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: #344054;
+  font-size: 0.86rem;
+}
+
+.event-meta strong {
+  overflow-wrap: anywhere;
+  text-transform: capitalize;
+}
+
+.event-meta span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.event-item p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .loading-line {
   display: inline-flex;
   align-items: center;
@@ -635,6 +699,7 @@ tbody tr:last-child td {
 
   .report-header,
   .header-actions,
+  .event-meta,
   .table-heading {
     align-items: flex-start;
     flex-direction: column;

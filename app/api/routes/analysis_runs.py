@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 
 from app.api.schemas import (
     AnalysisRunCreate,
+    AnalysisRunEventResponse,
     AnalysisRunResponse,
     ReviewListResponse,
 )
@@ -13,6 +14,7 @@ from app.api.services.analysis_service import (
     create_analysis_run,
     get_analysis_run,
     get_export_rows,
+    get_run_events,
     get_run_reviews,
     get_run_summary,
     list_analysis_runs,
@@ -79,6 +81,16 @@ def list_reviews(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/{run_id}/events", response_model=list[AnalysisRunEventResponse])
+def list_events(
+    run_id: int,
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    if get_analysis_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    return get_run_events(run_id, limit=limit)
 
 
 @router.get("/{run_id}/summary")

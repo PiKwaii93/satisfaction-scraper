@@ -1,4 +1,5 @@
 import type {
+  AnalysisRunEvent,
   AnalysisRun,
   ReviewListResponse,
   RunSummary,
@@ -47,6 +48,13 @@ export function createRun(payload: CreateRunPayload) {
 
 export function getSummary(runId: number) {
   return request<RunSummary>(`/analysis-runs/${runId}/summary`);
+}
+
+export function getRunEvents(runId: number, limit = 100) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<AnalysisRunEvent[]>(
+    `/analysis-runs/${runId}/events?${params.toString()}`
+  );
 }
 
 export function getReviews(

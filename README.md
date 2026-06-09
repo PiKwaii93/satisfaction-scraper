@@ -29,6 +29,9 @@ Le système utilise la note client comme signal auxiliaire, mais le texte reste 
 - scikit-learn pour le modèle ML
 - MLflow pour le suivi et le registre du modèle
 - PostgreSQL pour le stockage des avis
+- Redis + Celery pour les analyses en arriere-plan
+- FastAPI pour l'API produit
+- React, Vite et TypeScript pour l'interface client
 - Streamlit pour le dashboard
 - Docker Compose pour l'orchestration locale
 
@@ -103,7 +106,8 @@ Flux cible :
 4. le worker Celery execute le scraping Trustpilot ;
 5. le modele de sentiment predit les labels ;
 6. les irritants metier sont detectes ;
-7. le rapport est consultable par API.
+7. les evenements d'execution sont journalises ;
+8. le rapport est consultable par API.
 
 Demarrer l'API avec les autres services :
 
@@ -125,6 +129,7 @@ GET    /analysis-runs/{run_id}
 POST   /analysis-runs/{run_id}/execute
 GET    /analysis-runs/{run_id}/summary
 GET    /analysis-runs/{run_id}/reviews
+GET    /analysis-runs/{run_id}/events
 GET    /analysis-runs/{run_id}/export
 ```
 
@@ -151,6 +156,7 @@ Elle permet de :
 - lancer une nouvelle analyse Trustpilot ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
+- suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
 - exporter les avis d'un run en CSV.
 

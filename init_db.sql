@@ -59,6 +59,15 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS analysis_run_events (
+    event_id SERIAL PRIMARY KEY,
+    run_id INT NOT NULL REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
+    level VARCHAR(20) NOT NULL DEFAULT 'info',
+    step VARCHAR(80),
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS reviews (
     review_id SERIAL PRIMARY KEY,
     run_id INT NOT NULL REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
@@ -92,6 +101,7 @@ CREATE TABLE IF NOT EXISTS review_topics (
 );
 
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_company ON analysis_runs(company_id);
+CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run ON analysis_run_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_run ON reviews(run_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_company ON reviews(company_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_label ON sentiment_predictions(label);
