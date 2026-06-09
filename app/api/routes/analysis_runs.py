@@ -11,12 +11,12 @@ from app.api.schemas import (
 )
 from app.api.services.analysis_service import (
     create_analysis_run,
-    execute_analysis_run,
     get_analysis_run,
     get_export_rows,
     get_run_reviews,
     get_run_summary,
     list_analysis_runs,
+    queue_analysis_run,
 )
 
 
@@ -57,7 +57,7 @@ def execute_run(run_id: int, skip_scrape: bool = False):
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
     try:
-        execute_analysis_run(run_id, skip_scrape=skip_scrape)
+        queue_analysis_run(run_id, skip_scrape=skip_scrape)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

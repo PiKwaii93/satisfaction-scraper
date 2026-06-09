@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     total_reviews INT DEFAULT 0,
     reviews_json_path TEXT,
     predictions_csv_path TEXT,
+    celery_task_id TEXT,
     model_uri TEXT DEFAULT 'models:/sentiment_model@production',
     error_message TEXT,
     started_at TIMESTAMP,

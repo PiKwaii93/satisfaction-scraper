@@ -156,6 +156,7 @@ def serialize_run(row):
         "pages_per_star": row["pages_per_star"],
         "stars_requested": parse_stars(row["stars_requested"]),
         "total_reviews": row["total_reviews"] or 0,
+        "celery_task_id": row.get("celery_task_id"),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "started_at": row["started_at"].isoformat() if row.get("started_at") else None,
         "finished_at": row["finished_at"].isoformat() if row.get("finished_at") else None,
@@ -212,9 +213,35 @@ def create_analysis_run(request):
         run_id = cursor.fetchone()["run_id"]
 
     if request.execute_immediately:
-        execute_analysis_run(run_id, skip_scrape=request.skip_scrape)
+        queue_analysis_run(run_id, skip_scrape=request.skip_scrape)
 
     return get_analysis_run(run_id)
+
+
+def queue_analysis_run(run_id, skip_scrape=False):
+    from app.api.services.job_queue import enqueue_analysis_run
+
+    task_id = f"analysis-run-{run_id}"
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            UPDATE analysis_runs
+            SET status = 'pending',
+                celery_task_id = %s,
+                total_reviews = 0,
+                error_message = NULL,
+                started_at = NULL,
+                finished_at = NULL,
+                updated_at = NOW()
+            WHERE run_id = %s;
+            """,
+            (task_id, run_id),
+        )
+
+    enqueue_analysis_run(run_id, skip_scrape=skip_scrape, task_id=task_id)
+
+    return task_id
 
 
 def get_analysis_run(run_id):

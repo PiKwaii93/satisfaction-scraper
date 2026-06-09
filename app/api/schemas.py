@@ -26,6 +26,7 @@ class AnalysisRunResponse(BaseModel):
     pages_per_star: int
     stars_requested: list[int]
     total_reviews: int
+    celery_task_id: str | None = None
     created_at: str | None = None
     started_at: str | None = None
     finished_at: str | None = None
