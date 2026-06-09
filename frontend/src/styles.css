@@ -107,6 +107,7 @@ a {
 .run-panel,
 .insight-section,
 .empty-state,
+.processing-state,
 .alert {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -563,6 +564,28 @@ tbody tr:last-child td {
 
 .empty-state p,
 .muted {
+  color: var(--muted);
+}
+
+.processing-state {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.processing-state svg {
+  color: var(--blue);
+}
+
+.processing-state h3,
+.processing-state p {
+  margin: 0;
+}
+
+.processing-state p {
+  margin-top: 4px;
   color: var(--muted);
 }
 

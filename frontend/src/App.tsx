@@ -4,6 +4,7 @@ import {
   BarChart3,
   CheckCircle2,
   Download,
+  Hourglass,
   Loader2,
   Play,
   RefreshCw,
@@ -106,7 +107,34 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!selectedRunId) {
+    const hasActiveRun = runs.some(
+      (run) => run.status === "pending" || run.status === "running"
+    );
+
+    if (!hasActiveRun) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      refreshRuns().catch((err: Error) => setError(err.message));
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [runs, selectedRunId]);
+
+  const selectedRun = useMemo(
+    () => runs.find((run) => run.run_id === selectedRunId) ?? null,
+    [runs, selectedRunId]
+  );
+
+  useEffect(() => {
+    if (!selectedRunId || !selectedRun) {
+      setSummary(null);
+      setReviews([]);
+      return;
+    }
+
+    if (selectedRun.status === "pending" || selectedRun.status === "running") {
       setSummary(null);
       setReviews([]);
       return;
@@ -125,12 +153,7 @@ export default function App() {
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsSummaryLoading(false));
-  }, [selectedRunId, sentimentFilter]);
-
-  const selectedRun = useMemo(
-    () => runs.find((run) => run.run_id === selectedRunId) ?? null,
-    [runs, selectedRunId]
-  );
+  }, [selectedRunId, selectedRun?.status, sentimentFilter]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -145,8 +168,8 @@ export default function App() {
         pages_per_star: pagesPerStar,
         execute_immediately: true
       });
-      await refreshRuns();
       setSelectedRunId(run.run_id);
+      await refreshRuns();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -288,6 +311,24 @@ export default function App() {
               <div className="loading-line">
                 <Loader2 className="spin" size={18} />
                 Chargement du rapport...
+              </div>
+            )}
+
+            {(selectedRun.status === "pending" ||
+              selectedRun.status === "running") && (
+              <div className="processing-state">
+                <Hourglass size={28} />
+                <div>
+                  <h3>
+                    {selectedRun.status === "pending"
+                      ? "Analyse en file d'attente"
+                      : "Analyse en cours"}
+                  </h3>
+                  <p>
+                    Le scraping et la prediction tournent dans le worker Celery.
+                    Le rapport se mettra a jour automatiquement.
+                  </p>
+                </div>
               </div>
             )}
 

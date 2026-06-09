@@ -62,6 +62,7 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         total_reviews INT DEFAULT 0,
         reviews_json_path TEXT,
         predictions_csv_path TEXT,
+        celery_task_id TEXT,
         model_uri TEXT DEFAULT 'models:/sentiment_model@production',
         error_message TEXT,
         started_at TIMESTAMP,
@@ -112,6 +113,9 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         ON sentiment_predictions(label);
     CREATE INDEX IF NOT EXISTS idx_review_topics_topic
         ON review_topics(topic);
+
+    ALTER TABLE analysis_runs
+        ADD COLUMN IF NOT EXISTS celery_task_id TEXT;
     """
 
     last_error = None

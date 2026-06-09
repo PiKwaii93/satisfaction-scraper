@@ -20,3 +20,4 @@ matplotlib
 # API produit
 fastapi
 uvicorn[standard]
+celery[redis]

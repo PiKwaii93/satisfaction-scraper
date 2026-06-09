@@ -10,6 +10,7 @@ export type AnalysisRun = {
   pages_per_star: number;
   stars_requested: number[];
   total_reviews: number;
+  celery_task_id: string | null;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;

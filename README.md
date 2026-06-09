@@ -82,7 +82,7 @@ docker-compose build
 Démarrer les services principaux :
 
 ```powershell
-docker-compose up -d postgres_db mlflow api dashboard
+docker-compose up -d postgres_db mlflow redis celery_worker api frontend
 ```
 
 Accéder aux interfaces :
@@ -99,15 +99,16 @@ Flux cible :
 
 1. l'utilisateur fournit une entreprise ou une URL Trustpilot ;
 2. l'API cree un `analysis_run` ;
-3. le scraping Trustpilot est execute ;
-4. le modele de sentiment predit les labels ;
-5. les irritants metier sont detectes ;
-6. le rapport est consultable par API.
+3. une tache Celery est envoyee dans Redis ;
+4. le worker Celery execute le scraping Trustpilot ;
+5. le modele de sentiment predit les labels ;
+6. les irritants metier sont detectes ;
+7. le rapport est consultable par API.
 
 Demarrer l'API avec les autres services :
 
 ```powershell
-docker-compose up -d postgres_db mlflow api dashboard
+docker-compose up -d postgres_db mlflow redis celery_worker api frontend
 ```
 
 Documentation interactive :
@@ -156,7 +157,7 @@ Elle permet de :
 Demarrer l'application :
 
 ```powershell
-docker-compose up -d postgres_db mlflow api frontend
+docker-compose up -d postgres_db mlflow redis celery_worker api frontend
 ```
 
 Acces local :

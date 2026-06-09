@@ -30,6 +30,12 @@ services:
       - mlflow_data:/mlflow
       - mlflow_artifacts:/mlflow/artifacts
 
+  redis:
+    image: redis:7-alpine
+    container_name: satisfaction_redis
+    ports:
+      - "6379:6379"
+
   worker:
     build: .
     container_name: satisfaction_worker
@@ -47,12 +53,13 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     command: python app/main.py
 
-  api:
+  celery_worker:
     build: .
-    container_name: satisfaction_api
+    container_name: satisfaction_celery_worker
     depends_on:
       - postgres_db
       - mlflow
+      - redis
     volumes:
       - .:/app
       - mlflow_artifacts:/mlflow/artifacts
@@ -62,6 +69,28 @@ services:
       - DB_PASSWORD=password123
       - DB_NAME=satisfaction_client
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    command: celery -A app.api.celery_app.celery_app worker --loglevel=info --concurrency=1
+
+  api:
+    build: .
+    container_name: satisfaction_api
+    depends_on:
+      - postgres_db
+      - mlflow
+      - redis
+    volumes:
+      - .:/app
+      - mlflow_artifacts:/mlflow/artifacts
+    environment:
+      - DB_HOST=postgres_db
+      - DB_USER=admin
+      - DB_PASSWORD=password123
+      - DB_NAME=satisfaction_client
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
     ports:
       - "8000:8000"
     command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
