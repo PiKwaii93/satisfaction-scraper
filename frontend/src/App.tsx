@@ -403,7 +403,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
         <table>
           <tbody>
             ${distributionRows(summary.sentiment_distribution, [
-              { label: "Negatif", key: "NÃ©gatif" as SentimentLabel },
+              { label: "Negatif", key: "Négatif" as SentimentLabel },
               { label: "Neutre", key: "Neutre" as SentimentLabel },
               { label: "Positif", key: "Positif" as SentimentLabel }
             ])}
