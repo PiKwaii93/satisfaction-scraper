@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from app.api.database import get_cursor
-from app.api.services.insights import detect_topics
+from app.api.services.insights import build_business_insights, detect_topics
 from app.scraper import scrape_trustpilot_by_stars
 
 
@@ -762,6 +762,77 @@ def get_run_summary(run_id):
         )
         rating_text_mismatches = [dict(row) for row in cursor.fetchall()]
 
+        cursor.execute(
+            """
+            SELECT
+                rt.topic,
+                sp.label AS sentiment_label,
+                COUNT(*) AS count
+            FROM reviews r
+            JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            JOIN review_topics rt ON rt.review_id = r.review_id
+            WHERE r.run_id = %s
+            GROUP BY rt.topic, sp.label
+            ORDER BY count DESC, rt.topic;
+            """,
+            (run_id,),
+        )
+        topic_sentiment_distribution = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT
+                rt.topic,
+                r.review_id,
+                r.rating,
+                r.verbatim,
+                sp.label AS sentiment_label,
+                sp.score AS sentiment_score
+            FROM reviews r
+            JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            JOIN review_topics rt ON rt.review_id = r.review_id
+            WHERE r.run_id = %s
+              AND sp.label = 'Négatif'
+              AND COALESCE(r.verbatim, '') <> ''
+            ORDER BY rt.topic, r.rating ASC NULLS LAST, sp.score DESC
+            LIMIT 80;
+            """,
+            (run_id,),
+        )
+        negative_topic_examples = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT
+                rt.topic,
+                r.review_id,
+                r.rating,
+                r.verbatim,
+                sp.label AS sentiment_label,
+                sp.score AS sentiment_score
+            FROM reviews r
+            JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            JOIN review_topics rt ON rt.review_id = r.review_id
+            WHERE r.run_id = %s
+              AND sp.label = 'Positif'
+              AND COALESCE(r.verbatim, '') <> ''
+            ORDER BY rt.topic, sp.score DESC, r.rating DESC NULLS LAST
+            LIMIT 80;
+            """,
+            (run_id,),
+        )
+        positive_topic_examples = [dict(row) for row in cursor.fetchall()]
+
+    business_insights = build_business_insights(
+        kpis=kpis,
+        sentiment_distribution=sentiment_distribution,
+        topic_sentiment_distribution=topic_sentiment_distribution,
+        negative_topic_examples=negative_topic_examples,
+        positive_topic_examples=positive_topic_examples,
+        critical_reviews=critical_reviews,
+        rating_text_mismatches=rating_text_mismatches,
+    )
+
     return {
         "run": run,
         "kpis": kpis,
@@ -770,6 +841,7 @@ def get_run_summary(run_id):
         "top_topics": top_topics,
         "critical_reviews": critical_reviews,
         "rating_text_mismatches": rating_text_mismatches,
+        "business_insights": business_insights,
     }
 
 

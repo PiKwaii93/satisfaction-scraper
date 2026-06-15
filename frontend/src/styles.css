@@ -349,6 +349,242 @@ a {
   grid-column: 1 / -1;
 }
 
+.decision-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.decision-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.decision-header h3,
+.decision-header p,
+.mini-heading h4,
+.priority-item p,
+.compact-list p {
+  margin: 0;
+}
+
+.decision-header h3 {
+  margin-top: 4px;
+  font-size: 1.15rem;
+}
+
+.decision-header p {
+  max-width: 920px;
+  margin-top: 8px;
+  color: #475467;
+  line-height: 1.5;
+}
+
+.health-meter {
+  display: grid;
+  flex: 0 0 150px;
+  min-height: 112px;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.health-meter span,
+.health-meter small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.health-meter strong {
+  color: var(--text);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.health-meter.risk-faible {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.health-meter.risk-modere {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.health-meter.risk-eleve,
+.health-meter.risk-critique {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.decision-block {
+  min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.priority-block {
+  padding-right: 8px;
+}
+
+.mini-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #344054;
+}
+
+.mini-heading h4 {
+  font-size: 0.92rem;
+}
+
+.priority-list,
+.compact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.priority-item {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.priority-topline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.priority-topline span {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.priority-topline strong {
+  overflow-wrap: anywhere;
+  color: #18202c;
+  font-size: 0.92rem;
+}
+
+.severity {
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.severity-moderee {
+  background: #fff7ed;
+  color: var(--amber);
+}
+
+.severity-elevee,
+.severity-critique {
+  background: #fef3f2;
+  color: var(--red);
+}
+
+.priority-item p,
+.compact-list p,
+.action-list {
+  color: #475467;
+  line-height: 1.45;
+}
+
+.priority-item .recommendation {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.priority-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.priority-meta span {
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 4px 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.priority-item blockquote {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--blue);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475467;
+  line-height: 1.45;
+}
+
+.action-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.compact-list article {
+  display: grid;
+  gap: 5px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compact-list article:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.compact-list strong {
+  color: #18202c;
+  font-size: 0.9rem;
+}
+
+.compact-list span {
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.watchpoint.warning strong {
+  color: var(--amber);
+}
+
+.watchpoint.error strong {
+  color: var(--red);
+}
+
 .section-heading {
   margin-bottom: 14px;
 }
@@ -689,6 +925,15 @@ tbody tr:last-child td {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .decision-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .priority-block {
+    grid-column: 1 / -1;
+    padding-right: 0;
+  }
 }
 
 @media (max-width: 760px) {
@@ -699,6 +944,7 @@ tbody tr:last-child td {
 
   .report-header,
   .header-actions,
+  .decision-header,
   .event-meta,
   .table-heading {
     align-items: flex-start;
@@ -707,9 +953,14 @@ tbody tr:last-child td {
 
   .report-grid,
   .kpi-strip,
+  .decision-grid,
   .topic-grid,
   .run-list {
     grid-template-columns: 1fr;
+  }
+
+  .health-meter {
+    width: 100%;
   }
 
   .report-header h2 {

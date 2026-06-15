@@ -54,6 +54,51 @@ export type SummaryReview = {
   sentiment_score: number;
 };
 
+export type BusinessInsightExample = {
+  review_id: number;
+  rating: number | null;
+  sentiment_label: SentimentLabel;
+  sentiment_score: number;
+  verbatim: string | null;
+};
+
+export type BusinessPriority = {
+  rank: number;
+  topic: string;
+  title: string;
+  severity: "moderee" | "elevee" | "critique" | string;
+  negative_reviews: number;
+  share_of_reviews: number;
+  impact: string;
+  recommendation: string;
+  examples: BusinessInsightExample[];
+};
+
+export type BusinessStrength = {
+  topic: string;
+  title: string;
+  positive_reviews: number;
+  recommendation: string;
+  examples: BusinessInsightExample[];
+};
+
+export type BusinessWatchpoint = {
+  title: string;
+  message: string;
+  level: "info" | "warning" | "error" | string;
+};
+
+export type BusinessInsights = {
+  health_score: number;
+  risk_level: "faible" | "modere" | "eleve" | "critique" | string;
+  executive_summary: string;
+  priorities: BusinessPriority[];
+  strengths: BusinessStrength[];
+  watchpoints: BusinessWatchpoint[];
+  next_actions: string[];
+  critical_review_count: number;
+};
+
 export type RunSummary = {
   run: AnalysisRun;
   kpis: {
@@ -68,6 +113,7 @@ export type RunSummary = {
   top_topics: DistributionRow[];
   critical_reviews: SummaryReview[];
   rating_text_mismatches: SummaryReview[];
+  business_insights: BusinessInsights;
 };
 
 export type ReviewListResponse = {

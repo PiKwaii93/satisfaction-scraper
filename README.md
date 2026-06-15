@@ -177,6 +177,7 @@ Elle permet de :
 - lancer une nouvelle analyse Trustpilot ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
+- obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
 - suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
 - exporter les avis d'un run en CSV.
