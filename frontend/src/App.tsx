@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Download,
   Hourglass,
+  ListChecks,
   Loader2,
   Play,
   RefreshCw,
@@ -13,12 +14,14 @@ import {
 } from "lucide-react";
 import {
   createRun,
-  exportUrl,
+  exportReviews,
   getReviews,
+  getRunEvents,
   getSummary,
   listRuns
 } from "./api";
 import type {
+  AnalysisRunEvent,
   AnalysisRun,
   DistributionRow,
   Review,
@@ -77,6 +80,7 @@ export default function App() {
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [runEvents, setRunEvents] = useState<AnalysisRunEvent[]>([]);
   const [sentimentFilter, setSentimentFilter] =
     useState<SentimentLabel | "Tous">("Tous");
   const [company, setCompany] = useState(
@@ -129,6 +133,43 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedRunId || !selectedRun) {
+      setRunEvents([]);
+      return;
+    }
+
+    const runId = selectedRunId;
+    let isCancelled = false;
+
+    async function loadEvents() {
+      try {
+        const events = await getRunEvents(runId);
+        if (!isCancelled) {
+          setRunEvents(events);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : "Erreur inconnue");
+        }
+      }
+    }
+
+    loadEvents();
+
+    if (selectedRun.status !== "pending" && selectedRun.status !== "running") {
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    const timer = window.setInterval(loadEvents, 3000);
+    return () => {
+      isCancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [selectedRunId, selectedRun?.status]);
+
+  useEffect(() => {
+    if (!selectedRunId || !selectedRun) {
       setSummary(null);
       setReviews([]);
       return;
@@ -174,6 +215,22 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleExport(runId: number) {
+    try {
+      const blob = await exportReviews(runId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `analysis_run_${runId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
     }
   }
 
@@ -296,14 +353,15 @@ export default function App() {
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
-                <a
+                <button
                   className="secondary-action"
-                  href={exportUrl(selectedRun.run_id)}
+                  onClick={() => handleExport(selectedRun.run_id)}
                   title="Exporter le CSV"
+                  type="button"
                 >
                   <Download size={18} />
                   Export CSV
-                </a>
+                </button>
               </div>
             </header>
 
@@ -331,6 +389,8 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            <RunEventLog events={runEvents} />
 
             {summary && (
               <div className="report-grid">
@@ -429,6 +489,60 @@ export default function App() {
 
 function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
   return <span className={`status-badge ${status}`}>{status}</span>;
+}
+
+const eventStepLabels: Record<string, string> = {
+  queued: "File d'attente",
+  worker_start: "Worker",
+  prepare_outputs: "Preparation",
+  scrape_start: "Scraping",
+  scrape_star: "Scraping",
+  scrape_page: "Page",
+  scrape_page_empty: "Page vide",
+  scrape_page_error: "Erreur page",
+  scrape_output: "JSON",
+  scrape_complete: "Scraping",
+  scrape_skipped: "JSON existant",
+  load_reviews: "Chargement",
+  predict: "Prediction",
+  persist_reviews: "Sauvegarde",
+  export: "Export",
+  completed: "Termine",
+  failed: "Echec"
+};
+
+function RunEventLog({ events }: { events: AnalysisRunEvent[] }) {
+  return (
+    <section className="execution-log">
+      <div className="section-heading">
+        <h3>Journal d'execution</h3>
+        <ListChecks size={18} />
+      </div>
+
+      {events.length === 0 ? (
+        <p className="muted">Aucun evenement pour le moment.</p>
+      ) : (
+        <ol className="event-list">
+          {events.map((event) => (
+            <li className={`event-item ${event.level}`} key={event.event_id}>
+              <span className="event-dot" aria-hidden="true" />
+              <div>
+                <div className="event-meta">
+                  <strong>
+                    {event.step
+                      ? eventStepLabels[event.step] ?? event.step.replaceAll("_", " ")
+                      : "Evenement"}
+                  </strong>
+                  <span>{formatDate(event.created_at)}</span>
+                </div>
+                <p>{event.message}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
 }
 
 function Kpi({

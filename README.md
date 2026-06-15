@@ -29,6 +29,9 @@ Le système utilise la note client comme signal auxiliaire, mais le texte reste 
 - scikit-learn pour le modèle ML
 - MLflow pour le suivi et le registre du modèle
 - PostgreSQL pour le stockage des avis
+- Redis + Celery pour les analyses en arriere-plan
+- FastAPI pour l'API produit
+- React, Vite et TypeScript pour l'interface client
 - Streamlit pour le dashboard
 - Docker Compose pour l'orchestration locale
 
@@ -103,7 +106,8 @@ Flux cible :
 4. le worker Celery execute le scraping Trustpilot ;
 5. le modele de sentiment predit les labels ;
 6. les irritants metier sont detectes ;
-7. le rapport est consultable par API.
+7. les evenements d'execution sont journalises ;
+8. le rapport est consultable par API.
 
 Demarrer l'API avec les autres services :
 
@@ -125,12 +129,34 @@ GET    /analysis-runs/{run_id}
 POST   /analysis-runs/{run_id}/execute
 GET    /analysis-runs/{run_id}/summary
 GET    /analysis-runs/{run_id}/reviews
+GET    /analysis-runs/{run_id}/events
 GET    /analysis-runs/{run_id}/export
 ```
+
+### Securite API
+
+Les endpoints `/analysis-runs` sont proteges par une API Key transmise dans le header `X-API-Key`.
+L'endpoint `/health` reste public pour les sondes de disponibilite.
+
+En local Docker, la cle de developpement est configuree dans `docker-compose.yml` :
+
+```text
+dev-satisfaction-key
+```
+
+Pour tester un endpoint protege depuis PowerShell :
+
+```powershell
+$headers = @{ "X-API-Key" = "dev-satisfaction-key" }
+Invoke-RestMethod http://localhost:8000/analysis-runs -Headers $headers
+```
+
+En production, il faut remplacer cette valeur par une cle secrete fournie via variable d'environnement `API_KEY`.
 
 Exemple de lancement d'analyse depuis PowerShell :
 
 ```powershell
+$headers = @{ "X-API-Key" = "dev-satisfaction-key" }
 $body = @{
   company = "https://fr.trustpilot.com/review/www.darty.com"
   source = "trustpilot"
@@ -139,7 +165,7 @@ $body = @{
   execute_immediately = $true
 } | ConvertTo-Json
 
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -ContentType "application/json" -Body $body
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -Headers $headers -ContentType "application/json" -Body $body
 ```
 
 ## Frontend React
@@ -151,6 +177,7 @@ Elle permet de :
 - lancer une nouvelle analyse Trustpilot ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
+- suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
 - exporter les avis d'un run en CSV.
 

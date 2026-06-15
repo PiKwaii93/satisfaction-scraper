@@ -164,6 +164,51 @@ def serialize_run(row):
     }
 
 
+def serialize_run_event(row):
+    return {
+        "event_id": row["event_id"],
+        "run_id": row["run_id"],
+        "level": row["level"],
+        "step": row.get("step"),
+        "message": row["message"],
+        "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+    }
+
+
+def reset_run_events(run_id):
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "DELETE FROM analysis_run_events WHERE run_id = %s;",
+            (run_id,),
+        )
+
+
+def record_run_event(run_id, message, step=None, level="info"):
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            INSERT INTO analysis_run_events (run_id, level, step, message)
+            VALUES (%s, %s, %s, %s);
+            """,
+            (run_id, level, step, message),
+        )
+
+
+def get_run_events(run_id, limit=100):
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT event_id, run_id, level, step, message, created_at
+            FROM analysis_run_events
+            WHERE run_id = %s
+            ORDER BY event_id ASC
+            LIMIT %s;
+            """,
+            (run_id, limit),
+        )
+        return [serialize_run_event(row) for row in cursor.fetchall()]
+
+
 def get_or_create_company(company_input):
     company_slug = normalize_company_slug(company_input)
     company_name = company_slug.replace("www.", "")
@@ -222,6 +267,7 @@ def queue_analysis_run(run_id, skip_scrape=False):
     from app.api.services.job_queue import enqueue_analysis_run
 
     task_id = f"analysis-run-{run_id}"
+    reset_run_events(run_id)
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
@@ -239,7 +285,17 @@ def queue_analysis_run(run_id, skip_scrape=False):
             (task_id, run_id),
         )
 
+    record_run_event(
+        run_id,
+        "Analyse placee dans la file d'attente.",
+        step="queued",
+    )
     enqueue_analysis_run(run_id, skip_scrape=skip_scrape, task_id=task_id)
+    record_run_event(
+        run_id,
+        f"Tache Celery envoyee: {task_id}.",
+        step="queued",
+    )
 
     return task_id
 
@@ -284,6 +340,12 @@ def execute_analysis_run(run_id, skip_scrape=False):
     if run is None:
         raise ValueError(f"Analyse introuvable: {run_id}")
 
+    record_run_event(
+        run_id,
+        "Le worker demarre l'analyse.",
+        step="worker_start",
+    )
+
     company_slug = run["trustpilot_slug"]
     stars = run["stars_requested"]
     json_path, csv_path = default_paths(company_slug, run_id)
@@ -305,25 +367,78 @@ def execute_analysis_run(run_id, skip_scrape=False):
         )
 
     try:
+        record_run_event(
+            run_id,
+            "Preparation des chemins de sortie.",
+            step="prepare_outputs",
+        )
+
         if not skip_scrape:
+            record_run_event(
+                run_id,
+                f"Scraping Trustpilot demarre pour {company_slug}.",
+                step="scrape_start",
+            )
+
+            def record_scrape_progress(step, message, level="info"):
+                record_run_event(run_id, message, step=step, level=level)
+
             scrape_trustpilot_by_stars(
                 company_slug=company_slug,
                 output_path=str(json_path),
                 stars_list=stars,
                 pages_per_star=run["pages_per_star"],
+                progress_callback=record_scrape_progress,
+            )
+            record_run_event(
+                run_id,
+                "Scraping Trustpilot termine.",
+                step="scrape_complete",
             )
         elif not json_path.exists():
             raise FileNotFoundError(f"JSON introuvable pour ce run: {json_path}")
+        else:
+            record_run_event(
+                run_id,
+                "Scraping ignore, reutilisation du JSON existant.",
+                step="scrape_skipped",
+            )
 
+        record_run_event(
+            run_id,
+            "Lecture des avis extraits.",
+            step="load_reviews",
+        )
         with json_path.open("r", encoding="utf-8") as file:
             payload = json.load(file)
 
+        review_count = len(payload.get("reviews", []))
+        record_run_event(
+            run_id,
+            f"{review_count} avis charges depuis le fichier JSON.",
+            step="load_reviews",
+        )
+        record_run_event(
+            run_id,
+            "Predictions IA et sauvegarde en base.",
+            step="predict",
+        )
         rows = persist_reviews(
             run_id=run_id,
             company_id=run["company_id"],
             payload=payload,
         )
+        record_run_event(
+            run_id,
+            f"{len(rows)} avis analyses et enregistres.",
+            step="persist_reviews",
+        )
         write_predictions_csv(csv_path, payload.get("target_company", company_slug), rows)
+        record_run_event(
+            run_id,
+            "Export CSV genere.",
+            step="export",
+        )
 
         with get_cursor(commit=True) as cursor:
             cursor.execute(
@@ -339,6 +454,12 @@ def execute_analysis_run(run_id, skip_scrape=False):
                 (len(rows), run_id),
             )
 
+        record_run_event(
+            run_id,
+            "Analyse terminee avec succes.",
+            step="completed",
+        )
+
     except Exception as exc:
         with get_cursor(commit=True) as cursor:
             cursor.execute(
@@ -352,6 +473,12 @@ def execute_analysis_run(run_id, skip_scrape=False):
                 """,
                 (str(exc), run_id),
             )
+        record_run_event(
+            run_id,
+            f"Analyse echouee: {exc}",
+            step="failed",
+            level="error",
+        )
         raise
 
 

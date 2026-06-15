@@ -17,6 +17,15 @@ export type AnalysisRun = {
   error_message: string | null;
 };
 
+export type AnalysisRunEvent = {
+  event_id: number;
+  run_id: number;
+  level: "info" | "warning" | "error" | string;
+  step: string | null;
+  message: string;
+  created_at: string | null;
+};
+
 export type DistributionRow<T extends string | number = string> = {
   label?: T;
   rating?: T;
