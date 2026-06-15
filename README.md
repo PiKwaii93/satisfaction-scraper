@@ -133,9 +133,30 @@ GET    /analysis-runs/{run_id}/events
 GET    /analysis-runs/{run_id}/export
 ```
 
+### Securite API
+
+Les endpoints `/analysis-runs` sont proteges par une API Key transmise dans le header `X-API-Key`.
+L'endpoint `/health` reste public pour les sondes de disponibilite.
+
+En local Docker, la cle de developpement est configuree dans `docker-compose.yml` :
+
+```text
+dev-satisfaction-key
+```
+
+Pour tester un endpoint protege depuis PowerShell :
+
+```powershell
+$headers = @{ "X-API-Key" = "dev-satisfaction-key" }
+Invoke-RestMethod http://localhost:8000/analysis-runs -Headers $headers
+```
+
+En production, il faut remplacer cette valeur par une cle secrete fournie via variable d'environnement `API_KEY`.
+
 Exemple de lancement d'analyse depuis PowerShell :
 
 ```powershell
+$headers = @{ "X-API-Key" = "dev-satisfaction-key" }
 $body = @{
   company = "https://fr.trustpilot.com/review/www.darty.com"
   source = "trustpilot"
@@ -144,7 +165,7 @@ $body = @{
   execute_immediately = $true
 } | ConvertTo-Json
 
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -ContentType "application/json" -Body $body
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -Headers $headers -ContentType "application/json" -Body $body
 ```
 
 ## Frontend React

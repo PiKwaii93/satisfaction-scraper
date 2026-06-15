@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   createRun,
-  exportUrl,
+  exportReviews,
   getReviews,
   getRunEvents,
   getSummary,
@@ -218,6 +218,22 @@ export default function App() {
     }
   }
 
+  async function handleExport(runId: number) {
+    try {
+      const blob = await exportReviews(runId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `analysis_run_${runId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -337,14 +353,15 @@ export default function App() {
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
-                <a
+                <button
                   className="secondary-action"
-                  href={exportUrl(selectedRun.run_id)}
+                  onClick={() => handleExport(selectedRun.run_id)}
                   title="Exporter le CSV"
+                  type="button"
                 >
                   <Download size={18} />
                   Export CSV
-                </a>
+                </button>
               </div>
             </header>
 

@@ -6,6 +6,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.database import ensure_product_schema
 from app.api.routes.analysis_runs import router as analysis_runs_router
 
+API_DESCRIPTION = """
+API produit pour lancer, suivre et consulter des analyses d'avis clients Trustpilot.
+
+Les endpoints métier sont protégés par une clé API à transmettre dans le header
+`X-API-Key`. L'endpoint `/health` reste public pour les sondes de disponibilité.
+"""
+
+OPENAPI_TAGS = [
+    {
+        "name": "system",
+        "description": "Endpoints techniques publics, utiles pour vérifier la disponibilité.",
+    },
+    {
+        "name": "analysis-runs",
+        "description": "Création, suivi, consultation et export des analyses client.",
+    },
+]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,8 +33,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Satisfaction Client API",
-    description="API produit pour lancer et consulter des analyses d'avis clients.",
+    description=API_DESCRIPTION,
     version="0.1.0",
+    openapi_tags=OPENAPI_TAGS,
     lifespan=lifespan,
 )
 
@@ -36,6 +55,10 @@ app.add_middleware(
 app.include_router(analysis_runs_router)
 
 
-@app.get("/health", tags=["system"])
+@app.get(
+    "/health",
+    tags=["system"],
+    summary="Vérifier la disponibilité de l'API",
+)
 def health_check():
     return {"status": "ok"}

@@ -91,6 +91,7 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - API_KEY=dev-satisfaction-key
     ports:
       - "8000:8000"
     command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
@@ -107,6 +108,7 @@ services:
       - frontend_node_modules:/app/frontend/node_modules
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_API_KEY=dev-satisfaction-key
     ports:
       - "5173:5173"
     command: npm run dev -- --host 0.0.0.0
