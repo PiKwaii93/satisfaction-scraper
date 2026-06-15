@@ -180,6 +180,7 @@ Elle permet de :
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
 - suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
+- exporter un rapport entreprise imprimable en PDF depuis le navigateur ;
 - exporter les avis d'un run en CSV.
 
 Demarrer l'application :

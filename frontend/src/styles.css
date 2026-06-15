@@ -285,6 +285,10 @@ a {
   margin-bottom: 18px;
 }
 
+.header-actions {
+  flex-wrap: wrap;
+}
+
 .eyebrow {
   display: block;
   color: var(--blue);

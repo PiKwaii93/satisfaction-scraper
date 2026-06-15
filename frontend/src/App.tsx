@@ -4,6 +4,7 @@ import {
   BarChart3,
   CheckCircle2,
   Download,
+  FileText,
   Hourglass,
   ListChecks,
   Loader2,
@@ -77,6 +78,369 @@ function getDistributionCount<T extends string | number>(
 ) {
   const row = rows.find((item) => item.label === key || item.rating === key);
   return row?.count ?? 0;
+}
+
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatPercent(value: number | null | undefined) {
+  return `${formatNumber(value, 1)} %`;
+}
+
+function reportFileName(run: AnalysisRun) {
+  const slug = run.company_name.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
+  return `rapport_${slug || "analyse"}_run_${run.run_id}.pdf`;
+}
+
+function distributionRows<T extends string | number>(
+  rows: DistributionRow<T>[],
+  items: Array<{ label: string; key: T }>
+) {
+  return items
+    .map((item) => {
+      const count = getDistributionCount(rows, item.key);
+      return `<tr><td>${escapeHtml(item.label)}</td><td>${count}</td></tr>`;
+    })
+    .join("");
+}
+
+function reviewExcerpt(review: SummaryReview) {
+  return `
+    <article class="review">
+      <div class="review-meta">
+        <strong>#${escapeHtml(review.review_id)}</strong>
+        <span>${escapeHtml(review.rating ?? "-")} / 5</span>
+        <span>${escapeHtml(review.sentiment_label)}</span>
+        <span>Score ${formatNumber(review.sentiment_score, 2)}</span>
+      </div>
+      <p>${escapeHtml(compactText(review.verbatim, 360))}</p>
+    </article>
+  `;
+}
+
+function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
+  const insights = summary.business_insights;
+  const createdAt = new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "long",
+    timeStyle: "short"
+  }).format(new Date());
+
+  const priorities = insights.priorities
+    .slice(0, 4)
+    .map(
+      (priority) => `
+        <article class="priority">
+          <div class="priority-heading">
+            <strong>#${priority.rank} ${escapeHtml(priority.title)}</strong>
+            <span>${escapeHtml(formatSeverity(priority.severity))}</span>
+          </div>
+          <p>${escapeHtml(priority.impact)}</p>
+          <p><strong>Action recommandee :</strong> ${escapeHtml(priority.recommendation)}</p>
+          <p class="meta">${priority.negative_reviews} avis negatifs - ${formatPercent(priority.share_of_reviews)} du corpus</p>
+        </article>
+      `
+    )
+    .join("");
+
+  const strengths = insights.strengths
+    .slice(0, 3)
+    .map(
+      (strength) => `
+        <li>
+          <strong>${escapeHtml(strength.title)}</strong>
+          <span>${strength.positive_reviews} avis positifs</span>
+        </li>
+      `
+    )
+    .join("");
+
+  const watchpoints = insights.watchpoints
+    .map(
+      (watchpoint) => `
+        <li>
+          <strong>${escapeHtml(watchpoint.title)}</strong>
+          <span>${escapeHtml(watchpoint.message)}</span>
+        </li>
+      `
+    )
+    .join("");
+
+  const actions = insights.next_actions
+    .map((action) => `<li>${escapeHtml(action)}</li>`)
+    .join("");
+
+  const topics = summary.top_topics
+    .slice(0, 8)
+    .map(
+      (topic) => `
+        <tr>
+          <td>${escapeHtml(topic.topic?.replaceAll("_", " ") ?? "Sujet")}</td>
+          <td>${topic.count}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  const criticalReviews = summary.critical_reviews
+    .slice(0, 5)
+    .map(reviewExcerpt)
+    .join("");
+
+  const mismatches = summary.rating_text_mismatches
+    .slice(0, 3)
+    .map(reviewExcerpt)
+    .join("");
+
+  return `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Rapport ${escapeHtml(run.company_name)} - Run #${run.run_id}</title>
+  <style>
+    :root {
+      color: #18202c;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+    body {
+      margin: 0;
+      background: #eef1f4;
+    }
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 34px;
+      background: #ffffff;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 3px solid #18202c;
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+    }
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+    h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #1d4ed8;
+    }
+    .eyebrow {
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .score {
+      min-width: 132px;
+      border: 1px solid #d9dee7;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .score strong {
+      display: block;
+      font-size: 36px;
+      line-height: 1;
+      margin: 5px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .kpi, .box, .priority, .review {
+      border: 1px solid #d9dee7;
+      border-radius: 8px;
+      padding: 12px;
+      break-inside: avoid;
+    }
+    .kpi span, .meta {
+      color: #667085;
+      font-size: 12px;
+    }
+    .kpi strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 22px;
+    }
+    section {
+      margin-top: 24px;
+      break-inside: avoid;
+    }
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .priority-list {
+      display: grid;
+      gap: 10px;
+    }
+    .priority-heading, .review-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .priority-heading span {
+      color: #b42318;
+      font-weight: 800;
+    }
+    ul, ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    li span {
+      display: block;
+      color: #667085;
+      font-size: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    td, th {
+      border-bottom: 1px solid #d9dee7;
+      padding: 7px 5px;
+      text-align: left;
+    }
+    th {
+      color: #475467;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .review-list {
+      display: grid;
+      gap: 10px;
+    }
+    .review p {
+      margin-bottom: 0;
+      color: #344054;
+    }
+    .limits {
+      color: #475467;
+      font-size: 13px;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+      @page {
+        margin: 16mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <span class="eyebrow">Rapport entreprise</span>
+        <h1>${escapeHtml(run.company_name)}</h1>
+        <p>Trustpilot - Run #${run.run_id} - Rapport genere le ${escapeHtml(createdAt)}</p>
+      </div>
+      <div class="score">
+        <span>Score sante</span>
+        <strong>${insights.health_score}</strong>
+        <span>Risque ${escapeHtml(formatRisk(insights.risk_level))}</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Synthese executive</h2>
+      <p>${escapeHtml(insights.executive_summary)}</p>
+    </section>
+
+    <section class="grid">
+      <div class="kpi"><span>Avis analyses</span><strong>${summary.kpis.review_count}</strong></div>
+      <div class="kpi"><span>Note moyenne</span><strong>${formatNumber(summary.kpis.average_rating)} / 5</strong></div>
+      <div class="kpi"><span>Confiance IA</span><strong>${formatNumber(summary.kpis.average_confidence, 2)}</strong></div>
+      <div class="kpi"><span>Reponses entreprise</span><strong>${summary.kpis.responded_count ?? 0}</strong></div>
+    </section>
+
+    <section>
+      <h2>Priorites recommandees</h2>
+      <div class="priority-list">${priorities || "<p>Aucune priorite critique detectee.</p>"}</div>
+    </section>
+
+    <section class="two-cols">
+      <div class="box">
+        <h2>Actions suivantes</h2>
+        <ol>${actions}</ol>
+      </div>
+      <div class="box">
+        <h2>Forces a preserver</h2>
+        <ul>${strengths || "<li>Aucun point fort isole pour le moment.</li>"}</ul>
+      </div>
+    </section>
+
+    <section class="two-cols">
+      <div class="box">
+        <h2>Sentiment global</h2>
+        <table>
+          <tbody>
+            ${distributionRows(summary.sentiment_distribution, [
+              { label: "Negatif", key: "NÃ©gatif" as SentimentLabel },
+              { label: "Neutre", key: "Neutre" as SentimentLabel },
+              { label: "Positif", key: "Positif" as SentimentLabel }
+            ])}
+          </tbody>
+        </table>
+      </div>
+      <div class="box">
+        <h2>Irritants principaux</h2>
+        <table>
+          <thead><tr><th>Sujet</th><th>Occurrences</th></tr></thead>
+          <tbody>${topics || "<tr><td>Aucun irritant detecte</td><td>0</td></tr>"}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Avis critiques representatifs</h2>
+      <div class="review-list">${criticalReviews || "<p>Aucun avis critique detecte.</p>"}</div>
+    </section>
+
+    <section>
+      <h2>Cas note vs texte</h2>
+      <div class="review-list">${mismatches || "<p>Aucun ecart note / texte detecte.</p>"}</div>
+    </section>
+
+    <section class="box">
+      <h2>Points de vigilance</h2>
+      <ul>${watchpoints || "<li>Aucun signal faible majeur.</li>"}</ul>
+    </section>
+
+    <section class="limits">
+      <h2>Limites de lecture</h2>
+      <p>Ce rapport repose sur les avis collectes lors du run, les verbatims disponibles et le modele de sentiment actuellement deploye. Les recommandations doivent etre relues avec le contexte metier avant arbitrage operationnel.</p>
+    </section>
+  </main>
+</body>
+</html>`;
 }
 
 function formatRisk(value: string) {
@@ -257,6 +621,29 @@ export default function App() {
     }
   }
 
+  function handleReportExport() {
+    if (!selectedRun || !summary) {
+      setError("Le rapport n'est pas encore disponible.");
+      return;
+    }
+
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) {
+      setError("Le navigateur a bloque l'ouverture du rapport imprimable.");
+      return;
+    }
+
+    reportWindow.document.open();
+    reportWindow.document.write(buildPrintableReport(selectedRun, summary));
+    reportWindow.document.close();
+    reportWindow.document.title = reportFileName(selectedRun);
+    reportWindow.focus();
+
+    window.setTimeout(() => {
+      reportWindow.print();
+    }, 400);
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -376,6 +763,16 @@ export default function App() {
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
+                <button
+                  className="secondary-action"
+                  disabled={!summary}
+                  onClick={handleReportExport}
+                  title="Exporter le rapport imprimable"
+                  type="button"
+                >
+                  <FileText size={18} />
+                  Rapport PDF
+                </button>
                 <button
                   className="secondary-action"
                   onClick={() => handleExport(selectedRun.run_id)}
