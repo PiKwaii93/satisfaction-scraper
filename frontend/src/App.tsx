@@ -23,6 +23,10 @@ import {
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  BusinessInsights,
+  BusinessPriority,
+  BusinessStrength,
+  BusinessWatchpoint,
   DistributionRow,
   Review,
   RunSummary,
@@ -73,6 +77,25 @@ function getDistributionCount<T extends string | number>(
 ) {
   const row = rows.find((item) => item.label === key || item.rating === key);
   return row?.count ?? 0;
+}
+
+function formatRisk(value: string) {
+  const labels: Record<string, string> = {
+    faible: "Faible",
+    modere: "Modéré",
+    eleve: "Élevé",
+    critique: "Critique"
+  };
+  return labels[value] ?? value;
+}
+
+function formatSeverity(value: string) {
+  const labels: Record<string, string> = {
+    moderee: "Modérée",
+    elevee: "Élevée",
+    critique: "Critique"
+  };
+  return labels[value] ?? value;
 }
 
 export default function App() {
@@ -417,6 +440,8 @@ export default function App() {
                   />
                 </section>
 
+                <DecisionPanel insights={summary.business_insights} />
+
                 <section className="insight-section">
                   <div className="section-heading">
                     <h3>Sentiment global</h3>
@@ -489,6 +514,129 @@ export default function App() {
 
 function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
   return <span className={`status-badge ${status}`}>{status}</span>;
+}
+
+function DecisionPanel({ insights }: { insights: BusinessInsights }) {
+  return (
+    <section className="decision-panel insight-section wide">
+      <div className="decision-header">
+        <div>
+          <span className="eyebrow">Synthèse décisionnelle</span>
+          <h3>Priorités recommandées</h3>
+          <p>{insights.executive_summary}</p>
+        </div>
+        <div className={`health-meter risk-${insights.risk_level}`}>
+          <span>Score santé</span>
+          <strong>{insights.health_score}</strong>
+          <small>Risque {formatRisk(insights.risk_level)}</small>
+        </div>
+      </div>
+
+      <div className="decision-grid">
+        <div className="decision-block priority-block">
+          <div className="mini-heading">
+            <AlertTriangle size={16} />
+            <h4>À traiter en premier</h4>
+          </div>
+          {insights.priorities.length === 0 ? (
+            <p className="muted">Aucune priorité critique détectée.</p>
+          ) : (
+            <div className="priority-list">
+              {insights.priorities.slice(0, 3).map((priority) => (
+                <PriorityItem key={priority.topic} priority={priority} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="decision-block">
+          <div className="mini-heading">
+            <CheckCircle2 size={16} />
+            <h4>Actions suivantes</h4>
+          </div>
+          <ol className="action-list">
+            {insights.next_actions.map((action) => (
+              <li key={action}>{action}</li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="decision-block">
+          <div className="mini-heading">
+            <BarChart3 size={16} />
+            <h4>Forces à préserver</h4>
+          </div>
+          <StrengthList strengths={insights.strengths} />
+        </div>
+
+        <div className="decision-block">
+          <div className="mini-heading">
+            <ListChecks size={16} />
+            <h4>Points de vigilance</h4>
+          </div>
+          <WatchpointList watchpoints={insights.watchpoints} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PriorityItem({ priority }: { priority: BusinessPriority }) {
+  return (
+    <article className="priority-item">
+      <div className="priority-topline">
+        <span>#{priority.rank}</span>
+        <strong>{priority.title}</strong>
+        <em className={`severity severity-${priority.severity}`}>
+          {formatSeverity(priority.severity)}
+        </em>
+      </div>
+      <p>{priority.impact}</p>
+      <p className="recommendation">{priority.recommendation}</p>
+      <div className="priority-meta">
+        <span>{priority.negative_reviews} avis négatifs</span>
+        <span>{formatNumber(priority.share_of_reviews, 1)} % du corpus</span>
+      </div>
+      {priority.examples.length > 0 && (
+        <blockquote>{compactText(priority.examples[0].verbatim, 180)}</blockquote>
+      )}
+    </article>
+  );
+}
+
+function StrengthList({ strengths }: { strengths: BusinessStrength[] }) {
+  if (strengths.length === 0) {
+    return <p className="muted">Aucun point fort isolé pour le moment.</p>;
+  }
+
+  return (
+    <div className="compact-list">
+      {strengths.map((strength) => (
+        <article key={strength.topic}>
+          <strong>{strength.title}</strong>
+          <span>{strength.positive_reviews} avis positifs</span>
+          <p>{strength.recommendation}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function WatchpointList({ watchpoints }: { watchpoints: BusinessWatchpoint[] }) {
+  if (watchpoints.length === 0) {
+    return <p className="muted">Aucun signal faible majeur.</p>;
+  }
+
+  return (
+    <div className="compact-list">
+      {watchpoints.map((watchpoint) => (
+        <article className={`watchpoint ${watchpoint.level}`} key={watchpoint.title}>
+          <strong>{watchpoint.title}</strong>
+          <p>{watchpoint.message}</p>
+        </article>
+      ))}
+    </div>
+  );
 }
 
 const eventStepLabels: Record<string, string> = {
