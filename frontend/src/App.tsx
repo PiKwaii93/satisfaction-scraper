@@ -110,7 +110,24 @@ function formatDuration(seconds: number | null | undefined) {
 }
 
 function formatTopic(value: string | null | undefined) {
-  return value?.replaceAll("_", " ") ?? "Sujet";
+  const normalizedValue = value?.replaceAll("_", " ").trim().toLowerCase();
+  if (!normalizedValue) return "Sujet";
+
+  const labels: Record<string, string> = {
+    commande: "Commande",
+    delai: "Délai",
+    livraison: "Livraison",
+    prix: "Prix",
+    produit: "Produit",
+    "qualite produit": "Qualité produit",
+    remboursement: "Remboursement",
+    retour: "Retour",
+    sav: "SAV",
+    "service client": "Service client",
+    "site app": "Site/app"
+  };
+
+  return labels[normalizedValue] ?? `${normalizedValue[0].toUpperCase()}${normalizedValue.slice(1)}`;
 }
 
 function getDistributionCount<T extends string | number>(
@@ -137,6 +154,11 @@ function formatPercent(value: number | null | undefined) {
 function reportFileName(run: AnalysisRun) {
   const slug = run.company_name.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
   return `rapport_${slug || "analyse"}_run_${run.run_id}.pdf`;
+}
+
+function benchmarkReportFileName(comparison: RunsComparison) {
+  const runSlug = comparison.run_ids.join("_");
+  return `rapport_benchmark_runs_${runSlug || "selection"}.pdf`;
 }
 
 function distributionRows<T extends string | number>(
@@ -182,8 +204,8 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
             <span>${escapeHtml(formatSeverity(priority.severity))}</span>
           </div>
           <p>${escapeHtml(priority.impact)}</p>
-          <p><strong>Action recommandee :</strong> ${escapeHtml(priority.recommendation)}</p>
-          <p class="meta">${priority.negative_reviews} avis negatifs - ${formatPercent(priority.share_of_reviews)} du corpus</p>
+          <p><strong>Action recommandée :</strong> ${escapeHtml(priority.recommendation)}</p>
+          <p class="meta">${priority.negative_reviews} avis négatifs - ${formatPercent(priority.share_of_reviews)} du corpus</p>
         </article>
       `
     )
@@ -221,7 +243,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
     .map(
       (topic) => `
         <tr>
-          <td>${escapeHtml(topic.topic?.replaceAll("_", " ") ?? "Sujet")}</td>
+          <td>${escapeHtml(formatTopic(topic.topic))}</td>
           <td>${topic.count}</td>
         </tr>
       `
@@ -401,30 +423,30 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
       <div>
         <span class="eyebrow">Rapport entreprise</span>
         <h1>${escapeHtml(run.company_name)}</h1>
-        <p>Trustpilot - Run #${run.run_id} - Rapport genere le ${escapeHtml(createdAt)}</p>
+        <p>Trustpilot - Run #${run.run_id} - Rapport généré le ${escapeHtml(createdAt)}</p>
       </div>
       <div class="score">
-        <span>Score sante</span>
+        <span>Score santé</span>
         <strong>${insights.health_score}</strong>
         <span>Risque ${escapeHtml(formatRisk(insights.risk_level))}</span>
       </div>
     </header>
 
     <section>
-      <h2>Synthese executive</h2>
+      <h2>Synthèse exécutive</h2>
       <p>${escapeHtml(insights.executive_summary)}</p>
     </section>
 
     <section class="grid">
-      <div class="kpi"><span>Avis analyses</span><strong>${summary.kpis.review_count}</strong></div>
+      <div class="kpi"><span>Avis analysés</span><strong>${summary.kpis.review_count}</strong></div>
       <div class="kpi"><span>Note moyenne</span><strong>${formatNumber(summary.kpis.average_rating)} / 5</strong></div>
       <div class="kpi"><span>Confiance IA</span><strong>${formatNumber(summary.kpis.average_confidence, 2)}</strong></div>
-      <div class="kpi"><span>Reponses entreprise</span><strong>${summary.kpis.responded_count ?? 0}</strong></div>
+      <div class="kpi"><span>Réponses entreprise</span><strong>${summary.kpis.responded_count ?? 0}</strong></div>
     </section>
 
     <section>
-      <h2>Priorites recommandees</h2>
-      <div class="priority-list">${priorities || "<p>Aucune priorite critique detectee.</p>"}</div>
+      <h2>Priorités recommandées</h2>
+      <div class="priority-list">${priorities || "<p>Aucune priorité critique détectée.</p>"}</div>
     </section>
 
     <section class="two-cols">
@@ -433,8 +455,8 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
         <ol>${actions}</ol>
       </div>
       <div class="box">
-        <h2>Forces a preserver</h2>
-        <ul>${strengths || "<li>Aucun point fort isole pour le moment.</li>"}</ul>
+        <h2>Forces à préserver</h2>
+        <ul>${strengths || "<li>Aucun point fort isolé pour le moment.</li>"}</ul>
       </div>
     </section>
 
@@ -444,7 +466,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
         <table>
           <tbody>
             ${distributionRows(summary.sentiment_distribution, [
-              { label: "Negatif", key: "Négatif" as SentimentLabel },
+              { label: "Négatif", key: "Négatif" as SentimentLabel },
               { label: "Neutre", key: "Neutre" as SentimentLabel },
               { label: "Positif", key: "Positif" as SentimentLabel }
             ])}
@@ -455,19 +477,19 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
         <h2>Irritants principaux</h2>
         <table>
           <thead><tr><th>Sujet</th><th>Occurrences</th></tr></thead>
-          <tbody>${topics || "<tr><td>Aucun irritant detecte</td><td>0</td></tr>"}</tbody>
+          <tbody>${topics || "<tr><td>Aucun irritant détecté</td><td>0</td></tr>"}</tbody>
         </table>
       </div>
     </section>
 
     <section>
-      <h2>Avis critiques representatifs</h2>
-      <div class="review-list">${criticalReviews || "<p>Aucun avis critique detecte.</p>"}</div>
+      <h2>Avis critiques représentatifs</h2>
+      <div class="review-list">${criticalReviews || "<p>Aucun avis critique détecté.</p>"}</div>
     </section>
 
     <section>
       <h2>Cas note vs texte</h2>
-      <div class="review-list">${mismatches || "<p>Aucun ecart note / texte detecte.</p>"}</div>
+      <div class="review-list">${mismatches || "<p>Aucun écart note / texte détecté.</p>"}</div>
     </section>
 
     <section class="box">
@@ -477,7 +499,336 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
 
     <section class="limits">
       <h2>Limites de lecture</h2>
-      <p>Ce rapport repose sur les avis collectes lors du run, les verbatims disponibles et le modele de sentiment actuellement deploye. Les recommandations doivent etre relues avec le contexte metier avant arbitrage operationnel.</p>
+      <p>Ce rapport repose sur les avis collectés lors du run, les verbatims disponibles et le modèle de sentiment actuellement déployé. Les recommandations doivent être relues avec le contexte métier avant arbitrage opérationnel.</p>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function benchmarkCompanyRows(companies: BenchmarkCompany[]) {
+  return companies
+    .map(
+      (company) => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(company.company_name)}</strong>
+            <span>Run #${company.run_id}</span>
+          </td>
+          <td>${company.health_score}</td>
+          <td>${escapeHtml(formatRisk(company.risk_level))}</td>
+          <td>${company.review_count}</td>
+          <td>${formatNumber(company.average_rating)} / 5</td>
+          <td>${company.negative_count} (${formatPercent(company.negative_rate)})</td>
+          <td>${company.neutral_count}</td>
+          <td>${company.positive_count}</td>
+          <td>
+            ${
+              company.unique_topics.length > 0
+                ? company.unique_topics
+                    .slice(0, 4)
+                    .map((topic) => `${escapeHtml(formatTopic(topic.topic))} (${topic.count})`)
+                    .join("<br />")
+                : "Aucun sujet spécifique"
+            }
+          </td>
+        </tr>
+      `
+    )
+    .join("");
+}
+
+function benchmarkCommonTopicRows(comparison: RunsComparison) {
+  return comparison.common_topics
+    .slice(0, 8)
+    .map(
+      (topic) => `
+        <tr>
+          <td>${escapeHtml(formatTopic(topic.topic))}</td>
+          <td>${topic.total_count}</td>
+          <td>${topic.run_count}</td>
+          <td>
+            ${topic.companies
+              .map((company) => `${escapeHtml(company.company_name)}: ${company.count}`)
+              .join("<br />")}
+          </td>
+        </tr>
+      `
+    )
+    .join("");
+}
+
+function buildPrintableBenchmarkReport(comparison: RunsComparison) {
+  const createdAt = new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "long",
+    timeStyle: "short"
+  }).format(new Date());
+
+  const bestHealth = comparison.highlights.best_health;
+  const highestRisk = comparison.highlights.highest_negative_rate;
+  const mostReviews = comparison.highlights.most_reviews;
+  const sharedPriority = comparison.highlights.shared_priority;
+
+  const avgHealth =
+    comparison.companies.length > 0
+      ? comparison.companies.reduce((total, company) => total + company.health_score, 0) /
+        comparison.companies.length
+      : 0;
+
+  const totalReviews = comparison.companies.reduce(
+    (total, company) => total + company.review_count,
+    0
+  );
+
+  const recommendationCompany = highestRisk ?? comparison.companies[0] ?? null;
+  const recommendationTopic = sharedPriority?.topic
+    ? formatTopic(sharedPriority.topic)
+    : recommendationCompany?.top_topics[0]?.topic
+      ? formatTopic(recommendationCompany.top_topics[0].topic)
+      : "le principal irritant client";
+
+  return `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Rapport benchmark - Runs ${escapeHtml(comparison.run_ids.join(", "))}</title>
+  <style>
+    :root {
+      color: #18202c;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+    body {
+      margin: 0;
+      background: #eef1f4;
+    }
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 34px;
+      background: #ffffff;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 3px solid #18202c;
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+    }
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+    h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      color: #1d4ed8;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .eyebrow {
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .score {
+      min-width: 150px;
+      border: 1px solid #d9dee7;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .score strong {
+      display: block;
+      font-size: 34px;
+      line-height: 1;
+      margin: 5px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .kpi, .box {
+      border: 1px solid #d9dee7;
+      border-radius: 8px;
+      padding: 12px;
+      break-inside: avoid;
+    }
+    .kpi span, .score span, td span, .muted {
+      color: #667085;
+      font-size: 12px;
+    }
+    .kpi strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 22px;
+    }
+    section {
+      margin-top: 24px;
+      break-inside: avoid;
+    }
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    td, th {
+      border-bottom: 1px solid #d9dee7;
+      padding: 8px 5px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: #475467;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    td strong,
+    td span {
+      display: block;
+    }
+    ol, ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .risk {
+      color: #b42318;
+      font-weight: 800;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+      @page {
+        margin: 14mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <span class="eyebrow">Benchmark concurrentiel</span>
+        <h1>Comparaison multi-entreprises</h1>
+        <p>${comparison.companies.length} entreprises comparées sur les runs ${escapeHtml(
+          comparison.run_ids.join(", ")
+        )} - Rapport généré le ${escapeHtml(createdAt)}</p>
+      </div>
+      <div class="score">
+        <span>Score moyen</span>
+        <strong>${formatNumber(avgHealth, 0)}</strong>
+        <span>Santé comparée</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Synthèse benchmark</h2>
+      <p>
+        Le benchmark compare ${comparison.companies.length} entreprises et ${totalReviews}
+        avis analysés. ${
+          bestHealth
+            ? `${escapeHtml(bestHealth.company_name)} obtient le meilleur score santé (${bestHealth.health_score}).`
+            : "Aucun meilleur score n'est disponible."
+        } ${
+          highestRisk
+            ? `${escapeHtml(highestRisk.company_name)} concentre le plus fort taux négatif (${formatPercent(
+                highestRisk.negative_rate
+              )}).`
+            : ""
+        }
+      </p>
+    </section>
+
+    <section class="grid">
+      <div class="kpi">
+        <span>Meilleur score santé</span>
+        <strong>${bestHealth ? bestHealth.health_score : "-"}</strong>
+        <span>${bestHealth ? escapeHtml(bestHealth.company_name) : "Non disponible"}</span>
+      </div>
+      <div class="kpi">
+        <span>Plus gros risque</span>
+        <strong>${highestRisk ? formatPercent(highestRisk.negative_rate) : "-"}</strong>
+        <span>${highestRisk ? escapeHtml(highestRisk.company_name) : "Non disponible"}</span>
+      </div>
+      <div class="kpi">
+        <span>Plus gros volume</span>
+        <strong>${mostReviews ? mostReviews.review_count : "-"}</strong>
+        <span>${mostReviews ? escapeHtml(mostReviews.company_name) : "Non disponible"}</span>
+      </div>
+      <div class="kpi">
+        <span>Irritant partage</span>
+        <strong>${sharedPriority ? escapeHtml(formatTopic(sharedPriority.topic)) : "Aucun"}</strong>
+        <span>${sharedPriority ? `${sharedPriority.total_count} occurrences` : "Pas de sujet commun fort"}</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tableau comparatif</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Entreprise</th>
+            <th>Score</th>
+            <th>Risque</th>
+            <th>Avis</th>
+            <th>Note</th>
+            <th>Négatif</th>
+            <th>Neutre</th>
+            <th>Positif</th>
+            <th>Irritants propres</th>
+          </tr>
+        </thead>
+        <tbody>${benchmarkCompanyRows(comparison.companies)}</tbody>
+      </table>
+    </section>
+
+    <section class="two-cols">
+      <div class="box">
+        <h2>Irritants communs</h2>
+        ${
+          comparison.common_topics.length === 0
+            ? "<p>Aucun irritant commun fort détecté.</p>"
+            : `<table>
+                <thead><tr><th>Sujet</th><th>Total</th><th>Runs</th><th>Détail</th></tr></thead>
+                <tbody>${benchmarkCommonTopicRows(comparison)}</tbody>
+              </table>`
+        }
+      </div>
+      <div class="box">
+        <h2>Actions recommandées</h2>
+        <ol>
+          <li>Prioriser ${escapeHtml(recommendationTopic.toLocaleLowerCase("fr-FR"))} pour l'entreprise la plus exposée.</li>
+          <li>Comparer les irritants propres pour distinguer les sujets sectoriels des problèmes internes.</li>
+          <li>Utiliser le meilleur score santé comme point de référence opérationnelle.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="box">
+      <h2>Lecture métier</h2>
+      <p>
+        Ce benchmark sert à repérer les écarts relatifs entre entreprises analysées avec le même modèle.
+        Il ne remplace pas une étude qualitative complète, mais il aide à prioriser les irritants qui
+        reviennent le plus et les entreprises qui concentrent le plus de risque client.
+      </p>
     </section>
   </main>
 </body>
@@ -580,7 +931,7 @@ export default function App() {
     }
 
     if (comparisonRunIds.length >= 4) {
-      setError("Tu peux comparer jusqu'a 4 analyses en meme temps.");
+      setError("Tu peux comparer jusqu'à 4 analyses en même temps.");
       return;
     }
 
@@ -590,7 +941,7 @@ export default function App() {
 
   async function handleCompareRuns() {
     if (comparisonRunIds.length < 2) {
-      setError("Selectionne au moins 2 analyses terminees a comparer.");
+      setError("Sélectionne au moins 2 analyses terminées à comparer.");
       return;
     }
 
@@ -757,6 +1108,24 @@ export default function App() {
     }, 400);
   }
 
+  function handleBenchmarkReportExport(comparisonToExport: RunsComparison) {
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) {
+      setError("Le navigateur a bloque l'ouverture du rapport benchmark.");
+      return;
+    }
+
+    reportWindow.document.open();
+    reportWindow.document.write(buildPrintableBenchmarkReport(comparisonToExport));
+    reportWindow.document.close();
+    reportWindow.document.title = benchmarkReportFileName(comparisonToExport);
+    reportWindow.focus();
+
+    window.setTimeout(() => {
+      reportWindow.print();
+    }, 400);
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -812,7 +1181,7 @@ export default function App() {
             <button
               className="icon-button"
               onClick={() => refreshRuns(true)}
-              title="Rafraichir les analyses"
+              title="Rafraîchir les analyses"
               type="button"
             >
               <RefreshCw size={18} />
@@ -849,7 +1218,7 @@ export default function App() {
             <small>{comparisonRunIds.length}/4</small>
           </div>
           <p className="muted">
-            Selectionne 2 a 4 analyses terminees pour comparer les entreprises.
+            Sélectionne 2 à 4 analyses terminées pour comparer les entreprises.
           </p>
 
           <div className="benchmark-select-list">
@@ -914,6 +1283,7 @@ export default function App() {
           <BenchmarkPanel
             comparison={comparison}
             onClose={() => setComparison(null)}
+            onExportReport={() => handleBenchmarkReportExport(comparison)}
           />
         )}
 
@@ -1185,10 +1555,12 @@ function FailedRunState({
 
 function BenchmarkPanel({
   comparison,
-  onClose
+  onClose,
+  onExportReport
 }: {
   comparison: RunsComparison;
   onClose: () => void;
+  onExportReport: () => void;
 }) {
   return (
     <section className="benchmark-report insight-section wide">
@@ -1197,18 +1569,24 @@ function BenchmarkPanel({
           <span className="eyebrow">Benchmark concurrentiel</span>
           <h3>Comparaison multi-entreprises</h3>
           <p>
-            {comparison.companies.length} entreprises comparees sur les runs{" "}
+            {comparison.companies.length} entreprises comparées sur les runs{" "}
             {comparison.run_ids.join(", ")}.
           </p>
         </div>
-        <button className="icon-button" onClick={onClose} title="Fermer" type="button">
+        <div className="header-actions">
+          <button className="secondary-action" onClick={onExportReport} type="button">
+            <FileText size={16} />
+            Rapport benchmark
+          </button>
+          <button className="icon-button" onClick={onClose} title="Fermer" type="button">
           ×
-        </button>
+          </button>
+        </div>
       </div>
 
       <div className="benchmark-highlight-grid">
         <BenchmarkHighlight
-          label="Meilleur score sante"
+          label="Meilleur score santé"
           company={comparison.highlights.best_health}
           value={(company) => String(company.health_score)}
           helper={(company) => `Risque ${formatRisk(company.risk_level)}`}
@@ -1217,13 +1595,13 @@ function BenchmarkPanel({
           label="Plus gros risque"
           company={comparison.highlights.highest_negative_rate}
           value={(company) => formatPercent(company.negative_rate)}
-          helper={(company) => `${company.negative_count} avis negatifs`}
+          helper={(company) => `${company.negative_count} avis négatifs`}
         />
         <BenchmarkHighlight
           label="Plus gros volume"
           company={comparison.highlights.most_reviews}
           value={(company) => String(company.review_count)}
-          helper={() => "avis analyses"}
+          helper={() => "avis analysés"}
         />
         <div className="benchmark-highlight">
           <span>Irritant partage</span>
@@ -1245,9 +1623,9 @@ function BenchmarkPanel({
           <thead>
             <tr>
               <th>Entreprise</th>
-              <th>Score sante</th>
+              <th>Score santé</th>
               <th>Note moyenne</th>
-              <th>Negatif</th>
+              <th>Négatif</th>
               <th>Positif</th>
               <th>Irritants propres</th>
             </tr>
@@ -1275,7 +1653,7 @@ function BenchmarkPanel({
       <div className="benchmark-common-topics">
         <h4>Irritants communs</h4>
         {comparison.common_topics.length === 0 ? (
-          <p className="muted">Aucun irritant commun fort detecte.</p>
+          <p className="muted">Aucun irritant commun fort détecté.</p>
         ) : (
           <div className="compact-list">
             {comparison.common_topics.slice(0, 4).map((topic) => (
@@ -1320,7 +1698,7 @@ function BenchmarkHighlight({
 
 function BenchmarkTopicList({ topics }: { topics: BenchmarkCompany["unique_topics"] }) {
   if (topics.length === 0) {
-    return <span className="muted">Aucun sujet specifique</span>;
+    return <span className="muted">Aucun sujet spécifique</span>;
   }
 
   return (
