@@ -112,6 +112,16 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         UNIQUE (review_id, topic)
     );
 
+    CREATE TABLE IF NOT EXISTS review_feedback (
+        feedback_id SERIAL PRIMARY KEY,
+        review_id INT NOT NULL UNIQUE REFERENCES reviews(review_id) ON DELETE CASCADE,
+        predicted_label VARCHAR(20) NOT NULL,
+        corrected_label VARCHAR(20) NOT NULL,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_analysis_runs_company
         ON analysis_runs(company_id);
     CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run
@@ -124,6 +134,8 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         ON sentiment_predictions(label);
     CREATE INDEX IF NOT EXISTS idx_review_topics_topic
         ON review_topics(topic);
+    CREATE INDEX IF NOT EXISTS idx_review_feedback_label
+        ON review_feedback(corrected_label);
 
     ALTER TABLE analysis_runs
         ADD COLUMN IF NOT EXISTS celery_task_id TEXT;
