@@ -31,7 +31,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || `Erreur API ${response.status}`);
+    let errorMessage = detail;
+    try {
+      const payload = JSON.parse(detail) as { detail?: string };
+      if (payload.detail) {
+        errorMessage = payload.detail;
+      }
+    } catch {
+      // The response body is not JSON, keep the raw server message.
+    }
+    throw new Error(errorMessage || `Erreur API ${response.status}`);
   }
 
   return response.json() as Promise<T>;
@@ -46,6 +55,16 @@ export function createRun(payload: CreateRunPayload) {
     method: "POST",
     body: JSON.stringify(payload)
   });
+}
+
+export function executeRun(runId: number, skipScrape = false) {
+  const params = new URLSearchParams({ skip_scrape: String(skipScrape) });
+  return request<AnalysisRun>(
+    `/analysis-runs/${runId}/execute?${params.toString()}`,
+    {
+      method: "POST"
+    }
+  );
 }
 
 export function getSummary(runId: number) {
