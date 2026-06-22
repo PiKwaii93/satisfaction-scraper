@@ -26,8 +26,8 @@ import {
 import type {
   AnalysisRunEvent,
   AnalysisRun,
-  BusinessInsights,
   BenchmarkCompany,
+  BusinessInsights,
   BusinessPriority,
   BusinessStrength,
   BusinessWatchpoint,
