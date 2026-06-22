@@ -61,6 +61,16 @@ export function createRun(payload: CreateRunPayload) {
   });
 }
 
+export function executeRun(runId: number, skipScrape = false) {
+  const params = new URLSearchParams({ skip_scrape: String(skipScrape) });
+  return request<AnalysisRun>(
+    `/analysis-runs/${runId}/execute?${params.toString()}`,
+    {
+      method: "POST"
+    }
+  );
+}
+
 export function getSummary(runId: number) {
   return request<RunSummary>(`/analysis-runs/${runId}/summary`);
 }

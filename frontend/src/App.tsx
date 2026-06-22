@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   createRun,
+  executeRun,
   exportReviews,
   getReviews,
   getRunEvents,
@@ -436,7 +437,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
         <table>
           <tbody>
             ${distributionRows(summary.sentiment_distribution, [
-              { label: "Negatif", key: "NÃ©gatif" as SentimentLabel },
+              { label: "Negatif", key: "Négatif" as SentimentLabel },
               { label: "Neutre", key: "Neutre" as SentimentLabel },
               { label: "Positif", key: "Positif" as SentimentLabel }
             ])}
@@ -510,6 +511,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshRuns(selectLatest = false) {
@@ -601,6 +603,7 @@ export default function App() {
     if (selectedRun.status !== "completed") {
       setSummary(null);
       setReviews([]);
+      setIsSummaryLoading(false);
       return;
     }
 
@@ -644,6 +647,23 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleRetryRun(runId: number) {
+    setRetryingRunId(runId);
+    setError(null);
+
+    try {
+      const run = await executeRun(runId);
+      setSelectedRunId(run.run_id);
+      setSummary(null);
+      setReviews([]);
+      await refreshRuns();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setRetryingRunId(null);
     }
   }
 
@@ -806,6 +826,22 @@ export default function App() {
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
+                {selectedRun.status === "failed" && (
+                  <button
+                    className="secondary-action danger-action"
+                    disabled={retryingRunId === selectedRun.run_id}
+                    onClick={() => handleRetryRun(selectedRun.run_id)}
+                    title="Relancer cette analyse"
+                    type="button"
+                  >
+                    {retryingRunId === selectedRun.run_id ? (
+                      <Loader2 className="spin" size={18} />
+                    ) : (
+                      <RefreshCw size={18} />
+                    )}
+                    Relancer
+                  </button>
+                )}
                 <button
                   className="secondary-action"
                   disabled={!summary || selectedRun.status !== "completed"}
@@ -864,6 +900,14 @@ export default function App() {
 
             {selectedRun.status === "empty" && (
               <EmptyRunState message={selectedRun.error_message} />
+            )}
+
+            {selectedRun.status === "failed" && (
+              <FailedRunState
+                errorMessage={selectedRun.error_message}
+                isRetrying={retryingRunId === selectedRun.run_id}
+                onRetry={() => handleRetryRun(selectedRun.run_id)}
+              />
             )}
 
             <RunEventLog events={runEvents} />
@@ -986,6 +1030,38 @@ function EmptyRunState({ message }: { message: string | null }) {
           {message ||
             "Trustpilot n'a retourne aucun avis exploitable pour cette analyse. Essaie une URL plus precise, moins de filtres ou davantage de pages."}
         </p>
+      </div>
+    </section>
+  );
+}
+
+function FailedRunState({
+  errorMessage,
+  isRetrying,
+  onRetry
+}: {
+  errorMessage: string | null;
+  isRetrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <section className="failed-state">
+      <AlertTriangle size={28} />
+      <div>
+        <h3>Analyse échouée</h3>
+        <p>
+          {errorMessage?.trim() ||
+            "Le worker n'a pas pu terminer cette analyse. Consulte le journal d'exécution pour identifier l'étape bloquante."}
+        </p>
+        <button
+          className="secondary-action danger-action"
+          disabled={isRetrying}
+          onClick={onRetry}
+          type="button"
+        >
+          {isRetrying ? <Loader2 className="spin" size={18} /> : <RefreshCw size={18} />}
+          {isRetrying ? "Relance en cours" : "Relancer l'analyse"}
+        </button>
       </div>
     </section>
   );
