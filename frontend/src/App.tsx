@@ -90,6 +90,22 @@ function validateCompanyInput(value: string) {
   return null;
 }
 
+function formatDuration(seconds: number | null | undefined) {
+  if (seconds === null || seconds === undefined) {
+    return null;
+  }
+
+  if (seconds < 60) {
+    return `${seconds} s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return remainingSeconds > 0
+    ? `${minutes} min ${remainingSeconds} s`
+    : `${minutes} min`;
+}
+
 function getDistributionCount<T extends string | number>(
   rows: DistributionRow<T>[],
   key: T
@@ -536,6 +552,9 @@ export default function App() {
     () => runs.find((run) => run.run_id === selectedRunId) ?? null,
     [runs, selectedRunId]
   );
+  const selectedRunDuration = formatDuration(
+    selectedRun?.execution_duration_seconds
+  );
 
   useEffect(() => {
     if (!selectedRunId || !selectedRun) {
@@ -581,13 +600,7 @@ export default function App() {
       return;
     }
 
-    if (selectedRun.status === "pending" || selectedRun.status === "running") {
-      setSummary(null);
-      setReviews([]);
-      return;
-    }
-
-    if (selectedRun.status === "failed") {
+    if (selectedRun.status !== "completed") {
       setSummary(null);
       setReviews([]);
       setIsSummaryLoading(false);
@@ -808,6 +821,7 @@ export default function App() {
                 <p>
                   Trustpilot - Run #{selectedRun.run_id} -{" "}
                   {selectedRun.total_reviews} avis
+                  {selectedRunDuration ? ` - ${selectedRunDuration}` : ""}
                 </p>
               </div>
               <div className="header-actions">
@@ -872,8 +886,20 @@ export default function App() {
                     Le scraping et la prediction tournent dans le worker Celery.
                     Le rapport se mettra a jour automatiquement.
                   </p>
+                  <button
+                    className="secondary-action compact-action"
+                    onClick={() => refreshRuns()}
+                    type="button"
+                  >
+                    <RefreshCw size={18} />
+                    Actualiser
+                  </button>
                 </div>
               </div>
+            )}
+
+            {selectedRun.status === "empty" && (
+              <EmptyRunState message={selectedRun.error_message} />
             )}
 
             {selectedRun.status === "failed" && (
@@ -984,7 +1010,29 @@ export default function App() {
 }
 
 function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
-  return <span className={`status-badge ${status}`}>{status}</span>;
+  const labels: Record<AnalysisRun["status"], string> = {
+    pending: "pending",
+    running: "running",
+    completed: "completed",
+    failed: "failed",
+    empty: "aucune donnee"
+  };
+  return <span className={`status-badge ${status}`}>{labels[status]}</span>;
+}
+
+function EmptyRunState({ message }: { message: string | null }) {
+  return (
+    <section className="empty-run-state">
+      <AlertTriangle size={28} />
+      <div>
+        <h3>Aucun avis recupere</h3>
+        <p>
+          {message ||
+            "Trustpilot n'a retourne aucun avis exploitable pour cette analyse. Essaie une URL plus precise, moins de filtres ou davantage de pages."}
+        </p>
+      </div>
+    </section>
+  );
 }
 
 function FailedRunState({

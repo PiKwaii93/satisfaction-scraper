@@ -13,6 +13,7 @@ from app.scraper import scrape_trustpilot_by_stars
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODEL_URI = "models:/sentiment_model@production"
+ACTIVE_RUN_STATUSES = ("pending", "running")
 FRENCH_MONTHS = {
     "janvier": 1,
     "fevrier": 2,
@@ -30,6 +31,10 @@ FRENCH_MONTHS = {
     "decembre": 12,
     "décembre": 12,
 }
+
+
+class ActiveAnalysisRunError(ValueError):
+    pass
 
 
 def normalize_company_slug(value):
@@ -146,6 +151,17 @@ def parse_stars(stars_requested):
 def serialize_run(row):
     if row is None:
         return None
+
+    started_at = row.get("started_at")
+    finished_at = row.get("finished_at")
+    execution_duration_seconds = None
+    if started_at:
+        end_at = finished_at or datetime.now()
+        execution_duration_seconds = max(
+            0,
+            int((end_at - started_at).total_seconds()),
+        )
+
     return {
         "run_id": row["run_id"],
         "company_id": row["company_id"],
@@ -158,8 +174,9 @@ def serialize_run(row):
         "total_reviews": row["total_reviews"] or 0,
         "celery_task_id": row.get("celery_task_id"),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
-        "started_at": row["started_at"].isoformat() if row.get("started_at") else None,
-        "finished_at": row["finished_at"].isoformat() if row.get("finished_at") else None,
+        "started_at": started_at.isoformat() if started_at else None,
+        "finished_at": finished_at.isoformat() if finished_at else None,
+        "execution_duration_seconds": execution_duration_seconds,
         "error_message": row.get("error_message"),
     }
 
@@ -230,6 +247,35 @@ def get_or_create_company(company_input):
         return cursor.fetchone()
 
 
+def find_active_analysis_run(company_id, source, stars, pages_per_star):
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                ar.*,
+                c.company_name,
+                c.trustpilot_slug
+            FROM analysis_runs ar
+            JOIN companies c ON c.company_id = ar.company_id
+            WHERE ar.company_id = %s
+              AND ar.source = %s
+              AND ar.stars_requested = %s
+              AND ar.pages_per_star = %s
+              AND ar.status = ANY(%s)
+            ORDER BY ar.created_at DESC
+            LIMIT 1;
+            """,
+            (
+                company_id,
+                source,
+                ",".join(str(star) for star in stars),
+                pages_per_star,
+                list(ACTIVE_RUN_STATUSES),
+            ),
+        )
+        return serialize_run(cursor.fetchone())
+
+
 def create_analysis_run(request):
     stars = sorted(set(int(star) for star in request.stars))
     invalid_stars = [star for star in stars if star < 1 or star > 5]
@@ -237,6 +283,24 @@ def create_analysis_run(request):
         raise ValueError("Les notes ciblees doivent etre comprises entre 1 et 5.")
 
     company = get_or_create_company(request.company)
+    active_run = find_active_analysis_run(
+        company_id=company["company_id"],
+        source=request.source,
+        stars=stars,
+        pages_per_star=request.pages_per_star,
+    )
+    if active_run:
+        status_label = (
+            "en file d'attente"
+            if active_run["status"] == "pending"
+            else "en cours"
+        )
+        raise ActiveAnalysisRunError(
+            "Une analyse identique est deja "
+            f"{status_label} pour {company['company_name']} "
+            f"(run #{active_run['run_id']}). "
+            "Attends sa fin ou ouvre-la depuis l'historique."
+        )
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
@@ -418,6 +482,34 @@ def execute_analysis_run(run_id, skip_scrape=False):
             f"{review_count} avis charges depuis le fichier JSON.",
             step="load_reviews",
         )
+
+        if review_count == 0:
+            message = (
+                "Aucun avis n'a ete recupere pour cette analyse. "
+                "Verifie l'URL Trustpilot, les filtres d'etoiles ou le nombre "
+                "de pages demande."
+            )
+            with get_cursor(commit=True) as cursor:
+                cursor.execute(
+                    """
+                    UPDATE analysis_runs
+                    SET status = 'empty',
+                        total_reviews = 0,
+                        finished_at = NOW(),
+                        updated_at = NOW(),
+                        error_message = %s
+                    WHERE run_id = %s;
+                    """,
+                    (message, run_id),
+                )
+            record_run_event(
+                run_id,
+                message,
+                step="no_reviews",
+                level="warning",
+            )
+            return get_analysis_run(run_id)
+
         record_run_event(
             run_id,
             "Predictions IA et sauvegarde en base.",
@@ -459,6 +551,7 @@ def execute_analysis_run(run_id, skip_scrape=False):
             "Analyse terminee avec succes.",
             step="completed",
         )
+        return get_analysis_run(run_id)
 
     except Exception as exc:
         with get_cursor(commit=True) as cursor:

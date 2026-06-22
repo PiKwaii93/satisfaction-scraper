@@ -31,19 +31,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const detail = await response.text();
-    let errorMessage = detail;
-    try {
-      const payload = JSON.parse(detail) as { detail?: string };
-      if (payload.detail) {
-        errorMessage = payload.detail;
-      }
-    } catch {
-      // The response body is not JSON, keep the raw server message.
-    }
-    throw new Error(errorMessage || `Erreur API ${response.status}`);
+    throw new Error(parseApiError(detail, response.status));
   }
 
   return response.json() as Promise<T>;
+}
+
+function parseApiError(detail: string, status: number) {
+  try {
+    const payload = JSON.parse(detail) as { detail?: string };
+    if (payload.detail) {
+      return payload.detail;
+    }
+  } catch {
+    // The response body is not JSON, keep the raw server message.
+  }
+
+  return detail || `Erreur API ${status}`;
 }
 
 export function listRuns() {
@@ -80,7 +84,7 @@ async function requestFile(path: string): Promise<Blob> {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || `Erreur API ${response.status}`);
+    throw new Error(parseApiError(detail, response.status));
   }
 
   return response.blob();
