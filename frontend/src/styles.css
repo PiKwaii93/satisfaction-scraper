@@ -108,6 +108,7 @@ a {
 .insight-section,
 .empty-state,
 .processing-state,
+.failed-state,
 .execution-log,
 .alert {
   border: 1px solid var(--border);
@@ -203,6 +204,12 @@ a {
   border: 1px solid var(--border);
   background: #ffffff;
   color: #1f2937;
+}
+
+.secondary-action.danger-action {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: var(--red);
 }
 
 .icon-button {
@@ -830,6 +837,33 @@ tbody tr:last-child td {
   color: var(--muted);
 }
 
+.failed-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 18px;
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.failed-state svg {
+  flex: 0 0 auto;
+  color: var(--red);
+}
+
+.failed-state h3,
+.failed-state p {
+  margin: 0;
+}
+
+.failed-state p {
+  margin-top: 5px;
+  margin-bottom: 14px;
+  color: #7a271a;
+  line-height: 1.5;
+}
+
 .execution-log {
   margin-bottom: 16px;
   padding: 16px;
@@ -950,6 +984,7 @@ tbody tr:last-child td {
   .header-actions,
   .decision-header,
   .event-meta,
+  .failed-state,
   .table-heading {
     align-items: flex-start;
     flex-direction: column;

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   createRun,
+  executeRun,
   exportReviews,
   getReviews,
   getRunEvents,
@@ -70,6 +71,23 @@ function compactText(value: string | null | undefined, maxLength = 230) {
   const text = (value ?? "").trim();
   if (!text) return "Avis sans verbatim";
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function validateCompanyInput(value: string) {
+  const trimmedValue = value.trim();
+  const normalizedValue = trimmedValue.toLowerCase();
+  if (trimmedValue.length < 2) {
+    return "Renseigne une entreprise ou une URL Trustpilot.";
+  }
+
+  if (
+    normalizedValue.includes("trustpilot.") &&
+    !normalizedValue.includes("/review/")
+  ) {
+    return "L'URL Trustpilot doit contenir /review/, par exemple https://fr.trustpilot.com/review/www.darty.com.";
+  }
+
+  return null;
 }
 
 function getDistributionCount<T extends string | number>(
@@ -477,6 +495,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshRuns(selectLatest = false) {
@@ -568,6 +587,13 @@ export default function App() {
       return;
     }
 
+    if (selectedRun.status === "failed") {
+      setSummary(null);
+      setReviews([]);
+      setIsSummaryLoading(false);
+      return;
+    }
+
     setIsSummaryLoading(true);
     setError(null);
 
@@ -585,12 +611,18 @@ export default function App() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = validateCompanyInput(company);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
       const run = await createRun({
-        company,
+        company: company.trim(),
         source: "trustpilot",
         stars: [1, 2, 3, 4, 5],
         pages_per_star: pagesPerStar,
@@ -602,6 +634,23 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleRetryRun(runId: number) {
+    setRetryingRunId(runId);
+    setError(null);
+
+    try {
+      const run = await executeRun(runId);
+      setSelectedRunId(run.run_id);
+      setSummary(null);
+      setReviews([]);
+      await refreshRuns();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setRetryingRunId(null);
     }
   }
 
@@ -763,9 +812,25 @@ export default function App() {
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
+                {selectedRun.status === "failed" && (
+                  <button
+                    className="secondary-action danger-action"
+                    disabled={retryingRunId === selectedRun.run_id}
+                    onClick={() => handleRetryRun(selectedRun.run_id)}
+                    title="Relancer cette analyse"
+                    type="button"
+                  >
+                    {retryingRunId === selectedRun.run_id ? (
+                      <Loader2 className="spin" size={18} />
+                    ) : (
+                      <RefreshCw size={18} />
+                    )}
+                    Relancer
+                  </button>
+                )}
                 <button
                   className="secondary-action"
-                  disabled={!summary}
+                  disabled={!summary || selectedRun.status !== "completed"}
                   onClick={handleReportExport}
                   title="Exporter le rapport imprimable"
                   type="button"
@@ -775,6 +840,7 @@ export default function App() {
                 </button>
                 <button
                   className="secondary-action"
+                  disabled={selectedRun.status !== "completed"}
                   onClick={() => handleExport(selectedRun.run_id)}
                   title="Exporter le CSV"
                   type="button"
@@ -810,9 +876,17 @@ export default function App() {
               </div>
             )}
 
+            {selectedRun.status === "failed" && (
+              <FailedRunState
+                errorMessage={selectedRun.error_message}
+                isRetrying={retryingRunId === selectedRun.run_id}
+                onRetry={() => handleRetryRun(selectedRun.run_id)}
+              />
+            )}
+
             <RunEventLog events={runEvents} />
 
-            {summary && (
+            {selectedRun.status === "completed" && summary && (
               <div className="report-grid">
                 <section className="kpi-strip">
                   <Kpi
@@ -911,6 +985,38 @@ export default function App() {
 
 function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
   return <span className={`status-badge ${status}`}>{status}</span>;
+}
+
+function FailedRunState({
+  errorMessage,
+  isRetrying,
+  onRetry
+}: {
+  errorMessage: string | null;
+  isRetrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <section className="failed-state">
+      <AlertTriangle size={28} />
+      <div>
+        <h3>Analyse échouée</h3>
+        <p>
+          {errorMessage?.trim() ||
+            "Le worker n'a pas pu terminer cette analyse. Consulte le journal d'exécution pour identifier l'étape bloquante."}
+        </p>
+        <button
+          className="secondary-action danger-action"
+          disabled={isRetrying}
+          onClick={onRetry}
+          type="button"
+        >
+          {isRetrying ? <Loader2 className="spin" size={18} /> : <RefreshCw size={18} />}
+          {isRetrying ? "Relance en cours" : "Relancer l'analyse"}
+        </button>
+      </div>
+    </section>
+  );
 }
 
 function DecisionPanel({ insights }: { insights: BusinessInsights }) {
