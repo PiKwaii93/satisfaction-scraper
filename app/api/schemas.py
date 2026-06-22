@@ -63,6 +63,7 @@ class AnalysisRunResponse(BaseModel):
     created_at: str | None = None
     started_at: str | None = None
     finished_at: str | None = None
+    execution_duration_seconds: int | None = None
     error_message: str | None = None
 
 

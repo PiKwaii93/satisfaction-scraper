@@ -108,6 +108,7 @@ a {
 .insight-section,
 .empty-state,
 .processing-state,
+.empty-run-state,
 .execution-log,
 .alert {
   border: 1px solid var(--border);
@@ -203,6 +204,10 @@ a {
   border: 1px solid var(--border);
   background: #ffffff;
   color: #1f2937;
+}
+
+.compact-action {
+  margin-top: 12px;
 }
 
 .icon-button {
@@ -724,6 +729,11 @@ a {
   color: var(--red);
 }
 
+.status-badge.empty {
+  background: #fffaeb;
+  color: var(--amber);
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--border);
@@ -828,6 +838,32 @@ tbody tr:last-child td {
 .processing-state p {
   margin-top: 4px;
   color: var(--muted);
+}
+
+.empty-run-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 18px;
+  border-color: #fedf89;
+  background: #fffbeb;
+}
+
+.empty-run-state svg {
+  flex: 0 0 auto;
+  color: var(--amber);
+}
+
+.empty-run-state h3,
+.empty-run-state p {
+  margin: 0;
+}
+
+.empty-run-state p {
+  margin-top: 5px;
+  color: #7a4b00;
+  line-height: 1.5;
 }
 
 .execution-log {
@@ -950,6 +986,8 @@ tbody tr:last-child td {
   .header-actions,
   .decision-header,
   .event-meta,
+  .processing-state,
+  .empty-run-state,
   .table-heading {
     align-items: flex-start;
     flex-direction: column;

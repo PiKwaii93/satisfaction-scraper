@@ -6,7 +6,7 @@ export type AnalysisRun = {
   company_name: string;
   trustpilot_slug: string;
   source: "trustpilot";
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "empty";
   pages_per_star: number;
   stars_requested: number[];
   total_reviews: number;
@@ -14,6 +14,7 @@ export type AnalysisRun = {
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;
+  execution_duration_seconds: number | null;
   error_message: string | null;
 };
 

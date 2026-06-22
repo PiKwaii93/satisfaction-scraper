@@ -72,6 +72,39 @@ function compactText(value: string | null | undefined, maxLength = 230) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
+function validateCompanyInput(value: string) {
+  const trimmedValue = value.trim();
+  const normalizedValue = trimmedValue.toLowerCase();
+  if (trimmedValue.length < 2) {
+    return "Renseigne une entreprise ou une URL Trustpilot.";
+  }
+
+  if (
+    normalizedValue.includes("trustpilot.") &&
+    !normalizedValue.includes("/review/")
+  ) {
+    return "L'URL Trustpilot doit contenir /review/, par exemple https://fr.trustpilot.com/review/www.darty.com.";
+  }
+
+  return null;
+}
+
+function formatDuration(seconds: number | null | undefined) {
+  if (seconds === null || seconds === undefined) {
+    return null;
+  }
+
+  if (seconds < 60) {
+    return `${seconds} s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return remainingSeconds > 0
+    ? `${minutes} min ${remainingSeconds} s`
+    : `${minutes} min`;
+}
+
 function getDistributionCount<T extends string | number>(
   rows: DistributionRow<T>[],
   key: T
@@ -517,6 +550,9 @@ export default function App() {
     () => runs.find((run) => run.run_id === selectedRunId) ?? null,
     [runs, selectedRunId]
   );
+  const selectedRunDuration = formatDuration(
+    selectedRun?.execution_duration_seconds
+  );
 
   useEffect(() => {
     if (!selectedRunId || !selectedRun) {
@@ -562,7 +598,7 @@ export default function App() {
       return;
     }
 
-    if (selectedRun.status === "pending" || selectedRun.status === "running") {
+    if (selectedRun.status !== "completed") {
       setSummary(null);
       setReviews([]);
       return;
@@ -585,12 +621,18 @@ export default function App() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = validateCompanyInput(company);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
       const run = await createRun({
-        company,
+        company: company.trim(),
         source: "trustpilot",
         stars: [1, 2, 3, 4, 5],
         pages_per_star: pagesPerStar,
@@ -759,13 +801,14 @@ export default function App() {
                 <p>
                   Trustpilot - Run #{selectedRun.run_id} -{" "}
                   {selectedRun.total_reviews} avis
+                  {selectedRunDuration ? ` - ${selectedRunDuration}` : ""}
                 </p>
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
                 <button
                   className="secondary-action"
-                  disabled={!summary}
+                  disabled={!summary || selectedRun.status !== "completed"}
                   onClick={handleReportExport}
                   title="Exporter le rapport imprimable"
                   type="button"
@@ -775,6 +818,7 @@ export default function App() {
                 </button>
                 <button
                   className="secondary-action"
+                  disabled={selectedRun.status !== "completed"}
                   onClick={() => handleExport(selectedRun.run_id)}
                   title="Exporter le CSV"
                   type="button"
@@ -806,13 +850,25 @@ export default function App() {
                     Le scraping et la prediction tournent dans le worker Celery.
                     Le rapport se mettra a jour automatiquement.
                   </p>
+                  <button
+                    className="secondary-action compact-action"
+                    onClick={() => refreshRuns()}
+                    type="button"
+                  >
+                    <RefreshCw size={18} />
+                    Actualiser
+                  </button>
                 </div>
               </div>
             )}
 
+            {selectedRun.status === "empty" && (
+              <EmptyRunState message={selectedRun.error_message} />
+            )}
+
             <RunEventLog events={runEvents} />
 
-            {summary && (
+            {selectedRun.status === "completed" && summary && (
               <div className="report-grid">
                 <section className="kpi-strip">
                   <Kpi
@@ -910,7 +966,29 @@ export default function App() {
 }
 
 function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
-  return <span className={`status-badge ${status}`}>{status}</span>;
+  const labels: Record<AnalysisRun["status"], string> = {
+    pending: "pending",
+    running: "running",
+    completed: "completed",
+    failed: "failed",
+    empty: "aucune donnee"
+  };
+  return <span className={`status-badge ${status}`}>{labels[status]}</span>;
+}
+
+function EmptyRunState({ message }: { message: string | null }) {
+  return (
+    <section className="empty-run-state">
+      <AlertTriangle size={28} />
+      <div>
+        <h3>Aucun avis recupere</h3>
+        <p>
+          {message ||
+            "Trustpilot n'a retourne aucun avis exploitable pour cette analyse. Essaie une URL plus precise, moins de filtres ou davantage de pages."}
+        </p>
+      </div>
+    </section>
+  );
 }
 
 function DecisionPanel({ insights }: { insights: BusinessInsights }) {
