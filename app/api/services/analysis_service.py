@@ -14,6 +14,7 @@ from app.scraper import scrape_trustpilot_by_stars
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODEL_URI = "models:/sentiment_model@production"
 ACTIVE_RUN_STATUSES = ("pending", "running")
+SENTIMENT_LABELS = {"Positif", "Neutre", "Négatif"}
 FRENCH_MONTHS = {
     "janvier": 1,
     "fevrier": 2,
@@ -35,6 +36,13 @@ FRENCH_MONTHS = {
 
 class ActiveAnalysisRunError(ValueError):
     pass
+
+
+def normalize_sentiment_label(value):
+    label = str(value or "").strip().replace("Ã©", "é")
+    if label not in SENTIMENT_LABELS:
+        raise ValueError("Le label doit etre Positif, Neutre ou Négatif.")
+    return label
 
 
 def normalize_company_slug(value):
@@ -713,15 +721,19 @@ def get_run_reviews(run_id, sentiment=None, limit=100, offset=0):
                 r.company_responded,
                 sp.label AS sentiment_label,
                 sp.score AS sentiment_score,
+                rf.corrected_label,
+                rf.comment AS feedback_comment,
+                rf.updated_at AS feedback_updated_at,
                 COALESCE(
                     ARRAY_REMOVE(ARRAY_AGG(rt.topic ORDER BY rt.topic), NULL),
                     ARRAY[]::varchar[]
                 ) AS topics
             FROM reviews r
             JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            LEFT JOIN review_feedback rf ON rf.review_id = r.review_id
             LEFT JOIN review_topics rt ON rt.review_id = r.review_id
             WHERE {" AND ".join(filters)}
-            GROUP BY r.review_id, sp.label, sp.score
+            GROUP BY r.review_id, sp.label, sp.score, rf.corrected_label, rf.comment, rf.updated_at
             ORDER BY r.review_id
             LIMIT %s OFFSET %s;
             """,
@@ -750,6 +762,70 @@ def get_run_reviews(run_id, sentiment=None, limit=100, offset=0):
     }
 
 
+def save_review_feedback(run_id, review_id, payload):
+    corrected_label = normalize_sentiment_label(payload.corrected_label)
+    comment = (payload.comment or "").strip() or None
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            SELECT
+                r.review_id,
+                r.run_id,
+                sp.label AS predicted_label
+            FROM reviews r
+            JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            WHERE r.run_id = %s AND r.review_id = %s;
+            """,
+            (run_id, review_id),
+        )
+        review = cursor.fetchone()
+        if review is None:
+            return None
+
+        cursor.execute(
+            """
+            INSERT INTO review_feedback (
+                review_id, predicted_label, corrected_label, comment
+            )
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (review_id) DO UPDATE
+            SET predicted_label = EXCLUDED.predicted_label,
+                corrected_label = EXCLUDED.corrected_label,
+                comment = EXCLUDED.comment,
+                updated_at = NOW()
+            RETURNING
+                feedback_id,
+                review_id,
+                predicted_label,
+                corrected_label,
+                comment,
+                created_at,
+                updated_at;
+            """,
+            (review_id, review["predicted_label"], corrected_label, comment),
+        )
+        feedback = dict(cursor.fetchone())
+        feedback["run_id"] = run_id
+        return feedback
+
+
+def delete_review_feedback(run_id, review_id):
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            DELETE FROM review_feedback rf
+            USING reviews r
+            WHERE rf.review_id = r.review_id
+              AND r.run_id = %s
+              AND r.review_id = %s
+            RETURNING rf.feedback_id;
+            """,
+            (run_id, review_id),
+        )
+        return cursor.fetchone() is not None
+
+
 def get_run_summary(run_id):
     run = get_analysis_run(run_id)
     if run is None:
@@ -763,9 +839,11 @@ def get_run_summary(run_id):
                 AVG(r.rating) AS average_rating,
                 AVG(sp.score) AS average_confidence,
                 SUM(CASE WHEN r.company_responded THEN 1 ELSE 0 END) AS responded_count,
-                SUM(CASE WHEN COALESCE(r.verbatim, '') <> '' THEN 1 ELSE 0 END) AS text_count
+                SUM(CASE WHEN COALESCE(r.verbatim, '') <> '' THEN 1 ELSE 0 END) AS text_count,
+                COUNT(rf.feedback_id) AS feedback_count
             FROM reviews r
             JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            LEFT JOIN review_feedback rf ON rf.review_id = r.review_id
             WHERE r.run_id = %s;
             """,
             (run_id,),
@@ -1084,6 +1162,48 @@ def get_runs_comparison(run_ids):
         "common_topics": common_topics,
         "highlights": highlights,
     }
+
+
+def get_feedback_export_rows(run_id):
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                r.review_id,
+                r.run_id,
+                c.company_name,
+                r.rating,
+                r.author_name,
+                r.raw_date,
+                sp.label AS predicted_label,
+                rf.corrected_label,
+                sp.score AS sentiment_score,
+                rf.comment AS feedback_comment,
+                rf.updated_at AS feedback_updated_at,
+                r.verbatim,
+                COALESCE(
+                    ARRAY_REMOVE(ARRAY_AGG(rt.topic ORDER BY rt.topic), NULL),
+                    ARRAY[]::varchar[]
+                ) AS topics
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            JOIN sentiment_predictions sp ON sp.review_id = r.review_id
+            LEFT JOIN review_topics rt ON rt.review_id = r.review_id
+            WHERE r.run_id = %s
+            GROUP BY
+                r.review_id,
+                c.company_name,
+                sp.label,
+                sp.score,
+                rf.corrected_label,
+                rf.comment,
+                rf.updated_at
+            ORDER BY rf.updated_at DESC, r.review_id;
+            """,
+            (run_id,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def get_export_rows(run_id):

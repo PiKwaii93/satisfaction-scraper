@@ -43,6 +43,9 @@ export type Review = {
   company_responded: boolean;
   sentiment_label: SentimentLabel;
   sentiment_score: number;
+  corrected_label: SentimentLabel | null;
+  feedback_comment: string | null;
+  feedback_updated_at: string | null;
   topics: string[];
 };
 
@@ -108,6 +111,7 @@ export type RunSummary = {
     average_confidence: number | null;
     responded_count: number | null;
     text_count: number | null;
+    feedback_count: number | null;
   };
   sentiment_distribution: DistributionRow<SentimentLabel>[];
   rating_distribution: DistributionRow<number>[];
@@ -172,4 +176,15 @@ export type ReviewListResponse = {
   limit: number;
   offset: number;
   reviews: Review[];
+};
+
+export type ReviewFeedback = {
+  feedback_id: number;
+  review_id: number;
+  run_id: number;
+  predicted_label: SentimentLabel;
+  corrected_label: SentimentLabel;
+  comment: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };

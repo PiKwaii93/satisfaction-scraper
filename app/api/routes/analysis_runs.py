@@ -1,7 +1,7 @@
 import csv
 from io import StringIO
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 
 from app.api.schemas import (
@@ -10,12 +10,16 @@ from app.api.schemas import (
     AnalysisRunResponse,
     AnalysisRunsComparisonResponse,
     ErrorResponse,
+    ReviewFeedbackCreate,
+    ReviewFeedbackResponse,
     ReviewListResponse,
 )
 from app.api.security import require_api_key
 from app.api.services.analysis_service import (
     ActiveAnalysisRunError,
     create_analysis_run,
+    delete_review_feedback,
+    get_feedback_export_rows,
     get_analysis_run,
     get_export_rows,
     get_run_events,
@@ -24,6 +28,7 @@ from app.api.services.analysis_service import (
     get_runs_comparison,
     list_analysis_runs,
     queue_analysis_run,
+    save_review_feedback,
 )
 
 
@@ -154,6 +159,41 @@ def list_reviews(
     )
 
 
+@router.post(
+    "/{run_id}/reviews/{review_id}/feedback",
+    response_model=ReviewFeedbackResponse,
+    summary="Corriger le sentiment d'un avis",
+    description="Enregistre ou remplace une correction humaine pour alimenter le futur dataset d'entrainement.",
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def save_feedback(run_id: int, review_id: int, payload: ReviewFeedbackCreate):
+    if get_analysis_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+
+    try:
+        feedback = save_review_feedback(run_id, review_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if feedback is None:
+        raise HTTPException(status_code=404, detail="Avis introuvable")
+    return feedback
+
+
+@router.delete(
+    "/{run_id}/reviews/{review_id}/feedback",
+    status_code=204,
+    summary="Supprimer une correction",
+    responses={404: {"model": ErrorResponse}},
+)
+def delete_feedback(run_id: int, review_id: int):
+    if get_analysis_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    if not delete_review_feedback(run_id, review_id):
+        raise HTTPException(status_code=404, detail="Correction introuvable")
+    return Response(status_code=204)
+
+
 @router.get(
     "/{run_id}/events",
     response_model=list[AnalysisRunEventResponse],
@@ -183,6 +223,54 @@ def get_summary(run_id: int):
 
 
 @router.get(
+    "/{run_id}/feedback/export",
+    summary="Exporter les corrections humaines en CSV",
+    responses={404: {"model": ErrorResponse}},
+)
+def export_feedback(run_id: int):
+    if get_analysis_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+
+    rows = get_feedback_export_rows(run_id)
+    buffer = StringIO()
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=[
+            "review_id",
+            "run_id",
+            "company_name",
+            "rating",
+            "author_name",
+            "raw_date",
+            "predicted_label",
+            "corrected_label",
+            "sentiment_score",
+            "feedback_comment",
+            "feedback_updated_at",
+            "topics",
+            "verbatim",
+        ],
+    )
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                **row,
+                "topics": ",".join(row.get("topics", [])),
+            }
+        )
+
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="analysis_run_{run_id}_feedback.csv"'
+        },
+    )
+
+
+@router.get(
     "/{run_id}/export",
     summary="Exporter les avis en CSV",
     responses={404: {"model": ErrorResponse}},
@@ -202,6 +290,8 @@ def export_reviews(run_id: int):
             "raw_date",
             "sentiment_label",
             "sentiment_score",
+            "corrected_label",
+            "feedback_comment",
             "company_responded",
             "topics",
             "verbatim",

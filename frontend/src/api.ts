@@ -1,6 +1,7 @@
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  ReviewFeedback,
   ReviewListResponse,
   RunsComparison,
   RunSummary,
@@ -33,6 +34,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(parseApiError(detail, response.status));
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;
@@ -108,9 +113,13 @@ export function getRunEvents(runId: number, limit = 100) {
 export function getReviews(
   runId: number,
   sentiment: SentimentLabel | "Tous" = "Tous",
-  limit = 30
+  limit = 30,
+  offset = 0
 ) {
-  const params = new URLSearchParams({ limit: String(limit) });
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset)
+  });
   if (sentiment !== "Tous") {
     params.set("sentiment", sentiment);
   }
@@ -122,4 +131,35 @@ export function getReviews(
 
 export function exportReviews(runId: number) {
   return requestFile(`/analysis-runs/${runId}/export`);
+}
+
+export function saveReviewFeedback(
+  runId: number,
+  reviewId: number,
+  correctedLabel: SentimentLabel,
+  comment?: string
+) {
+  return request<ReviewFeedback>(
+    `/analysis-runs/${runId}/reviews/${reviewId}/feedback`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        corrected_label: correctedLabel,
+        comment: comment?.trim() || null
+      })
+    }
+  );
+}
+
+export function deleteReviewFeedback(runId: number, reviewId: number) {
+  return request<void>(
+    `/analysis-runs/${runId}/reviews/${reviewId}/feedback`,
+    {
+      method: "DELETE"
+    }
+  );
+}
+
+export function exportFeedback(runId: number) {
+  return requestFile(`/analysis-runs/${runId}/feedback/export`);
 }

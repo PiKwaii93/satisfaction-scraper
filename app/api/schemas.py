@@ -1,4 +1,5 @@
 from typing import Literal
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -85,6 +86,9 @@ class ReviewResponse(BaseModel):
     company_responded: bool
     sentiment_label: str
     sentiment_score: float
+    corrected_label: str | None = None
+    feedback_comment: str | None = None
+    feedback_updated_at: datetime | None = None
     topics: list[str] = Field(default_factory=list)
 
 
@@ -94,6 +98,30 @@ class ReviewListResponse(BaseModel):
     limit: int
     offset: int
     reviews: list[ReviewResponse]
+
+
+class ReviewFeedbackCreate(BaseModel):
+    corrected_label: str = Field(
+        ...,
+        description="Label corrigÃ© par l'utilisateur: Positif, Neutre ou NÃ©gatif.",
+        examples=["NÃ©gatif"],
+    )
+    comment: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Note optionnelle expliquant la correction.",
+    )
+
+
+class ReviewFeedbackResponse(BaseModel):
+    feedback_id: int
+    review_id: int
+    run_id: int
+    predicted_label: str
+    corrected_label: str
+    comment: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class BenchmarkTopicCount(BaseModel):

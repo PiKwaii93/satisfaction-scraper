@@ -129,8 +129,11 @@ GET    /analysis-runs/{run_id}
 POST   /analysis-runs/{run_id}/execute
 GET    /analysis-runs/{run_id}/summary
 GET    /analysis-runs/{run_id}/reviews
+POST   /analysis-runs/{run_id}/reviews/{review_id}/feedback
+DELETE /analysis-runs/{run_id}/reviews/{review_id}/feedback
 GET    /analysis-runs/{run_id}/events
 GET    /analysis-runs/{run_id}/export
+GET    /analysis-runs/{run_id}/feedback/export
 ```
 
 ### Securite API
@@ -180,8 +183,9 @@ Elle permet de :
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
 - suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
+- corriger manuellement le sentiment d'un avis pour alimenter un futur dataset de reentrainement ;
 - exporter un rapport entreprise imprimable en PDF depuis le navigateur ;
-- exporter les avis d'un run en CSV.
+- exporter les avis d'un run ou les corrections humaines en CSV.
 
 Demarrer l'application :
 

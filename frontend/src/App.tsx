@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Download,
   FileText,
@@ -16,12 +18,15 @@ import {
 import {
   compareRuns,
   createRun,
+  deleteReviewFeedback,
   executeRun,
+  exportFeedback,
   exportReviews,
   getReviews,
   getRunEvents,
   getSummary,
-  listRuns
+  listRuns,
+  saveReviewFeedback
 } from "./api";
 import type {
   AnalysisRunEvent,
@@ -45,6 +50,12 @@ const SENTIMENTS: Array<SentimentLabel | "Tous"> = [
   "Neutre",
   "Positif"
 ];
+
+const FEEDBACK_SENTIMENTS = SENTIMENTS.filter(
+  (sentiment): sentiment is SentimentLabel => sentiment !== "Tous"
+);
+
+const REVIEW_PAGE_SIZES = [30, 60, 120, 500];
 
 const sentimentClass: Record<SentimentLabel, string> = {
   Négatif: "negative",
@@ -74,6 +85,20 @@ function compactText(value: string | null | undefined, maxLength = 230) {
   const text = (value ?? "").trim();
   if (!text) return "Avis sans verbatim";
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function formatReviewRange(offset: number, displayedCount: number, total: number) {
+  if (total <= 0) {
+    return "0 avis";
+  }
+
+  if (displayedCount <= 0) {
+    return `0 sur ${total} avis`;
+  }
+
+  const firstReview = offset + 1;
+  const lastReview = Math.min(offset + displayedCount, total);
+  return `${firstReview}-${lastReview} sur ${total} avis`;
 }
 
 function validateCompanyInput(value: string) {
@@ -859,6 +884,9 @@ export default function App() {
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [reviewsLimit, setReviewsLimit] = useState(30);
+  const [reviewsOffset, setReviewsOffset] = useState(0);
   const [runEvents, setRunEvents] = useState<AnalysisRunEvent[]>([]);
   const [sentimentFilter, setSentimentFilter] =
     useState<SentimentLabel | "Tous">("Tous");
@@ -870,6 +898,7 @@ export default function App() {
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
+  const [correctingReviewId, setCorrectingReviewId] = useState<number | null>(null);
   const [comparisonRunIds, setComparisonRunIds] = useState<number[]>([]);
   const [comparison, setComparison] = useState<RunsComparison | null>(null);
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
@@ -920,6 +949,10 @@ export default function App() {
     () => runs.filter((run) => run.status === "completed"),
     [runs]
   );
+  const reviewsPage = Math.floor(reviewsOffset / reviewsLimit) + 1;
+  const reviewsPageCount = Math.max(1, Math.ceil(reviewsTotal / reviewsLimit));
+  const canGoToPreviousReviews = reviewsOffset > 0;
+  const canGoToNextReviews = reviewsOffset + reviews.length < reviewsTotal;
 
   function toggleComparisonRun(runId: number) {
     if (comparisonRunIds.includes(runId)) {
@@ -996,15 +1029,21 @@ export default function App() {
   }, [selectedRunId, selectedRun?.status]);
 
   useEffect(() => {
+    setReviewsOffset(0);
+  }, [selectedRunId, sentimentFilter, reviewsLimit]);
+
+  useEffect(() => {
     if (!selectedRunId || !selectedRun) {
       setSummary(null);
       setReviews([]);
+      setReviewsTotal(0);
       return;
     }
 
     if (selectedRun.status !== "completed") {
       setSummary(null);
       setReviews([]);
+      setReviewsTotal(0);
       setIsSummaryLoading(false);
       return;
     }
@@ -1014,15 +1053,22 @@ export default function App() {
 
     Promise.all([
       getSummary(selectedRunId),
-      getReviews(selectedRunId, sentimentFilter)
+      getReviews(selectedRunId, sentimentFilter, reviewsLimit, reviewsOffset)
     ])
       .then(([nextSummary, nextReviews]) => {
         setSummary(nextSummary);
         setReviews(nextReviews.reviews);
+        setReviewsTotal(nextReviews.total);
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsSummaryLoading(false));
-  }, [selectedRunId, selectedRun?.status, sentimentFilter]);
+  }, [
+    selectedRunId,
+    selectedRun?.status,
+    sentimentFilter,
+    reviewsLimit,
+    reviewsOffset
+  ]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1082,6 +1128,107 @@ export default function App() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
+    }
+  }
+
+  async function handleFeedbackExport(runId: number) {
+    try {
+      const blob = await exportFeedback(runId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `analysis_run_${runId}_feedback.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    }
+  }
+
+  function handleSentimentFilterChange(sentiment: SentimentLabel | "Tous") {
+    setSentimentFilter(sentiment);
+    setReviewsOffset(0);
+  }
+
+  function handleReviewsLimitChange(limit: number) {
+    setReviewsLimit(limit);
+    setReviewsOffset(0);
+  }
+
+  function handlePreviousReviewsPage() {
+    setReviewsOffset((currentOffset) => Math.max(0, currentOffset - reviewsLimit));
+  }
+
+  function handleNextReviewsPage() {
+    setReviewsOffset((currentOffset) => currentOffset + reviewsLimit);
+  }
+
+  async function refreshSummaryAfterFeedback(runId: number) {
+    const nextSummary = await getSummary(runId);
+    if (selectedRunId === runId) {
+      setSummary(nextSummary);
+    }
+  }
+
+  async function handleSaveReviewFeedback(reviewId: number, label: SentimentLabel) {
+    if (!selectedRun) {
+      return;
+    }
+
+    setCorrectingReviewId(reviewId);
+    setError(null);
+
+    try {
+      const feedback = await saveReviewFeedback(selectedRun.run_id, reviewId, label);
+      setReviews((currentReviews) =>
+        currentReviews.map((review) =>
+          review.review_id === reviewId
+            ? {
+                ...review,
+                corrected_label: feedback.corrected_label,
+                feedback_comment: feedback.comment,
+                feedback_updated_at: feedback.updated_at
+              }
+            : review
+        )
+      );
+      await refreshSummaryAfterFeedback(selectedRun.run_id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setCorrectingReviewId(null);
+    }
+  }
+
+  async function handleDeleteReviewFeedback(reviewId: number) {
+    if (!selectedRun) {
+      return;
+    }
+
+    setCorrectingReviewId(reviewId);
+    setError(null);
+
+    try {
+      await deleteReviewFeedback(selectedRun.run_id, reviewId);
+      setReviews((currentReviews) =>
+        currentReviews.map((review) =>
+          review.review_id === reviewId
+            ? {
+                ...review,
+                corrected_label: null,
+                feedback_comment: null,
+                feedback_updated_at: null
+              }
+            : review
+        )
+      );
+      await refreshSummaryAfterFeedback(selectedRun.run_id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setCorrectingReviewId(null);
     }
   }
 
@@ -1348,6 +1495,16 @@ export default function App() {
                   <Download size={18} />
                   Export CSV
                 </button>
+                <button
+                  className="secondary-action"
+                  disabled={selectedRun.status !== "completed"}
+                  onClick={() => handleFeedbackExport(selectedRun.run_id)}
+                  title="Exporter les corrections humaines"
+                  type="button"
+                >
+                  <Download size={18} />
+                  Corrections CSV
+                </button>
               </div>
             </header>
 
@@ -1469,22 +1626,68 @@ export default function App() {
                   <div className="section-heading table-heading">
                     <div>
                       <h3>Avis analysés</h3>
-                      <p>{reviews.length} avis affichés</p>
+                      <p>
+                        {formatReviewRange(reviewsOffset, reviews.length, reviewsTotal)} ·{" "}
+                        {summary.kpis.feedback_count ?? 0} correction(s)
+                      </p>
                     </div>
-                    <div className="segmented" role="group" aria-label="Filtre sentiment">
-                      {SENTIMENTS.map((sentiment) => (
+                    <div className="review-toolbar">
+                      <div className="segmented" role="group" aria-label="Filtre sentiment">
+                        {SENTIMENTS.map((sentiment) => (
+                          <button
+                            className={sentimentFilter === sentiment ? "active" : ""}
+                            key={sentiment}
+                            onClick={() => handleSentimentFilterChange(sentiment)}
+                            type="button"
+                          >
+                            {sentiment}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="pagination-controls" aria-label="Pagination des avis">
+                        <label>
+                          Par page
+                          <select
+                            value={reviewsLimit}
+                            onChange={(event) =>
+                              handleReviewsLimitChange(Number(event.target.value))
+                            }
+                          >
+                            {REVIEW_PAGE_SIZES.map((pageSize) => (
+                              <option key={pageSize} value={pageSize}>
+                                {pageSize}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                         <button
-                          className={sentimentFilter === sentiment ? "active" : ""}
-                          key={sentiment}
-                          onClick={() => setSentimentFilter(sentiment)}
+                          disabled={!canGoToPreviousReviews}
+                          onClick={handlePreviousReviewsPage}
                           type="button"
                         >
-                          {sentiment}
+                          <ChevronLeft size={16} />
+                          Précédent
                         </button>
-                      ))}
+                        <span>
+                          Page {reviewsPage} / {reviewsPageCount}
+                        </span>
+                        <button
+                          disabled={!canGoToNextReviews}
+                          onClick={handleNextReviewsPage}
+                          type="button"
+                        >
+                          Suivant
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <ReviewsTable reviews={reviews} />
+                  <ReviewsTable
+                    correctingReviewId={correctingReviewId}
+                    onDeleteFeedback={handleDeleteReviewFeedback}
+                    onSaveFeedback={handleSaveReviewFeedback}
+                    reviews={reviews}
+                  />
                 </section>
               </div>
             )}
@@ -2010,7 +2213,17 @@ function ReviewCards({ reviews }: { reviews: SummaryReview[] }) {
   );
 }
 
-function ReviewsTable({ reviews }: { reviews: Review[] }) {
+function ReviewsTable({
+  correctingReviewId,
+  onDeleteFeedback,
+  onSaveFeedback,
+  reviews
+}: {
+  correctingReviewId: number | null;
+  onDeleteFeedback: (reviewId: number) => void;
+  onSaveFeedback: (reviewId: number, label: SentimentLabel) => void;
+  reviews: Review[];
+}) {
   if (reviews.length === 0) {
     return <p className="muted">Aucun avis pour ce filtre.</p>;
   }
@@ -2023,6 +2236,7 @@ function ReviewsTable({ reviews }: { reviews: Review[] }) {
             <th>ID</th>
             <th>Note</th>
             <th>Sentiment</th>
+            <th>Correction</th>
             <th>Score</th>
             <th>Irritants</th>
             <th>Verbatim</th>
@@ -2036,6 +2250,43 @@ function ReviewsTable({ reviews }: { reviews: Review[] }) {
               <td>
                 <SentimentPill label={review.sentiment_label} />
               </td>
+              <td>
+                <div className="feedback-cell">
+                  {review.corrected_label ? (
+                    <span className="feedback-status corrected">
+                      Corrigé en {review.corrected_label}
+                    </span>
+                  ) : (
+                    <span className="feedback-status">Non corrigé</span>
+                  )}
+                  <div className="feedback-actions">
+                    {FEEDBACK_SENTIMENTS.map((sentiment) => (
+                      <button
+                        className={
+                          review.corrected_label === sentiment ? "active" : ""
+                        }
+                        disabled={correctingReviewId === review.review_id}
+                        key={sentiment}
+                        onClick={() => onSaveFeedback(review.review_id, sentiment)}
+                        type="button"
+                      >
+                        {sentiment}
+                      </button>
+                    ))}
+                    <button
+                      className="remove-feedback"
+                      disabled={
+                        !review.corrected_label ||
+                        correctingReviewId === review.review_id
+                      }
+                      onClick={() => onDeleteFeedback(review.review_id)}
+                      type="button"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              </td>
               <td>{formatNumber(review.sentiment_score, 2)}</td>
               <td>
                 <div className="topic-tags">
@@ -2046,7 +2297,9 @@ function ReviewsTable({ reviews }: { reviews: Review[] }) {
                       ))}
                 </div>
               </td>
-              <td>{compactText(review.verbatim, 190)}</td>
+              <td className="review-verbatim">
+                {(review.verbatim ?? "").trim() || "Avis sans verbatim"}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -181,6 +181,55 @@ a {
   color: #1d4ed8;
 }
 
+.review-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.pagination-controls label,
+.pagination-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pagination-controls select {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 800;
+}
+
+.pagination-controls button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 800;
+}
+
+.pagination-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .primary-action,
 .secondary-action,
 .icon-button {
@@ -878,7 +927,7 @@ a {
 
 table {
   width: 100%;
-  min-width: 920px;
+  min-width: 1080px;
   border-collapse: collapse;
   background: #ffffff;
 }
@@ -922,6 +971,61 @@ tbody tr:last-child td {
   font-size: 0.76rem;
   font-weight: 700;
   text-transform: capitalize;
+}
+
+.review-verbatim {
+  min-width: 420px;
+  max-width: 860px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.feedback-cell {
+  display: grid;
+  min-width: 220px;
+  gap: 8px;
+}
+
+.feedback-status {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.feedback-status.corrected {
+  color: var(--blue);
+}
+
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.feedback-actions button {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.feedback-actions button.active {
+  border-color: var(--blue);
+  background: #eff6ff;
+  color: var(--blue);
+}
+
+.feedback-actions button.remove-feedback {
+  color: var(--red);
+}
+
+.feedback-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .alert {
