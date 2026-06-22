@@ -96,54 +96,5 @@ class ReviewListResponse(BaseModel):
     reviews: list[ReviewResponse]
 
 
-class BenchmarkTopicCount(BaseModel):
-    topic: str
-    count: int
-
-
-class BenchmarkCompanyTopic(BaseModel):
-    run_id: int
-    company_name: str
-    count: int
-
-
-class BenchmarkCommonTopic(BaseModel):
-    topic: str
-    total_count: int
-    run_count: int
-    companies: list[BenchmarkCompanyTopic] = Field(default_factory=list)
-
-
-class BenchmarkCompany(BaseModel):
-    run_id: int
-    company_name: str
-    review_count: int
-    text_count: int
-    average_rating: float | None = None
-    average_confidence: float | None = None
-    health_score: int
-    risk_level: str
-    negative_count: int
-    neutral_count: int
-    positive_count: int
-    negative_rate: float
-    top_topics: list[BenchmarkTopicCount] = Field(default_factory=list)
-    unique_topics: list[BenchmarkTopicCount] = Field(default_factory=list)
-
-
-class BenchmarkHighlights(BaseModel):
-    best_health: BenchmarkCompany | None = None
-    highest_negative_rate: BenchmarkCompany | None = None
-    most_reviews: BenchmarkCompany | None = None
-    shared_priority: BenchmarkCommonTopic | None = None
-
-
-class AnalysisRunsComparisonResponse(BaseModel):
-    run_ids: list[int]
-    companies: list[BenchmarkCompany] = Field(default_factory=list)
-    common_topics: list[BenchmarkCommonTopic] = Field(default_factory=list)
-    highlights: BenchmarkHighlights
-
-
 class ErrorResponse(BaseModel):
     detail: str

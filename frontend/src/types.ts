@@ -117,55 +117,6 @@ export type RunSummary = {
   business_insights: BusinessInsights;
 };
 
-export type BenchmarkTopicCount = {
-  topic: string;
-  count: number;
-};
-
-export type BenchmarkCompanyTopic = {
-  run_id: number;
-  company_name: string;
-  count: number;
-};
-
-export type BenchmarkCommonTopic = {
-  topic: string;
-  total_count: number;
-  run_count: number;
-  companies: BenchmarkCompanyTopic[];
-};
-
-export type BenchmarkCompany = {
-  run_id: number;
-  company_name: string;
-  review_count: number;
-  text_count: number;
-  average_rating: number | null;
-  average_confidence: number | null;
-  health_score: number;
-  risk_level: "faible" | "modere" | "eleve" | "critique" | string;
-  negative_count: number;
-  neutral_count: number;
-  positive_count: number;
-  negative_rate: number;
-  top_topics: BenchmarkTopicCount[];
-  unique_topics: BenchmarkTopicCount[];
-};
-
-export type BenchmarkHighlights = {
-  best_health: BenchmarkCompany | null;
-  highest_negative_rate: BenchmarkCompany | null;
-  most_reviews: BenchmarkCompany | null;
-  shared_priority: BenchmarkCommonTopic | null;
-};
-
-export type RunsComparison = {
-  run_ids: number[];
-  companies: BenchmarkCompany[];
-  common_topics: BenchmarkCommonTopic[];
-  highlights: BenchmarkHighlights;
-};
-
 export type ReviewListResponse = {
   run_id: number;
   total: number;
