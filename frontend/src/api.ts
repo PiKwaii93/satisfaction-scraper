@@ -2,6 +2,7 @@ import type {
   AnalysisRunEvent,
   AnalysisRun,
   ReviewListResponse,
+  RunsComparison,
   RunSummary,
   SentimentLabel
 } from "./types";
@@ -73,6 +74,13 @@ export function executeRun(runId: number, skipScrape = false) {
 
 export function getSummary(runId: number) {
   return request<RunSummary>(`/analysis-runs/${runId}/summary`);
+}
+
+export function compareRuns(runIds: number[]) {
+  const params = new URLSearchParams({ run_ids: runIds.join(",") });
+  return request<RunsComparison>(
+    `/analysis-runs/compare?${params.toString()}`
+  );
 }
 
 async function requestFile(path: string): Promise<Blob> {
