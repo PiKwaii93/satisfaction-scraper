@@ -14,6 +14,7 @@ import {
   TableProperties
 } from "lucide-react";
 import {
+  compareRuns,
   createRun,
   executeRun,
   exportReviews,
@@ -26,11 +27,13 @@ import type {
   AnalysisRunEvent,
   AnalysisRun,
   BusinessInsights,
+  BenchmarkCompany,
   BusinessPriority,
   BusinessStrength,
   BusinessWatchpoint,
   DistributionRow,
   Review,
+  RunsComparison,
   RunSummary,
   SentimentLabel,
   SummaryReview
@@ -104,6 +107,10 @@ function formatDuration(seconds: number | null | undefined) {
   return remainingSeconds > 0
     ? `${minutes} min ${remainingSeconds} s`
     : `${minutes} min`;
+}
+
+function formatTopic(value: string | null | undefined) {
+  return value?.replaceAll("_", " ") ?? "Sujet";
 }
 
 function getDistributionCount<T extends string | number>(
@@ -512,6 +519,9 @@ export default function App() {
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
+  const [comparisonRunIds, setComparisonRunIds] = useState<number[]>([]);
+  const [comparison, setComparison] = useState<RunsComparison | null>(null);
+  const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshRuns(selectLatest = false) {
@@ -555,6 +565,47 @@ export default function App() {
   const selectedRunDuration = formatDuration(
     selectedRun?.execution_duration_seconds
   );
+  const completedRuns = useMemo(
+    () => runs.filter((run) => run.status === "completed"),
+    [runs]
+  );
+
+  function toggleComparisonRun(runId: number) {
+    if (comparisonRunIds.includes(runId)) {
+      setComparisonRunIds((currentRunIds) =>
+        currentRunIds.filter((currentRunId) => currentRunId !== runId)
+      );
+      setError(null);
+      return;
+    }
+
+    if (comparisonRunIds.length >= 4) {
+      setError("Tu peux comparer jusqu'a 4 analyses en meme temps.");
+      return;
+    }
+
+    setComparisonRunIds((currentRunIds) => [...currentRunIds, runId]);
+    setError(null);
+  }
+
+  async function handleCompareRuns() {
+    if (comparisonRunIds.length < 2) {
+      setError("Selectionne au moins 2 analyses terminees a comparer.");
+      return;
+    }
+
+    setIsComparisonLoading(true);
+    setError(null);
+
+    try {
+      const nextComparison = await compareRuns(comparisonRunIds);
+      setComparison(nextComparison);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setIsComparisonLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!selectedRunId || !selectedRun) {
@@ -791,6 +842,64 @@ export default function App() {
             ))}
           </div>
         </div>
+
+        <div className="benchmark-panel">
+          <div className="panel-heading">
+            <h2>Benchmark</h2>
+            <small>{comparisonRunIds.length}/4</small>
+          </div>
+          <p className="muted">
+            Selectionne 2 a 4 analyses terminees pour comparer les entreprises.
+          </p>
+
+          <div className="benchmark-select-list">
+            {completedRuns.length === 0 && (
+              <p className="muted">Aucun run termine disponible.</p>
+            )}
+            {completedRuns.slice(0, 8).map((run) => {
+              const isSelected = comparisonRunIds.includes(run.run_id);
+              return (
+                <button
+                  className={`benchmark-choice ${isSelected ? "selected" : ""}`}
+                  key={run.run_id}
+                  onClick={() => toggleComparisonRun(run.run_id)}
+                  type="button"
+                >
+                  <span aria-hidden="true">{isSelected ? "✓" : "+"}</span>
+                  <strong>{run.company_name}</strong>
+                  <small>Run #{run.run_id}</small>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="benchmark-actions">
+            <button
+              className="primary-action"
+              disabled={comparisonRunIds.length < 2 || isComparisonLoading}
+              onClick={handleCompareRuns}
+              type="button"
+            >
+              {isComparisonLoading ? (
+                <Loader2 className="spin" size={18} />
+              ) : (
+                <BarChart3 size={18} />
+              )}
+              Comparer
+            </button>
+            <button
+              className="secondary-action"
+              disabled={comparisonRunIds.length === 0 && !comparison}
+              onClick={() => {
+                setComparisonRunIds([]);
+                setComparison(null);
+              }}
+              type="button"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       </aside>
 
       <section className="workspace">
@@ -799,6 +908,13 @@ export default function App() {
             <AlertTriangle size={18} />
             <span>{error}</span>
           </div>
+        )}
+
+        {comparison && (
+          <BenchmarkPanel
+            comparison={comparison}
+            onClose={() => setComparison(null)}
+          />
         )}
 
         {!selectedRun && !isLoading && (
@@ -1064,6 +1180,157 @@ function FailedRunState({
         </button>
       </div>
     </section>
+  );
+}
+
+function BenchmarkPanel({
+  comparison,
+  onClose
+}: {
+  comparison: RunsComparison;
+  onClose: () => void;
+}) {
+  return (
+    <section className="benchmark-report insight-section wide">
+      <div className="section-heading benchmark-heading">
+        <div>
+          <span className="eyebrow">Benchmark concurrentiel</span>
+          <h3>Comparaison multi-entreprises</h3>
+          <p>
+            {comparison.companies.length} entreprises comparees sur les runs{" "}
+            {comparison.run_ids.join(", ")}.
+          </p>
+        </div>
+        <button className="icon-button" onClick={onClose} title="Fermer" type="button">
+          ×
+        </button>
+      </div>
+
+      <div className="benchmark-highlight-grid">
+        <BenchmarkHighlight
+          label="Meilleur score sante"
+          company={comparison.highlights.best_health}
+          value={(company) => String(company.health_score)}
+          helper={(company) => `Risque ${formatRisk(company.risk_level)}`}
+        />
+        <BenchmarkHighlight
+          label="Plus gros risque"
+          company={comparison.highlights.highest_negative_rate}
+          value={(company) => formatPercent(company.negative_rate)}
+          helper={(company) => `${company.negative_count} avis negatifs`}
+        />
+        <BenchmarkHighlight
+          label="Plus gros volume"
+          company={comparison.highlights.most_reviews}
+          value={(company) => String(company.review_count)}
+          helper={() => "avis analyses"}
+        />
+        <div className="benchmark-highlight">
+          <span>Irritant partage</span>
+          <strong>
+            {comparison.highlights.shared_priority
+              ? formatTopic(comparison.highlights.shared_priority.topic)
+              : "Aucun"}
+          </strong>
+          <small>
+            {comparison.highlights.shared_priority
+              ? `${comparison.highlights.shared_priority.total_count} occurrences`
+              : "Pas de sujet commun fort"}
+          </small>
+        </div>
+      </div>
+
+      <div className="benchmark-table-wrap">
+        <table className="benchmark-table">
+          <thead>
+            <tr>
+              <th>Entreprise</th>
+              <th>Score sante</th>
+              <th>Note moyenne</th>
+              <th>Negatif</th>
+              <th>Positif</th>
+              <th>Irritants propres</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.companies.map((company) => (
+              <tr key={company.run_id}>
+                <td>
+                  <strong>{company.company_name}</strong>
+                  <small>Run #{company.run_id} - {company.review_count} avis</small>
+                </td>
+                <td>{company.health_score}</td>
+                <td>{formatNumber(company.average_rating)} / 5</td>
+                <td>{formatPercent(company.negative_rate)}</td>
+                <td>{company.positive_count}</td>
+                <td>
+                  <BenchmarkTopicList topics={company.unique_topics} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="benchmark-common-topics">
+        <h4>Irritants communs</h4>
+        {comparison.common_topics.length === 0 ? (
+          <p className="muted">Aucun irritant commun fort detecte.</p>
+        ) : (
+          <div className="compact-list">
+            {comparison.common_topics.slice(0, 4).map((topic) => (
+              <article className="compact-item" key={topic.topic}>
+                <strong>{formatTopic(topic.topic)}</strong>
+                <p>
+                  {topic.total_count} occurrences dans {topic.run_count} runs.
+                </p>
+                <small>
+                  {topic.companies
+                    .map((company) => `${company.company_name}: ${company.count}`)
+                    .join(" · ")}
+                </small>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function BenchmarkHighlight({
+  label,
+  company,
+  value,
+  helper
+}: {
+  label: string;
+  company: BenchmarkCompany | null;
+  value: (company: BenchmarkCompany) => string;
+  helper: (company: BenchmarkCompany) => string;
+}) {
+  return (
+    <div className="benchmark-highlight">
+      <span>{label}</span>
+      <strong>{company ? value(company) : "-"}</strong>
+      <small>{company ? `${company.company_name} · ${helper(company)}` : "Non disponible"}</small>
+    </div>
+  );
+}
+
+function BenchmarkTopicList({ topics }: { topics: BenchmarkCompany["unique_topics"] }) {
+  if (topics.length === 0) {
+    return <span className="muted">Aucun sujet specifique</span>;
+  }
+
+  return (
+    <div className="topic-tags">
+      {topics.map((topic) => (
+        <span key={topic.topic}>
+          {formatTopic(topic.topic)} ({topic.count})
+        </span>
+      ))}
+    </div>
   );
 }
 

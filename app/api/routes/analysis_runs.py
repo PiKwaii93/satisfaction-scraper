@@ -8,6 +8,7 @@ from app.api.schemas import (
     AnalysisRunCreate,
     AnalysisRunEventResponse,
     AnalysisRunResponse,
+    AnalysisRunsComparisonResponse,
     ErrorResponse,
     ReviewListResponse,
 )
@@ -20,6 +21,7 @@ from app.api.services.analysis_service import (
     get_run_events,
     get_run_reviews,
     get_run_summary,
+    get_runs_comparison,
     list_analysis_runs,
     queue_analysis_run,
 )
@@ -71,6 +73,30 @@ def list_runs(
     offset: int = Query(default=0, ge=0),
 ):
     return list_analysis_runs(limit=limit, offset=offset)
+
+
+@router.get(
+    "/compare",
+    response_model=AnalysisRunsComparisonResponse,
+    summary="Comparer plusieurs analyses",
+    description="Compare 2 a 4 runs termines pour produire un benchmark entreprise.",
+    responses={400: {"model": ErrorResponse}},
+)
+def compare_runs(
+    run_ids: str = Query(
+        ...,
+        description="Identifiants de runs separes par des virgules, ex: 1,2,3",
+    ),
+):
+    try:
+        parsed_run_ids = [
+            int(run_id.strip())
+            for run_id in run_ids.split(",")
+            if run_id.strip()
+        ]
+        return get_runs_comparison(parsed_run_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get(
