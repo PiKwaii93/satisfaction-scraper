@@ -938,5 +938,153 @@ def get_run_summary(run_id):
     }
 
 
+def normalize_label(value):
+    return str(value or "").replace("Ã©", "é")
+
+
+def get_distribution_count(rows, key, field="label"):
+    normalized_key = normalize_label(key)
+    for row in rows:
+        if normalize_label(row.get(field)) == normalized_key:
+            return int(row.get("count") or 0)
+    return 0
+
+
+def as_float(value):
+    return None if value is None else float(value)
+
+
+def percentage(part, total):
+    if not total:
+        return 0.0
+    return round((part / total) * 100, 1)
+
+
+def build_benchmark_company(summary):
+    run = summary["run"]
+    kpis = summary["kpis"]
+    review_count = int(kpis.get("review_count") or 0)
+    negative_count = get_distribution_count(
+        summary["sentiment_distribution"],
+        "Négatif",
+    )
+    neutral_count = get_distribution_count(
+        summary["sentiment_distribution"],
+        "Neutre",
+    )
+    positive_count = get_distribution_count(
+        summary["sentiment_distribution"],
+        "Positif",
+    )
+
+    return {
+        "run_id": run["run_id"],
+        "company_name": run["company_name"],
+        "review_count": review_count,
+        "text_count": int(kpis.get("text_count") or 0),
+        "average_rating": as_float(kpis.get("average_rating")),
+        "average_confidence": as_float(kpis.get("average_confidence")),
+        "health_score": int(summary["business_insights"]["health_score"]),
+        "risk_level": summary["business_insights"]["risk_level"],
+        "negative_count": negative_count,
+        "neutral_count": neutral_count,
+        "positive_count": positive_count,
+        "negative_rate": percentage(negative_count, review_count),
+        "top_topics": [
+            {
+                "topic": row.get("topic") or "Sujet",
+                "count": int(row.get("count") or 0),
+            }
+            for row in summary["top_topics"][:5]
+        ],
+        "unique_topics": [],
+    }
+
+
+def get_runs_comparison(run_ids):
+    unique_run_ids = []
+    for run_id in run_ids:
+        if run_id not in unique_run_ids:
+            unique_run_ids.append(run_id)
+
+    if len(unique_run_ids) < 2 or len(unique_run_ids) > 4:
+        raise ValueError("Selectionne entre 2 et 4 analyses a comparer.")
+
+    summaries = []
+    for run_id in unique_run_ids:
+        summary = get_run_summary(run_id)
+        if summary is None:
+            raise ValueError(f"Analyse introuvable: {run_id}")
+        if summary["run"]["status"] != "completed":
+            raise ValueError(
+                "Seules les analyses terminees peuvent etre comparees "
+                f"(run #{run_id})."
+            )
+        summaries.append(summary)
+
+    companies = [build_benchmark_company(summary) for summary in summaries]
+    topic_index = {}
+    for company in companies:
+        for topic in company["top_topics"]:
+            entry = {
+                "run_id": company["run_id"],
+                "company_name": company["company_name"],
+                "count": topic["count"],
+            }
+            topic_index.setdefault(topic["topic"], []).append(entry)
+
+    common_topics = []
+    for topic, entries in topic_index.items():
+        if len(entries) < 2:
+            continue
+        common_topics.append(
+            {
+                "topic": topic,
+                "total_count": sum(entry["count"] for entry in entries),
+                "run_count": len(entries),
+                "companies": sorted(
+                    entries,
+                    key=lambda item: (-item["count"], item["company_name"]),
+                ),
+            }
+        )
+
+    common_topics = sorted(
+        common_topics,
+        key=lambda item: (-item["total_count"], item["topic"]),
+    )[:8]
+    common_topic_names = {topic["topic"] for topic in common_topics}
+
+    for company in companies:
+        company["unique_topics"] = [
+            topic
+            for topic in company["top_topics"]
+            if topic["topic"] not in common_topic_names
+        ][:3]
+
+    highlights = {
+        "best_health": max(
+            companies,
+            key=lambda item: (item["health_score"], item["average_rating"] or 0),
+        ),
+        "highest_negative_rate": max(
+            companies,
+            key=lambda item: (item["negative_rate"], item["negative_count"]),
+        ),
+        "most_reviews": max(
+            companies,
+            key=lambda item: item["review_count"],
+        ),
+        "shared_priority": common_topics[0] if common_topics else None,
+    }
+
+    return {
+        "run_ids": unique_run_ids,
+        "companies": companies,
+        "common_topics": common_topics,
+        "highlights": highlights,
+    }
+
+
 def get_export_rows(run_id):
     return get_run_reviews(run_id, limit=10000, offset=0)["reviews"]
