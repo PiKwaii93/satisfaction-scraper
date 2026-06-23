@@ -262,6 +262,15 @@ La CI GitHub Actions execute trois jobs sur les pull requests vers `main` :
 - build frontend React/Vite ;
 - build Docker de l'image applicative.
 
+## Scenario de soutenance
+
+Un parcours de demonstration reproductible est disponible dans
+[`demo_soutenance.md`](demo_soutenance.md).
+
+Il couvre le demarrage Docker, une analyse Trustpilot, l'import CSV, le rapport
+entreprise, les corrections humaines, le reentrainement, le benchmark, les
+exports et les preuves API/CI.
+
 ## Pipeline Principal
 
 Pour relancer le pipeline historique complet :
