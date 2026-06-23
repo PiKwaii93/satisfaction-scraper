@@ -120,6 +120,7 @@ venv.bak/
 data/*.bak
 data/temp_*
 data/api_runs/
+data/training/
 
 # --- Frontend ---
 frontend/node_modules/

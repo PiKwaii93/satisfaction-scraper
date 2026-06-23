@@ -24,8 +24,10 @@ except ImportError:
 
 try:
     import psycopg2
+    from psycopg2.extras import RealDictCursor
 except ImportError:
     psycopg2 = None
+    RealDictCursor = None
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +36,9 @@ ANNOTATIONS_PATH = PROJECT_ROOT / "annotations_manual_labels.csv"
 ANNOTATIONS_COMPLETE_PATH = PROJECT_ROOT / "annotations_complete.csv"
 REVIEWS_JSON_PATH = PROJECT_ROOT / "data" / "showroom_reviews.json"
 MODEL_OUTPUT_PATH = PROJECT_ROOT / "app" / "models" / "sentiment_model.pkl"
+TRAINING_SNAPSHOT_PATH = (
+    PROJECT_ROOT / "data" / "training" / "sentiment_training_dataset.csv"
+)
 RATING_FEATURE_WEIGHT = 0.25
 
 LABEL_TO_TARGET = {
@@ -43,6 +48,8 @@ LABEL_TO_TARGET = {
 }
 TARGET_TO_LABEL = {value: key for key, value in LABEL_TO_TARGET.items()}
 TARGET_NAMES = [TARGET_TO_LABEL[i] for i in sorted(TARGET_TO_LABEL)]
+MANUAL_DATASET_SOURCE = "manual_annotations"
+FEEDBACK_DATASET_SOURCE = "review_feedback"
 
 
 def build_model(rating_weight=RATING_FEATURE_WEIGHT):
@@ -344,16 +351,20 @@ def validate_annotation_alignment(df, mismatch_threshold=0.10):
     )
 
 
-def load_reviews_from_database():
+def get_database_connection():
     if psycopg2 is None:
         raise RuntimeError("psycopg2 n'est pas installé dans cet environnement.")
 
-    conn = psycopg2.connect(
+    return psycopg2.connect(
         host=os.getenv("DB_HOST", "postgres_db"),
         database=os.getenv("DB_NAME", "satisfaction_client"),
         user=os.getenv("DB_USER", "admin"),
         password=os.getenv("DB_PASSWORD", "password123"),
     )
+
+
+def load_reviews_from_database():
+    conn = get_database_connection()
     try:
         # Les annotations du CSV sont indexées de 0 à 1199, comme l'ordre du JSON.
         # En base, review_id est SERIAL et démarre à 1 après l'ETL.
@@ -387,6 +398,124 @@ def load_reviews_source():
         return reviews
 
 
+def normalize_verbatim_for_dedupe(value):
+    return re.sub(r"\s+", " ", str(value or "").strip().lower())
+
+
+def ensure_training_metadata_columns(df, dataset_source):
+    df = df.copy()
+    defaults = {
+        "rating": np.nan,
+        "author_name": pd.NA,
+        "review_date": pd.NA,
+        "company_name": pd.NA,
+        "source_run_id": pd.NA,
+        "source_review_id": pd.NA,
+        "predicted_label": pd.NA,
+        "feedback_comment": pd.NA,
+        "feedback_updated_at": pd.NA,
+    }
+    for column, default_value in defaults.items():
+        if column not in df.columns:
+            df[column] = default_value
+
+    df["dataset_source"] = dataset_source
+    df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
+    return df
+
+
+def load_feedback_annotations_from_database():
+    try:
+        conn = get_database_connection()
+    except Exception as exc:
+        print(f"[-] Corrections humaines indisponibles: {exc}")
+        return pd.DataFrame()
+
+    try:
+        query = """
+        SELECT
+            rf.feedback_id,
+            rf.review_id AS source_review_id,
+            r.run_id AS source_run_id,
+            c.company_name,
+            c.trustpilot_slug,
+            r.rating,
+            r.author_name,
+            COALESCE(r.review_date::text, r.raw_date) AS review_date,
+            r.verbatim,
+            rf.predicted_label,
+            rf.corrected_label AS manual_label,
+            rf.comment AS feedback_comment,
+            rf.updated_at AS feedback_updated_at
+        FROM review_feedback rf
+        JOIN reviews r ON r.review_id = rf.review_id
+        JOIN analysis_runs ar ON ar.run_id = r.run_id
+        JOIN companies c ON c.company_id = r.company_id
+        ORDER BY rf.updated_at, rf.feedback_id;
+        """
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query)
+            feedback = pd.DataFrame(cursor.fetchall())
+    except Exception as exc:
+        print(f"[-] Chargement des corrections humaines ignoré: {exc}")
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+    if feedback.empty:
+        print("[*] Aucune correction humaine trouvée en base.")
+        return feedback
+
+    feedback["manual_label"] = feedback["manual_label"].astype(str).str.strip()
+    unknown_labels = sorted(set(feedback["manual_label"]) - set(LABEL_TO_TARGET))
+    if unknown_labels:
+        raise ValueError(f"Labels de correction inconnus: {unknown_labels}")
+
+    feedback["verbatim"] = feedback["verbatim"].fillna("").astype(str).str.strip()
+    empty_verbatims = (feedback["verbatim"] == "").sum()
+    if empty_verbatims:
+        print(
+            "[!] "
+            f"{empty_verbatims} correction(s) ont un verbatim vide et sont ignorées."
+        )
+        feedback = feedback[feedback["verbatim"] != ""].copy()
+
+    if feedback.empty:
+        print("[*] Aucune correction humaine exploitable après nettoyage.")
+        return feedback
+
+    feedback["rating"] = pd.to_numeric(feedback["rating"], errors="coerce")
+    feedback["target"] = feedback["manual_label"].map(LABEL_TO_TARGET)
+    feedback["id"] = "feedback:" + feedback["source_review_id"].astype(str)
+    feedback = ensure_training_metadata_columns(feedback, FEEDBACK_DATASET_SOURCE)
+
+    before_deduplication = len(feedback)
+    feedback["_dedupe_key"] = (
+        feedback["verbatim"].map(normalize_verbatim_for_dedupe)
+        + "|"
+        + feedback["rating"].fillna("NA").astype(str)
+    )
+    feedback = (
+        feedback.sort_values("feedback_updated_at")
+        .drop_duplicates(subset=["_dedupe_key"], keep="last")
+        .drop(columns=["_dedupe_key"])
+        .copy()
+    )
+    deduplicated_count = before_deduplication - len(feedback)
+    if deduplicated_count:
+        print(
+            "[!] "
+            f"{deduplicated_count} correction(s) doublon ont été ignorées "
+            "pour ne pas surpondérer les mêmes avis."
+        )
+
+    print(f"[+] Corrections humaines chargées depuis PostgreSQL: {len(feedback)} lignes.")
+    print("[+] Distribution corrections humaines:")
+    print(feedback["manual_label"].value_counts().reindex(TARGET_NAMES, fill_value=0))
+
+    return feedback
+
+
 def build_annotated_dataframe():
     for annotations_path in (ANNOTATIONS_TRAINING_PATH, ANNOTATIONS_COMPLETE_PATH):
         if not annotations_path.exists():
@@ -395,6 +524,7 @@ def build_annotated_dataframe():
         df = load_complete_annotations(annotations_path)
         df["verbatim"] = df["verbatim"].fillna("").astype(str).str.strip()
         df["target"] = df["manual_label"].map(LABEL_TO_TARGET)
+        df = ensure_training_metadata_columns(df, MANUAL_DATASET_SOURCE)
 
         print(
             "[+] Annotations complètes chargées depuis "
@@ -419,6 +549,7 @@ def build_annotated_dataframe():
 
     df["verbatim"] = df["verbatim"].fillna("").astype(str).str.strip()
     df["target"] = df["manual_label"].map(LABEL_TO_TARGET)
+    df = ensure_training_metadata_columns(df, MANUAL_DATASET_SOURCE)
     validate_annotation_alignment(df)
 
     print(f"[+] Annotations jointes: {len(annotations)} lignes.")
@@ -426,6 +557,52 @@ def build_annotated_dataframe():
     print(df["manual_label"].value_counts().reindex(TARGET_NAMES, fill_value=0))
 
     return df
+
+
+def build_combined_annotated_dataframe(include_feedback=True):
+    manual_df = build_annotated_dataframe()
+
+    frames = [manual_df]
+    if include_feedback:
+        feedback_df = load_feedback_annotations_from_database()
+        if not feedback_df.empty:
+            frames.append(feedback_df)
+
+    frames_for_concat = [frame.dropna(axis=1, how="all") for frame in frames]
+    combined_df = pd.concat(frames_for_concat, ignore_index=True, sort=False)
+    combined_df["manual_label"] = combined_df["manual_label"].astype(str).str.strip()
+    combined_df["target"] = combined_df["manual_label"].map(LABEL_TO_TARGET)
+    combined_df = ensure_training_metadata_columns(
+        combined_df,
+        dataset_source=combined_df.get("dataset_source", MANUAL_DATASET_SOURCE),
+    )
+
+    print("[+] Sources du dataset combiné:")
+    print(combined_df["dataset_source"].value_counts())
+    print("[+] Distribution ground truth combinée:")
+    print(combined_df["manual_label"].value_counts().reindex(TARGET_NAMES, fill_value=0))
+
+    return combined_df
+
+
+def write_training_dataset_snapshot(df, output_path=TRAINING_SNAPSHOT_PATH):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_columns = [
+        "id",
+        "dataset_source",
+        "company_name",
+        "source_run_id",
+        "source_review_id",
+        "rating",
+        "manual_label",
+        "predicted_label",
+        "feedback_comment",
+        "feedback_updated_at",
+        "verbatim",
+    ]
+    available_columns = [column for column in snapshot_columns if column in df.columns]
+    df[available_columns].to_csv(output_path, index=False, encoding="utf-8-sig")
+    print(f"[+] Snapshot dataset d'entraînement: {output_path}")
 
 
 def build_training_dataframe(annotated_df):
@@ -441,13 +618,17 @@ def build_training_dataframe(annotated_df):
         df = df[df["verbatim"] != ""].copy()
 
     print(f"[+] Lignes utilisées pour l'entraînement: {len(df)} lignes.")
+    if "dataset_source" in df.columns:
+        print("[+] Lignes utilisées par source:")
+        print(df["dataset_source"].value_counts())
     print("[+] Distribution utilisée pour l'entraînement:")
     print(df["manual_label"].value_counts().reindex(TARGET_NAMES, fill_value=0))
+    write_training_dataset_snapshot(df)
 
     return df
 
 
-def print_evaluation_metrics(model, x_test, y_test):
+def print_evaluation_metrics(model, x_test, y_test, source_test=None):
     y_pred = model.predict(x_test)
 
     print("\n=== Métriques d'évaluation sur le jeu de test ===")
@@ -463,6 +644,34 @@ def print_evaluation_metrics(model, x_test, y_test):
         )
     )
 
+    if source_test is None:
+        return
+
+    source_series = pd.Series(source_test, index=y_test.index).fillna("unknown")
+    y_pred_series = pd.Series(y_pred, index=y_test.index)
+    print("\n=== Métriques par source du jeu de test ===")
+    for source_name in sorted(source_series.unique()):
+        source_mask = source_series == source_name
+        source_count = int(source_mask.sum())
+        if source_count == 0:
+            continue
+
+        print(f"\n--- Source: {source_name} ({source_count} lignes test) ---")
+        print(
+            "Accuracy: "
+            f"{accuracy_score(y_test[source_mask], y_pred_series[source_mask]):.4f}"
+        )
+        print(
+            classification_report(
+                y_test[source_mask],
+                y_pred_series[source_mask],
+                labels=sorted(TARGET_TO_LABEL),
+                target_names=TARGET_NAMES,
+                digits=4,
+                zero_division=0,
+            )
+        )
+
 
 def serialize_model(model, output_path=MODEL_OUTPUT_PATH):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -471,7 +680,7 @@ def serialize_model(model, output_path=MODEL_OUTPUT_PATH):
     print(f"[+] Modèle sérialisé localement: {output_path}")
 
 
-def log_model_to_mlflow(model, accuracy):
+def log_model_to_mlflow(model, accuracy, training_metadata=None):
     if mlflow is None or MlflowClient is None:
         raise RuntimeError("mlflow n'est pas installé dans cet environnement.")
 
@@ -480,6 +689,13 @@ def log_model_to_mlflow(model, accuracy):
     with mlflow.start_run():
         mlflow.log_metric("accuracy", accuracy)
         mlflow.log_param("rating_feature_weight", RATING_FEATURE_WEIGHT)
+        if training_metadata:
+            for key, value in training_metadata.items():
+                if isinstance(value, (int, float, np.integer, np.floating)):
+                    mlflow.log_metric(key, float(value))
+                else:
+                    mlflow.log_param(key, value)
+
         model_info = mlflow.sklearn.log_model(
             sk_model=model,
             artifact_path="sentiment_model",
@@ -500,15 +716,7 @@ def log_model_to_mlflow(model, accuracy):
 
 
 def synchronize_database_predictions(model):
-    if psycopg2 is None:
-        raise RuntimeError("psycopg2 n'est pas installé dans cet environnement.")
-
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "postgres_db"),
-        database=os.getenv("DB_NAME", "satisfaction_client"),
-        user=os.getenv("DB_USER", "admin"),
-        password=os.getenv("DB_PASSWORD", "password123"),
-    )
+    conn = get_database_connection()
 
     try:
         cursor = conn.cursor()
@@ -563,15 +771,20 @@ def synchronize_database_predictions(model):
 
 
 def train_and_log_model(test_size=0.2, random_state=42):
-    print("[*] Démarrage de l'entraînement depuis annotations_manual_labels.csv...")
+    print(
+        "[*] Démarrage de l'entraînement depuis annotations manuelles "
+        "+ corrections humaines..."
+    )
     print(f"[*] Pondération de la note client: {RATING_FEATURE_WEIGHT}")
 
-    annotated_df = build_annotated_dataframe()
+    annotated_df = build_combined_annotated_dataframe(include_feedback=True)
     df = build_training_dataframe(annotated_df)
     feature_columns = ["verbatim", "rating"]
-    x_train, x_test, y_train, y_test = train_test_split(
+    source_series = df["dataset_source"].fillna("unknown")
+    x_train, x_test, y_train, y_test, _, source_test = train_test_split(
         df[feature_columns],
         df["target"],
+        source_series,
         test_size=test_size,
         random_state=random_state,
         stratify=df["target"],
@@ -582,7 +795,7 @@ def train_and_log_model(test_size=0.2, random_state=42):
 
     y_pred = evaluation_model.predict(x_test)
     accuracy = accuracy_score(y_test, y_pred)
-    print_evaluation_metrics(evaluation_model, x_test, y_test)
+    print_evaluation_metrics(evaluation_model, x_test, y_test, source_test)
 
     final_model = build_model()
     final_model.fit(df[feature_columns], df["target"])
@@ -590,8 +803,16 @@ def train_and_log_model(test_size=0.2, random_state=42):
 
     serialize_model(final_model)
 
+    source_counts = df["dataset_source"].value_counts()
+    training_metadata = {
+        "training_rows": int(len(df)),
+        "training_manual_rows": int(source_counts.get(MANUAL_DATASET_SOURCE, 0)),
+        "training_feedback_rows": int(source_counts.get(FEEDBACK_DATASET_SOURCE, 0)),
+        "training_sources": ",".join(sorted(source_counts.index.astype(str))),
+    }
+
     try:
-        log_model_to_mlflow(final_model, accuracy)
+        log_model_to_mlflow(final_model, accuracy, training_metadata)
     except Exception as exc:
         print(f"[-] MLflow indisponible ou non configuré: {exc}")
         print("[*] Le modèle local sérialisé reste disponible.")
