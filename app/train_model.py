@@ -743,6 +743,8 @@ def log_model_to_mlflow(model, accuracy, training_metadata=None):
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"))
 
     with mlflow.start_run():
+        active_run = mlflow.active_run()
+        mlflow_run_id = active_run.info.run_id if active_run else None
         mlflow.log_metric("accuracy", accuracy)
         mlflow.log_param("rating_feature_weight", RATING_FEATURE_WEIGHT)
         if training_metadata:
@@ -769,6 +771,11 @@ def log_model_to_mlflow(model, accuracy, training_metadata=None):
             "[+] Modèle déployé sur MLflow "
             f"(v{model_info.registered_model_version}, alias production)."
         )
+        return {
+            "model_version": str(model_info.registered_model_version),
+            "model_uri": "models:/sentiment_model@production",
+            "mlflow_run_id": mlflow_run_id,
+        }
 
 
 def synchronize_database_predictions(model):
@@ -869,6 +876,16 @@ def train_and_log_model(test_size=0.2, random_state=42):
 
     y_pred = evaluation_model.predict(x_test)
     accuracy = accuracy_score(y_test, y_pred)
+    evaluation_report = classification_report(
+        y_test,
+        y_pred,
+        labels=sorted(TARGET_TO_LABEL),
+        target_names=TARGET_NAMES,
+        output_dict=True,
+        zero_division=0,
+    )
+    macro_f1 = float(evaluation_report["macro avg"]["f1-score"])
+    weighted_f1 = float(evaluation_report["weighted avg"]["f1-score"])
     print_evaluation_metrics(evaluation_model, x_test, y_test, source_test)
 
     final_model = build_model()
@@ -889,10 +906,13 @@ def train_and_log_model(test_size=0.2, random_state=42):
         "feedback_sample_weight": float(feedback_sample_weight),
         "training_effective_rows": float(df["sample_weight"].sum()),
         "training_sources": ",".join(sorted(source_counts.index.astype(str))),
+        "macro_f1": macro_f1,
+        "weighted_f1": weighted_f1,
     }
 
+    mlflow_metadata = {}
     try:
-        log_model_to_mlflow(final_model, accuracy, training_metadata)
+        mlflow_metadata = log_model_to_mlflow(final_model, accuracy, training_metadata)
     except Exception as exc:
         print(f"[-] MLflow indisponible ou non configuré: {exc}")
         print("[*] Le modèle local sérialisé reste disponible.")
@@ -901,6 +921,15 @@ def train_and_log_model(test_size=0.2, random_state=42):
         synchronize_database_predictions(final_model)
     except Exception as exc:
         print(f"[-] Synchronisation PostgreSQL ignorée: {exc}")
+
+
+    return {
+        "accuracy": float(accuracy),
+        "macro_f1": macro_f1,
+        "weighted_f1": weighted_f1,
+        **training_metadata,
+        **mlflow_metadata,
+    }
 
 
 if __name__ == "__main__":

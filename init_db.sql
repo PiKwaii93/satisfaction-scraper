@@ -110,6 +110,29 @@ CREATE TABLE IF NOT EXISTS review_feedback (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS model_training_runs (
+    training_run_id SERIAL PRIMARY KEY,
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    celery_task_id TEXT,
+    trigger_source VARCHAR(50) NOT NULL DEFAULT 'api',
+    feedback_sample_weight FLOAT,
+    training_rows INT DEFAULT 0,
+    training_manual_rows INT DEFAULT 0,
+    training_feedback_rows INT DEFAULT 0,
+    training_effective_rows FLOAT DEFAULT 0,
+    accuracy FLOAT,
+    macro_f1 FLOAT,
+    weighted_f1 FLOAT,
+    model_version TEXT,
+    mlflow_run_id TEXT,
+    model_uri TEXT DEFAULT 'models:/sentiment_model@production',
+    error_message TEXT,
+    started_at TIMESTAMP,
+    finished_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_company ON analysis_runs(company_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run ON analysis_run_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_run ON reviews(run_id);
@@ -117,3 +140,4 @@ CREATE INDEX IF NOT EXISTS idx_reviews_company ON reviews(company_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_label ON sentiment_predictions(label);
 CREATE INDEX IF NOT EXISTS idx_review_topics_topic ON review_topics(topic);
 CREATE INDEX IF NOT EXISTS idx_review_feedback_label ON review_feedback(corrected_label);
+CREATE INDEX IF NOT EXISTS idx_model_training_runs_status ON model_training_runs(status);

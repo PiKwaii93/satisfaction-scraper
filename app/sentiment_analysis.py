@@ -87,6 +87,22 @@ except Exception as e:
     MODEL_LOADED = False
 
 
+def reload_model():
+    global MODEL_LOADED, model
+
+    try:
+        print("\n--- RECHARGEMENT DU MODELE DEPUIS LE REGISTRE ---")
+        model_uri = "models:/sentiment_model@production"
+        model = mlflow.sklearn.load_model(model_uri)
+        MODEL_LOADED = True
+        print("[+] Modele ML multi-classe recharge depuis MLflow.\n")
+        return True
+    except Exception as e:
+        print(f"\n[-] Attention : Impossible de recharger le modele ML ({e}).")
+        MODEL_LOADED = False
+        return False
+
+
 def apply_business_guardrails(label, score, text, rating=None):
     """Évite les faux positifs évidents sur les avis à problème explicite."""
     rating_value = int(rating) if rating is not None else None
