@@ -1,11 +1,13 @@
 export type SentimentLabel = "Positif" | "Neutre" | "Négatif";
 
+export type AnalysisSource = "trustpilot" | "csv";
+
 export type AnalysisRun = {
   run_id: number;
   company_id: number;
   company_name: string;
   trustpilot_slug: string;
-  source: "trustpilot";
+  source: AnalysisSource;
   status: "pending" | "running" | "completed" | "failed" | "empty";
   pages_per_star: number;
   stars_requested: number[];

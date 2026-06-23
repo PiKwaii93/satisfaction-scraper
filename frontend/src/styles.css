@@ -181,6 +181,39 @@ a {
   color: #1d4ed8;
 }
 
+.source-switch button {
+  flex: 1 1 88px;
+}
+
+.file-drop {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px dashed #9aa4b2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  cursor: pointer;
+}
+
+.file-drop svg {
+  color: var(--muted);
+}
+
+.file-drop span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-drop input {
+  display: none;
+}
+
 .review-toolbar {
   display: flex;
   flex-wrap: wrap;

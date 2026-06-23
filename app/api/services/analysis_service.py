@@ -2,6 +2,7 @@ import csv
 import hashlib
 import json
 import re
+from io import StringIO
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
@@ -15,6 +16,32 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODEL_URI = "models:/sentiment_model@production"
 ACTIVE_RUN_STATUSES = ("pending", "running")
 SENTIMENT_LABELS = {"Positif", "Neutre", "Négatif"}
+CSV_SOURCE = "csv"
+CSV_MAX_ROWS = 5000
+CSV_COLUMN_ALIASES = {
+    "verbatim": [
+        "verbatim",
+        "avis",
+        "review",
+        "text",
+        "texte",
+        "comment",
+        "commentaire",
+        "body",
+        "message",
+    ],
+    "rating": ["rating", "note", "stars", "star", "etoiles", "etoile", "score"],
+    "author": ["author", "author_name", "auteur", "nom", "name", "user", "client"],
+    "date": ["date", "raw_date", "review_date", "created_at", "published_at"],
+    "company_responded": [
+        "company_responded",
+        "responded",
+        "response",
+        "reponse",
+        "réponse",
+        "has_response",
+    ],
+}
 FRENCH_MONTHS = {
     "janvier": 1,
     "fevrier": 2,
@@ -85,6 +112,137 @@ def default_paths(company_slug, run_id):
         output_dir / f"run_{run_id}_{stem}_reviews.json",
         output_dir / f"run_{run_id}_{stem}_predictions.csv",
     )
+
+
+def normalize_csv_header(value):
+    return (
+        str(value or "")
+        .strip()
+        .lower()
+        .replace("\ufeff", "")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+
+def decode_csv_bytes(file_bytes):
+    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            return file_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError("Impossible de lire le CSV: encodage non supporte.")
+
+
+def detect_csv_dialect(csv_text):
+    sample = csv_text[:4096]
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",;\t")
+    except csv.Error:
+        return csv.excel
+
+
+def resolve_csv_columns(fieldnames):
+    normalized_headers = {
+        normalize_csv_header(header): header for header in fieldnames or []
+    }
+    resolved_columns = {}
+    missing_columns = []
+
+    for canonical_name, aliases in CSV_COLUMN_ALIASES.items():
+        column = next(
+            (
+                normalized_headers[normalize_csv_header(alias)]
+                for alias in aliases
+                if normalize_csv_header(alias) in normalized_headers
+            ),
+            None,
+        )
+        if column:
+            resolved_columns[canonical_name] = column
+        elif canonical_name == "verbatim":
+            missing_columns.append(canonical_name)
+
+    if missing_columns:
+        available = ", ".join(str(header) for header in fieldnames or [])
+        raise ValueError(
+            "Colonne obligatoire introuvable: verbatim. "
+            "Colonnes acceptees: verbatim, avis, review, text, texte, "
+            f"commentaire. Colonnes detectees: {available or 'aucune'}."
+        )
+
+    return resolved_columns
+
+
+def parse_boolean_cell(value):
+    text = str(value or "").strip().lower()
+    return text in {"1", "true", "yes", "oui", "y", "o", "responded", "repondu"}
+
+
+def normalize_csv_rating(value):
+    if value is None or str(value).strip() == "":
+        return 3
+
+    match = re.search(r"\d+(?:[,.]\d+)?", str(value))
+    if not match:
+        return 3
+
+    rating = int(round(float(match.group().replace(",", "."))))
+    return min(5, max(1, rating))
+
+
+def parse_reviews_csv(file_bytes):
+    csv_text = decode_csv_bytes(file_bytes)
+    if not csv_text.strip():
+        raise ValueError("Le fichier CSV est vide.")
+
+    reader = csv.DictReader(StringIO(csv_text), dialect=detect_csv_dialect(csv_text))
+    if not reader.fieldnames:
+        raise ValueError("Le CSV doit contenir une ligne d'en-tetes.")
+
+    columns = resolve_csv_columns(reader.fieldnames)
+    reviews = []
+    skipped_rows = 0
+
+    for row_index, row in enumerate(reader, start=2):
+        if len(reviews) >= CSV_MAX_ROWS:
+            raise ValueError(
+                f"CSV trop volumineux: limite actuelle {CSV_MAX_ROWS} avis."
+            )
+
+        verbatim = str(row.get(columns["verbatim"], "") or "").strip()
+        if not verbatim:
+            skipped_rows += 1
+            continue
+
+        rating = normalize_csv_rating(row.get(columns.get("rating", ""), 3))
+        author = str(row.get(columns.get("author", ""), "") or "").strip()
+        raw_date = str(row.get(columns.get("date", ""), "") or "").strip()
+        company_responded = parse_boolean_cell(
+            row.get(columns.get("company_responded", ""), "")
+        )
+
+        reviews.append(
+            {
+                "author": author or f"CSV #{row_index}",
+                "rating": rating,
+                "date": raw_date,
+                "verbatim": verbatim,
+                "company_responded": company_responded,
+            }
+        )
+
+    if not reviews:
+        raise ValueError(
+            "Aucun avis exploitable dans le CSV. "
+            "Renseigne au moins une ligne avec un verbatim ou une note."
+        )
+
+    return {
+        "reviews": reviews,
+        "skipped_rows": skipped_rows,
+        "detected_columns": columns,
+    }
 
 
 def rating_to_int(raw_rating):
@@ -234,10 +392,18 @@ def get_run_events(run_id, limit=100):
         return [serialize_run_event(row) for row in cursor.fetchall()]
 
 
-def get_or_create_company(company_input):
+def get_or_create_company(company_input, source="trustpilot"):
     company_slug = normalize_company_slug(company_input)
-    company_name = company_slug.replace("www.", "")
-    source_url = build_trustpilot_url(company_slug)
+    company_name = (
+        str(company_input or "").strip()
+        if source == CSV_SOURCE
+        else company_slug.replace("www.", "")
+    )
+    source_url = (
+        build_trustpilot_url(company_slug)
+        if source == "trustpilot"
+        else f"{source}://{company_slug}"
+    )
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
@@ -331,6 +497,88 @@ def create_analysis_run(request):
 
     if request.execute_immediately:
         queue_analysis_run(run_id, skip_scrape=request.skip_scrape)
+
+    return get_analysis_run(run_id)
+
+
+def create_csv_analysis_run(company_input, file_bytes, original_filename=None):
+    parsed_csv = parse_reviews_csv(file_bytes)
+    company = get_or_create_company(company_input, source=CSV_SOURCE)
+    active_run = find_active_analysis_run(
+        company_id=company["company_id"],
+        source=CSV_SOURCE,
+        stars=[],
+        pages_per_star=1,
+    )
+    if active_run:
+        status_label = (
+            "en file d'attente"
+            if active_run["status"] == "pending"
+            else "en cours"
+        )
+        raise ActiveAnalysisRunError(
+            "Un import CSV est deja "
+            f"{status_label} pour {company['company_name']} "
+            f"(run #{active_run['run_id']})."
+        )
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            INSERT INTO analysis_runs (
+                company_id, source, status, stars_requested, pages_per_star, model_uri
+            )
+            VALUES (%s, %s, 'pending', %s, %s, %s)
+            RETURNING run_id;
+            """,
+            (
+                company["company_id"],
+                CSV_SOURCE,
+                "",
+                1,
+                MODEL_URI,
+            ),
+        )
+        run_id = cursor.fetchone()["run_id"]
+
+    json_path, csv_path = default_paths(company["trustpilot_slug"], run_id)
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "target_company": company["company_name"],
+        "source": CSV_SOURCE,
+        "original_filename": original_filename,
+        "detected_columns": parsed_csv["detected_columns"],
+        "skipped_rows": parsed_csv["skipped_rows"],
+        "reviews": parsed_csv["reviews"],
+    }
+    with json_path.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, ensure_ascii=False, indent=2)
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            UPDATE analysis_runs
+            SET reviews_json_path = %s,
+                predictions_csv_path = %s,
+                updated_at = NOW()
+            WHERE run_id = %s;
+            """,
+            (str(json_path), str(csv_path), run_id),
+        )
+
+    queue_analysis_run(run_id, skip_scrape=True)
+    record_run_event(
+        run_id,
+        f"CSV importe: {len(parsed_csv['reviews'])} avis exploitables.",
+        step="csv_import",
+    )
+    if parsed_csv["skipped_rows"]:
+        record_run_event(
+            run_id,
+            f"{parsed_csv['skipped_rows']} ligne(s) CSV ignoree(s).",
+            step="csv_import",
+            level="warning",
+        )
 
     return get_analysis_run(run_id)
 
@@ -445,7 +693,15 @@ def execute_analysis_run(run_id, skip_scrape=False):
             step="prepare_outputs",
         )
 
-        if not skip_scrape:
+        if run["source"] == CSV_SOURCE:
+            if not json_path.exists():
+                raise FileNotFoundError(f"JSON introuvable pour ce run: {json_path}")
+            record_run_event(
+                run_id,
+                "Import CSV detecte, lecture du JSON normalise.",
+                step="csv_load",
+            )
+        elif not skip_scrape:
             record_run_event(
                 run_id,
                 f"Scraping Trustpilot demarre pour {company_slug}.",
@@ -493,9 +749,13 @@ def execute_analysis_run(run_id, skip_scrape=False):
 
         if review_count == 0:
             message = (
-                "Aucun avis n'a ete recupere pour cette analyse. "
-                "Verifie l'URL Trustpilot, les filtres d'etoiles ou le nombre "
-                "de pages demande."
+                "Aucun avis exploitable n'a ete trouve dans le CSV importe."
+                if run["source"] == CSV_SOURCE
+                else (
+                    "Aucun avis n'a ete recupere pour cette analyse. "
+                    "Verifie l'URL Trustpilot, les filtres d'etoiles ou le nombre "
+                    "de pages demande."
+                )
             )
             with get_cursor(commit=True) as cursor:
                 cursor.execute(

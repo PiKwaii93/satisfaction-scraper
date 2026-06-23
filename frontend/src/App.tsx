@@ -29,7 +29,8 @@ import {
   getRunEvents,
   getSummary,
   listRuns,
-  saveReviewFeedback
+  saveReviewFeedback,
+  uploadCsvRun
 } from "./api";
 import type {
   AnalysisRunEvent,
@@ -62,6 +63,10 @@ const FEEDBACK_SENTIMENTS = SENTIMENTS.filter(
 );
 
 const REVIEW_PAGE_SIZES = [30, 60, 120, 500];
+const SOURCE_LABELS: Record<AnalysisRun["source"], string> = {
+  trustpilot: "Trustpilot",
+  csv: "CSV"
+};
 
 const sentimentClass: Record<SentimentLabel, string> = {
   Négatif: "negative",
@@ -454,7 +459,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
       <div>
         <span class="eyebrow">Rapport entreprise</span>
         <h1>${escapeHtml(run.company_name)}</h1>
-        <p>Trustpilot - Run #${run.run_id} - Rapport généré le ${escapeHtml(createdAt)}</p>
+        <p>${SOURCE_LABELS[run.source]} - Run #${run.run_id} - Rapport généré le ${escapeHtml(createdAt)}</p>
       </div>
       <div class="score">
         <span>Score santé</span>
@@ -899,6 +904,9 @@ export default function App() {
   const [company, setCompany] = useState(
     "https://fr.trustpilot.com/review/www.darty.com"
   );
+  const [sourceMode, setSourceMode] =
+    useState<AnalysisRun["source"]>("trustpilot");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pagesPerStar, setPagesPerStar] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -1134,9 +1142,18 @@ export default function App() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const validationError = validateCompanyInput(company);
-    if (validationError) {
-      setError(validationError);
+
+    if (sourceMode === "trustpilot") {
+      const validationError = validateCompanyInput(company);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    } else if (company.trim().length < 2) {
+      setError("Renseigne le nom de l'entreprise a analyser.");
+      return;
+    } else if (!csvFile) {
+      setError("Selectionne un fichier CSV d'avis clients.");
       return;
     }
 
@@ -1144,13 +1161,16 @@ export default function App() {
     setError(null);
 
     try {
-      const run = await createRun({
-        company: company.trim(),
-        source: "trustpilot",
-        stars: [1, 2, 3, 4, 5],
-        pages_per_star: pagesPerStar,
-        execute_immediately: true
-      });
+      const run =
+        sourceMode === "csv"
+          ? await uploadCsvRun(company.trim(), csvFile as File)
+          : await createRun({
+              company: company.trim(),
+              source: "trustpilot",
+              stars: [1, 2, 3, 4, 5],
+              pages_per_star: pagesPerStar,
+              execute_immediately: true
+            });
       setSelectedRunId(run.run_id);
       await refreshRuns();
     } catch (err) {
@@ -1344,37 +1364,82 @@ export default function App() {
           <div className="brand-mark">SC</div>
           <div>
             <h1>Satisfaction Client</h1>
-            <p>Analyse d'avis Trustpilot</p>
+            <p>Analyse d'avis clients</p>
           </div>
         </div>
 
         <form className="analysis-form" onSubmit={handleSubmit}>
-          <label htmlFor="company">Entreprise ou URL Trustpilot</label>
+          <label>Source d'avis</label>
+          <div className="segmented source-switch">
+            {(["trustpilot", "csv"] as const).map((source) => (
+              <button
+                className={sourceMode === source ? "active" : ""}
+                disabled={isSubmitting}
+                key={source}
+                onClick={() => {
+                  setSourceMode(source);
+                  setError(null);
+                }}
+                type="button"
+              >
+                {SOURCE_LABELS[source]}
+              </button>
+            ))}
+          </div>
+
+          <label htmlFor="company">
+            {sourceMode === "csv"
+              ? "Entreprise a analyser"
+              : "Entreprise ou URL Trustpilot"}
+          </label>
           <div className="input-with-icon">
             <Search aria-hidden="true" size={18} />
             <input
               id="company"
               value={company}
               onChange={(event) => setCompany(event.target.value)}
-              placeholder="www.darty.com"
+              placeholder={
+                sourceMode === "csv" ? "Nom de l'entreprise" : "www.darty.com"
+              }
               disabled={isSubmitting}
             />
           </div>
 
-          <label htmlFor="pages">Pages par note</label>
-          <div className="stepper">
-            {[1, 3, 5, 10].map((value) => (
-              <button
-                className={pagesPerStar === value ? "active" : ""}
-                key={value}
-                type="button"
-                onClick={() => setPagesPerStar(value)}
-                disabled={isSubmitting}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
+          {sourceMode === "csv" ? (
+            <>
+              <label htmlFor="csv-file">Fichier CSV d'avis</label>
+              <label className="file-drop" htmlFor="csv-file">
+                <FileText aria-hidden="true" size={18} />
+                <span>{csvFile ? csvFile.name : "Choisir un fichier .csv"}</span>
+                <input
+                  accept=".csv,text/csv"
+                  disabled={isSubmitting}
+                  id="csv-file"
+                  onChange={(event) =>
+                    setCsvFile(event.target.files?.[0] ?? null)
+                  }
+                  type="file"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label htmlFor="pages">Pages par note</label>
+              <div className="stepper">
+                {[1, 3, 5, 10].map((value) => (
+                  <button
+                    className={pagesPerStar === value ? "active" : ""}
+                    key={value}
+                    type="button"
+                    onClick={() => setPagesPerStar(value)}
+                    disabled={isSubmitting}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <button className="primary-action" disabled={isSubmitting}>
             {isSubmitting ? (
@@ -1382,7 +1447,11 @@ export default function App() {
             ) : (
               <Play size={18} />
             )}
-            {isSubmitting ? "Analyse en cours" : "Lancer l'analyse"}
+            {isSubmitting
+              ? "Analyse en cours"
+              : sourceMode === "csv"
+                ? "Importer le CSV"
+                : "Lancer l'analyse"}
           </button>
         </form>
 
@@ -1535,7 +1604,7 @@ export default function App() {
                 <span className="eyebrow">Rapport entreprise</span>
                 <h2>{selectedRun.company_name}</h2>
                 <p>
-                  Trustpilot - Run #{selectedRun.run_id} -{" "}
+                  {SOURCE_LABELS[selectedRun.source]} - Run #{selectedRun.run_id} -{" "}
                   {selectedRun.total_reviews} avis
                   {selectedRunDuration ? ` - ${selectedRunDuration}` : ""}
                 </p>
@@ -1649,7 +1718,7 @@ export default function App() {
                   <Kpi
                     label="Note moyenne"
                     value={`${formatNumber(summary.kpis.average_rating)} / 5`}
-                    helper="Source Trustpilot"
+                    helper={`Source ${SOURCE_LABELS[selectedRun.source]}`}
                   />
                   <Kpi
                     label="Confiance IA"
