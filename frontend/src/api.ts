@@ -70,6 +70,27 @@ export function createRun(payload: CreateRunPayload) {
   });
 }
 
+export async function uploadCsvRun(company: string, file: File) {
+  const formData = new FormData();
+  formData.append("company", company);
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/analysis-runs/import-csv`, {
+    method: "POST",
+    headers: {
+      "X-API-Key": API_KEY
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(parseApiError(detail, response.status));
+  }
+
+  return response.json() as Promise<AnalysisRun>;
+}
+
 export function executeRun(runId: number, skipScrape = false) {
   const params = new URLSearchParams({ skip_scrape: String(skipScrape) });
   return request<AnalysisRun>(

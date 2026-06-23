@@ -19,5 +19,6 @@ matplotlib
 
 # API produit
 fastapi
+python-multipart
 uvicorn[standard]
 celery[redis]

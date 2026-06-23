@@ -1,0 +1,16 @@
+note;avis;auteur;date;company_responded
+5;Commande recue rapidement, produit conforme et service client agreable.;Alice;2026-06-01;false
+1;Commande jamais recue apres trois semaines et aucune reponse claire du support.;Karim;2026-06-02;false
+3;Produit correct mais la livraison a ete beaucoup trop longue.;Sophie;2026-06-03;true
+4;Bon rapport qualite prix, dommage que les frais de livraison soient eleves.;Nicolas;2026-06-04;false
+2;Le service client est difficile a joindre et mon remboursement tarde.;Laura;2026-06-05;true
+5;Tres bonne experience, retour simple et remboursement rapide.;Mehdi;2026-06-06;true
+1;Article arrive casse, emballage abime et aucune solution satisfaisante.;Julie;2026-06-07;false
+3;Experience mitigee, le produit fonctionne mais les informations etaient peu claires.;Thomas;2026-06-08;false
+4;Livraison rapide et produit conforme a la description.;Emma;2026-06-09;false
+2;Retard important, suivi de commande inutile et communication insuffisante.;Hugo;2026-06-10;false
+5;Parfait, je recommanderai sans hesitation.;Lea;2026-06-11;false
+3;Bien dans l'ensemble mais les delais pourraient etre meilleurs.;Camille;2026-06-12;true
+1;Retour impossible depuis le site et aucune aide du service apres vente.;Yanis;2026-06-13;false
+4;Produit de bonne qualite, livraison un peu lente mais experience positive.;Manon;2026-06-14;false
+2;Je suis decu par la qualite du produit et par le manque de suivi.;Antoine;2026-06-15;false

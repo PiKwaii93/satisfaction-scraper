@@ -124,6 +124,7 @@ Endpoints principaux :
 ```text
 GET    /health
 POST   /analysis-runs
+POST   /analysis-runs/import-csv
 GET    /analysis-runs
 GET    /analysis-runs/{run_id}
 POST   /analysis-runs/{run_id}/execute
@@ -172,6 +173,20 @@ $body = @{
 Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -Headers $headers -ContentType "application/json" -Body $body
 ```
 
+### Import CSV d'avis
+
+L'application peut aussi analyser un fichier CSV fourni par l'utilisateur, sans passer par le scraping Trustpilot. C'est le chemin recommande pour brancher des exports clients, des avis issus d'autres plateformes ou une future integration API.
+
+Colonnes acceptees :
+
+- `verbatim` obligatoire, avec alias possibles : `avis`, `review`, `text`, `texte`, `comment`, `commentaire`, `body`, `message` ;
+- `rating` optionnel, avec alias possibles : `note`, `stars`, `etoiles`, `score` ;
+- `author` optionnel, avec alias possibles : `author_name`, `auteur`, `nom`, `name`, `user`, `client` ;
+- `date` optionnel, avec alias possibles : `raw_date`, `review_date`, `created_at`, `published_at` ;
+- `company_responded` optionnel, avec alias possibles : `responded`, `response`, `reponse`, `has_response`.
+
+Les runs importes en CSV alimentent le meme rapport entreprise, le meme benchmark, les memes corrections humaines et les memes exports que les runs Trustpilot.
+
 ## Frontend React
 
 Le dossier `frontend/` contient la premiere interface client React + Vite + TypeScript.
@@ -179,6 +194,7 @@ Le dossier `frontend/` contient la premiere interface client React + Vite + Type
 Elle permet de :
 
 - lancer une nouvelle analyse Trustpilot ;
+- importer un CSV d'avis clients ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;

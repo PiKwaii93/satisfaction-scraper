@@ -1,7 +1,16 @@
 import csv
 from io import StringIO
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 
 from app.api.schemas import (
@@ -19,6 +28,7 @@ from app.api.security import require_api_key
 from app.api.services.analysis_service import (
     ActiveAnalysisRunError,
     create_analysis_run,
+    create_csv_analysis_run,
     delete_review_feedback,
     get_feedback_export_rows,
     get_feedback_quality_summary,
@@ -59,6 +69,43 @@ router = APIRouter(
 def create_run(payload: AnalysisRunCreate):
     try:
         run = create_analysis_run(payload)
+    except ActiveAnalysisRunError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return run
+
+
+@router.post(
+    "/import-csv",
+    response_model=AnalysisRunResponse,
+    status_code=201,
+    summary="Importer un CSV d'avis",
+    description=(
+        "Importe un fichier CSV d'avis clients et lance l'analyse IA sur les "
+        "verbatims fournis."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        409: {"model": ErrorResponse, "description": "Import CSV deja actif"},
+    },
+)
+async def import_csv_run(
+    company: str = Form(..., min_length=2),
+    file: UploadFile = File(...),
+):
+    try:
+        content = await file.read()
+        if not content:
+            raise ValueError("Le fichier CSV est vide.")
+        run = create_csv_analysis_run(
+            company_input=company,
+            file_bytes=content,
+            original_filename=file.filename,
+        )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
