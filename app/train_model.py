@@ -40,6 +40,7 @@ TRAINING_SNAPSHOT_PATH = (
     PROJECT_ROOT / "data" / "training" / "sentiment_training_dataset.csv"
 )
 RATING_FEATURE_WEIGHT = 0.25
+DEFAULT_FEEDBACK_SAMPLE_WEIGHT = 6.0
 
 LABEL_TO_TARGET = {
     "Négatif": 0,
@@ -50,6 +51,30 @@ TARGET_TO_LABEL = {value: key for key, value in LABEL_TO_TARGET.items()}
 TARGET_NAMES = [TARGET_TO_LABEL[i] for i in sorted(TARGET_TO_LABEL)]
 MANUAL_DATASET_SOURCE = "manual_annotations"
 FEEDBACK_DATASET_SOURCE = "review_feedback"
+
+
+def get_feedback_sample_weight():
+    raw_value = os.getenv(
+        "FEEDBACK_SAMPLE_WEIGHT", str(DEFAULT_FEEDBACK_SAMPLE_WEIGHT)
+    )
+    try:
+        weight = float(raw_value)
+    except ValueError:
+        print(
+            "[!] FEEDBACK_SAMPLE_WEIGHT invalide "
+            f"({raw_value!r}), valeur par défaut utilisée: "
+            f"{DEFAULT_FEEDBACK_SAMPLE_WEIGHT}."
+        )
+        return DEFAULT_FEEDBACK_SAMPLE_WEIGHT
+
+    if weight < 1.0:
+        print(
+            "[!] FEEDBACK_SAMPLE_WEIGHT doit être >= 1.0, "
+            f"valeur par défaut utilisée: {DEFAULT_FEEDBACK_SAMPLE_WEIGHT}."
+        )
+        return DEFAULT_FEEDBACK_SAMPLE_WEIGHT
+
+    return weight
 
 
 def build_model(rating_weight=RATING_FEATURE_WEIGHT):
@@ -598,6 +623,7 @@ def write_training_dataset_snapshot(df, output_path=TRAINING_SNAPSHOT_PATH):
         "predicted_label",
         "feedback_comment",
         "feedback_updated_at",
+        "sample_weight",
         "verbatim",
     ]
     available_columns = [column for column in snapshot_columns if column in df.columns]
@@ -605,8 +631,37 @@ def write_training_dataset_snapshot(df, output_path=TRAINING_SNAPSHOT_PATH):
     print(f"[+] Snapshot dataset d'entraînement: {output_path}")
 
 
-def build_training_dataframe(annotated_df):
+def apply_sample_weights(df, feedback_sample_weight):
+    df = df.copy()
+    df["sample_weight"] = 1.0
+
+    if "dataset_source" not in df.columns:
+        return df
+
+    feedback_mask = df["dataset_source"].fillna("") == FEEDBACK_DATASET_SOURCE
+    df.loc[feedback_mask, "sample_weight"] = feedback_sample_weight
+
+    feedback_rows = int(feedback_mask.sum())
+    effective_feedback_rows = float(df.loc[feedback_mask, "sample_weight"].sum())
+    effective_total_rows = float(df["sample_weight"].sum())
+
+    if feedback_rows:
+        print(
+            "[+] Pondération corrections humaines: "
+            f"x{feedback_sample_weight:g} "
+            f"({feedback_rows} ligne(s), poids effectif {effective_feedback_rows:g})."
+        )
+    else:
+        print("[*] Aucune correction humaine à pondérer.")
+    print(f"[+] Poids effectif total d'entraînement: {effective_total_rows:g}.")
+
+    return df
+
+
+def build_training_dataframe(annotated_df, feedback_sample_weight=None):
     df = annotated_df.copy()
+    if feedback_sample_weight is None:
+        feedback_sample_weight = get_feedback_sample_weight()
 
     empty_verbatims = (df["verbatim"] == "").sum()
     if empty_verbatims:
@@ -623,6 +678,7 @@ def build_training_dataframe(annotated_df):
         print(df["dataset_source"].value_counts())
     print("[+] Distribution utilisée pour l'entraînement:")
     print(df["manual_label"].value_counts().reindex(TARGET_NAMES, fill_value=0))
+    df = apply_sample_weights(df, feedback_sample_weight)
     write_training_dataset_snapshot(df)
 
     return df
@@ -776,14 +832,32 @@ def train_and_log_model(test_size=0.2, random_state=42):
         "+ corrections humaines..."
     )
     print(f"[*] Pondération de la note client: {RATING_FEATURE_WEIGHT}")
+    feedback_sample_weight = get_feedback_sample_weight()
+    print(
+        "[*] Pondération des corrections humaines: "
+        f"x{feedback_sample_weight:g}"
+    )
 
     annotated_df = build_combined_annotated_dataframe(include_feedback=True)
-    df = build_training_dataframe(annotated_df)
+    df = build_training_dataframe(
+        annotated_df, feedback_sample_weight=feedback_sample_weight
+    )
     feature_columns = ["verbatim", "rating"]
     source_series = df["dataset_source"].fillna("unknown")
-    x_train, x_test, y_train, y_test, _, source_test = train_test_split(
+    sample_weights = df["sample_weight"]
+    (
+        x_train,
+        x_test,
+        y_train,
+        y_test,
+        sample_weight_train,
+        _sample_weight_test,
+        _source_train,
+        source_test,
+    ) = train_test_split(
         df[feature_columns],
         df["target"],
+        sample_weights,
         source_series,
         test_size=test_size,
         random_state=random_state,
@@ -791,14 +865,18 @@ def train_and_log_model(test_size=0.2, random_state=42):
     )
 
     evaluation_model = build_model()
-    evaluation_model.fit(x_train, y_train)
+    evaluation_model.fit(x_train, y_train, clf__sample_weight=sample_weight_train)
 
     y_pred = evaluation_model.predict(x_test)
     accuracy = accuracy_score(y_test, y_pred)
     print_evaluation_metrics(evaluation_model, x_test, y_test, source_test)
 
     final_model = build_model()
-    final_model.fit(df[feature_columns], df["target"])
+    final_model.fit(
+        df[feature_columns],
+        df["target"],
+        clf__sample_weight=sample_weights,
+    )
     print("[+] Modèle final réentraîné sur 100% des verbatims annotés non vides.")
 
     serialize_model(final_model)
@@ -808,6 +886,8 @@ def train_and_log_model(test_size=0.2, random_state=42):
         "training_rows": int(len(df)),
         "training_manual_rows": int(source_counts.get(MANUAL_DATASET_SOURCE, 0)),
         "training_feedback_rows": int(source_counts.get(FEEDBACK_DATASET_SOURCE, 0)),
+        "feedback_sample_weight": float(feedback_sample_weight),
+        "training_effective_rows": float(df["sample_weight"].sum()),
         "training_sources": ",".join(sorted(source_counts.index.astype(str))),
     }
 
