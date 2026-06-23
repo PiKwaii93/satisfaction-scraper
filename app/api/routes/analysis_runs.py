@@ -10,6 +10,7 @@ from app.api.schemas import (
     AnalysisRunResponse,
     AnalysisRunsComparisonResponse,
     ErrorResponse,
+    FeedbackQualityResponse,
     ReviewFeedbackCreate,
     ReviewFeedbackResponse,
     ReviewListResponse,
@@ -20,6 +21,7 @@ from app.api.services.analysis_service import (
     create_analysis_run,
     delete_review_feedback,
     get_feedback_export_rows,
+    get_feedback_quality_summary,
     get_analysis_run,
     get_export_rows,
     get_run_events,
@@ -102,6 +104,16 @@ def compare_runs(
         return get_runs_comparison(parsed_run_ids)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get(
+    "/feedback/quality",
+    response_model=FeedbackQualityResponse,
+    summary="Consulter la qualité IA",
+    description="Agrège les corrections humaines pour piloter le prochain réentraînement.",
+)
+def get_feedback_quality(recent_limit: int = Query(default=8, ge=1, le=50)):
+    return get_feedback_quality_summary(recent_limit=recent_limit)
 
 
 @router.get(

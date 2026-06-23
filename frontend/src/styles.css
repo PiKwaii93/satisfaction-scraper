@@ -355,6 +355,116 @@ a {
   margin-top: 12px;
 }
 
+.ai-quality-panel {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.ai-quality-heading {
+  align-items: flex-start;
+}
+
+.ai-quality-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-quality-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 14px;
+}
+
+.quality-block {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.quality-block h4 {
+  margin: 0;
+  color: #344054;
+  font-size: 0.86rem;
+}
+
+.quality-list,
+.transition-list,
+.recent-correction-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quality-list-row,
+.transition-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: #344054;
+}
+
+.quality-list-row div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.quality-list-row strong,
+.quality-list-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quality-list-row small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.quality-list-row > span,
+.transition-row > strong {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.quality-list.compact .quality-list-row {
+  justify-content: flex-start;
+}
+
+.transition-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.transition-row.compact {
+  margin-top: 8px;
+}
+
+.recent-corrections {
+  grid-column: 1 / -1;
+}
+
+.recent-correction {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.recent-correction p {
+  margin: 8px 0 0;
+  color: #344054;
+  line-height: 1.5;
+}
+
 .run-item {
   display: flex;
   width: 100%;
@@ -1252,6 +1362,7 @@ tbody tr:last-child td {
 
   .report-header,
   .header-actions,
+  .ai-quality-heading,
   .decision-header,
   .event-meta,
   .processing-state,
@@ -1264,6 +1375,8 @@ tbody tr:last-child td {
 
   .report-grid,
   .kpi-strip,
+  .ai-quality-kpis,
+  .ai-quality-grid,
   .benchmark-highlight-grid,
   .decision-grid,
   .topic-grid,

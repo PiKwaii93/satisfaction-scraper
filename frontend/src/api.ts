@@ -1,6 +1,7 @@
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  FeedbackQuality,
   ReviewFeedback,
   ReviewListResponse,
   RunsComparison,
@@ -85,6 +86,13 @@ export function compareRuns(runIds: number[]) {
   const params = new URLSearchParams({ run_ids: runIds.join(",") });
   return request<RunsComparison>(
     `/analysis-runs/compare?${params.toString()}`
+  );
+}
+
+export function getFeedbackQuality(recentLimit = 8) {
+  const params = new URLSearchParams({ recent_limit: String(recentLimit) });
+  return request<FeedbackQuality>(
+    `/analysis-runs/feedback/quality?${params.toString()}`
   );
 }
 

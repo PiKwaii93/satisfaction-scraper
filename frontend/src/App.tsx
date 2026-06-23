@@ -22,6 +22,7 @@ import {
   executeRun,
   exportFeedback,
   exportReviews,
+  getFeedbackQuality,
   getReviews,
   getRunEvents,
   getSummary,
@@ -37,6 +38,7 @@ import type {
   BusinessStrength,
   BusinessWatchpoint,
   DistributionRow,
+  FeedbackQuality,
   Review,
   RunsComparison,
   RunSummary,
@@ -902,6 +904,8 @@ export default function App() {
   const [comparisonRunIds, setComparisonRunIds] = useState<number[]>([]);
   const [comparison, setComparison] = useState<RunsComparison | null>(null);
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
+  const [feedbackQuality, setFeedbackQuality] = useState<FeedbackQuality | null>(null);
+  const [isFeedbackQualityLoading, setIsFeedbackQualityLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshRuns(selectLatest = false) {
@@ -916,10 +920,21 @@ export default function App() {
     }
   }
 
+  async function refreshFeedbackQuality() {
+    setIsFeedbackQualityLoading(true);
+    try {
+      const quality = await getFeedbackQuality();
+      setFeedbackQuality(quality);
+    } finally {
+      setIsFeedbackQualityLoading(false);
+    }
+  }
+
   useEffect(() => {
     refreshRuns()
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsLoading(false));
+    refreshFeedbackQuality().catch((err: Error) => setError(err.message));
   }, []);
 
   useEffect(() => {
@@ -1195,6 +1210,7 @@ export default function App() {
         )
       );
       await refreshSummaryAfterFeedback(selectedRun.run_id);
+      await refreshFeedbackQuality();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1225,6 +1241,7 @@ export default function App() {
         )
       );
       await refreshSummaryAfterFeedback(selectedRun.run_id);
+      await refreshFeedbackQuality();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1433,6 +1450,14 @@ export default function App() {
             onExportReport={() => handleBenchmarkReportExport(comparison)}
           />
         )}
+
+        <AIQualityPanel
+          isLoading={isFeedbackQualityLoading}
+          onRefresh={() =>
+            refreshFeedbackQuality().catch((err: Error) => setError(err.message))
+          }
+          quality={feedbackQuality}
+        />
 
         {!selectedRun && !isLoading && (
           <div className="empty-state">
@@ -1752,6 +1777,152 @@ function FailedRunState({
           {isRetrying ? "Relance en cours" : "Relancer l'analyse"}
         </button>
       </div>
+    </section>
+  );
+}
+
+function AIQualityPanel({
+  isLoading,
+  onRefresh,
+  quality
+}: {
+  isLoading: boolean;
+  onRefresh: () => void;
+  quality: FeedbackQuality | null;
+}) {
+  const hasCorrections = Boolean(quality && quality.total_corrections > 0);
+
+  return (
+    <section className="ai-quality-panel insight-section wide">
+      <div className="section-heading ai-quality-heading">
+        <div>
+          <span className="eyebrow">Qualité IA</span>
+          <h3>Boucle de correction humaine</h3>
+          <p>
+            {hasCorrections
+              ? `${quality?.training_ready_count ?? 0} correction(s) prête(s) pour le prochain entraînement.`
+              : "Aucune correction humaine enregistrée pour le moment."}
+          </p>
+        </div>
+        <button
+          className="secondary-action"
+          disabled={isLoading}
+          onClick={onRefresh}
+          type="button"
+        >
+          {isLoading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+          Actualiser
+        </button>
+      </div>
+
+      {isLoading && !quality ? (
+        <div className="loading-line">
+          <Loader2 className="spin" size={18} />
+          Chargement de la qualité IA...
+        </div>
+      ) : (
+        <>
+          <div className="ai-quality-kpis">
+            <Kpi
+              label="Corrections"
+              value={String(quality?.total_corrections ?? 0)}
+              helper={`${quality?.corrected_company_count ?? 0} entreprise(s)`}
+            />
+            <Kpi
+              label="Labels modifiés"
+              value={String(quality?.changed_label_count ?? 0)}
+              helper={`${quality?.confirmed_label_count ?? 0} confirmation(s)`}
+            />
+            <Kpi
+              label="Erreur apparente"
+              value={formatPercent(quality?.apparent_error_rate ?? 0)}
+              helper="Sur les avis corrigés"
+            />
+            <Kpi
+              label="Prêt entraînement"
+              value={String(quality?.training_ready_count ?? 0)}
+              helper={quality?.latest_feedback_at ? formatDate(quality.latest_feedback_at) : "Aucune date"}
+            />
+          </div>
+
+          {!hasCorrections ? (
+            <p className="muted">
+              Corrige quelques prédictions dans le tableau d'avis pour alimenter cette
+              vue et le prochain dataset d'entraînement.
+            </p>
+          ) : (
+            <div className="ai-quality-grid">
+              <div className="quality-block">
+                <h4>Entreprises corrigées</h4>
+                <div className="quality-list">
+                  {quality?.by_company.map((company) => (
+                    <div className="quality-list-row" key={company.company_id}>
+                      <div>
+                        <strong>{company.company_name}</strong>
+                        <small>
+                          {company.run_count} run(s) · {company.changed_label_count} label(s)
+                          modifié(s)
+                        </small>
+                      </div>
+                      <span>{company.correction_count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="quality-block">
+                <h4>Prédiction → correction</h4>
+                <div className="transition-list">
+                  {quality?.transitions.map((transition) => (
+                    <div
+                      className="transition-row"
+                      key={`${transition.predicted_label}-${transition.corrected_label}`}
+                    >
+                      <SentimentPill label={transition.predicted_label} />
+                      <span aria-hidden="true">→</span>
+                      <SentimentPill label={transition.corrected_label} />
+                      <strong>{transition.count}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="quality-block">
+                <h4>Labels corrigés</h4>
+                <div className="quality-list compact">
+                  {quality?.corrected_label_distribution.map((row) => (
+                    <div className="quality-list-row" key={row.label}>
+                      <SentimentPill label={row.label} />
+                      <span>{row.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="quality-block recent-corrections">
+                <h4>Dernières corrections</h4>
+                <div className="recent-correction-list">
+                  {quality?.recent_corrections.map((correction) => (
+                    <article className="recent-correction" key={correction.feedback_id}>
+                      <div className="review-meta">
+                        <span>{correction.company_name}</span>
+                        <span>Run #{correction.run_id}</span>
+                        <span>{formatDate(correction.feedback_updated_at)}</span>
+                      </div>
+                      <div className="transition-row compact">
+                        <SentimentPill label={correction.predicted_label} />
+                        <span aria-hidden="true">→</span>
+                        <SentimentPill label={correction.corrected_label} />
+                      </div>
+                      <p>{compactText(correction.verbatim, 180)}</p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </section>
   );
 }
