@@ -236,3 +236,42 @@ export type FeedbackQuality = {
   transitions: FeedbackTransition[];
   recent_corrections: FeedbackRecentCorrection[];
 };
+
+export type ProductionModelInfo = {
+  name: string;
+  alias: string;
+  version: string;
+  run_id: string | null;
+  source: string | null;
+  model_uri: string;
+};
+
+export type ModelTrainingRun = {
+  training_run_id: number;
+  status: "pending" | "running" | "completed" | "failed";
+  celery_task_id: string | null;
+  trigger_source: string;
+  feedback_sample_weight: number | null;
+  training_rows: number;
+  training_manual_rows: number;
+  training_feedback_rows: number;
+  training_effective_rows: number | null;
+  accuracy: number | null;
+  macro_f1: number | null;
+  weighted_f1: number | null;
+  model_version: string | null;
+  mlflow_run_id: string | null;
+  model_uri: string | null;
+  error_message: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  execution_duration_seconds: number | null;
+};
+
+export type ModelTrainingOverview = {
+  production_model: ProductionModelInfo | null;
+  latest_run: ModelTrainingRun | null;
+  active_run: ModelTrainingRun | null;
+  runs: ModelTrainingRun[];
+};

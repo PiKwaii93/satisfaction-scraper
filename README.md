@@ -245,9 +245,15 @@ Il contient les colonnes utiles :
 
 Pour réentraîner le modèle :
 
+Depuis l'application React, la section **Entrainement IA** permet de lancer un
+reentrainement asynchrone via Celery, de suivre son statut, de consulter les
+metriques et de voir la version MLflow exposee avec l'alias `production`.
+
+Le reentrainement reste aussi disponible en ligne de commande :
+
 ```powershell
 docker-compose run --rm worker python /app/app/train_model.py
-docker-compose up -d dashboard
+docker-compose up -d --force-recreate api celery_worker frontend
 ```
 
 Le script :
@@ -263,6 +269,10 @@ Le script :
 - sérialise le modèle dans `app/models/sentiment_model.pkl` ;
 - publie une nouvelle version dans MLflow avec l'alias `production` ;
 - resynchronise les prédictions en base.
+
+Les entrainements lances depuis l'interface sont historises dans
+`model_training_runs` avec leur statut, duree, accuracy, F1, poids des
+corrections, lignes d'entrainement et version MLflow produite.
 
 ## Tester une Entreprise Externe
 

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.database import ensure_product_schema
 from app.api.routes.analysis_runs import router as analysis_runs_router
+from app.api.routes.model_training import router as model_training_router
 
 API_DESCRIPTION = """
 API produit pour lancer, suivre et consulter des analyses d'avis clients Trustpilot.
@@ -55,6 +56,7 @@ app.add_middleware(
 )
 
 app.include_router(analysis_runs_router)
+app.include_router(model_training_router)
 
 
 @app.get(

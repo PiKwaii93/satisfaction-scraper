@@ -2,6 +2,8 @@ import type {
   AnalysisRunEvent,
   AnalysisRun,
   FeedbackQuality,
+  ModelTrainingOverview,
+  ModelTrainingRun,
   ReviewFeedback,
   ReviewListResponse,
   RunsComparison,
@@ -94,6 +96,23 @@ export function getFeedbackQuality(recentLimit = 8) {
   return request<FeedbackQuality>(
     `/analysis-runs/feedback/quality?${params.toString()}`
   );
+}
+
+export function getModelTrainingOverview(limit = 6) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<ModelTrainingOverview>(
+    `/model-training/overview?${params.toString()}`
+  );
+}
+
+export function createModelTrainingRun(feedbackSampleWeight?: number) {
+  return request<ModelTrainingRun>("/model-training/runs", {
+    method: "POST",
+    body: JSON.stringify({
+      feedback_sample_weight: feedbackSampleWeight ?? null,
+      execute_immediately: true
+    })
+  });
 }
 
 async function requestFile(path: string): Promise<Blob> {

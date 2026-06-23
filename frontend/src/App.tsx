@@ -17,12 +17,14 @@ import {
 } from "lucide-react";
 import {
   compareRuns,
+  createModelTrainingRun,
   createRun,
   deleteReviewFeedback,
   executeRun,
   exportFeedback,
   exportReviews,
   getFeedbackQuality,
+  getModelTrainingOverview,
   getReviews,
   getRunEvents,
   getSummary,
@@ -39,6 +41,8 @@ import type {
   BusinessWatchpoint,
   DistributionRow,
   FeedbackQuality,
+  ModelTrainingOverview,
+  ModelTrainingRun,
   Review,
   RunsComparison,
   RunSummary,
@@ -906,6 +910,10 @@ export default function App() {
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   const [feedbackQuality, setFeedbackQuality] = useState<FeedbackQuality | null>(null);
   const [isFeedbackQualityLoading, setIsFeedbackQualityLoading] = useState(false);
+  const [trainingOverview, setTrainingOverview] =
+    useState<ModelTrainingOverview | null>(null);
+  const [isTrainingOverviewLoading, setIsTrainingOverviewLoading] = useState(false);
+  const [isTrainingSubmitting, setIsTrainingSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshRuns(selectLatest = false) {
@@ -930,11 +938,22 @@ export default function App() {
     }
   }
 
+  async function refreshTrainingOverview() {
+    setIsTrainingOverviewLoading(true);
+    try {
+      const overview = await getModelTrainingOverview();
+      setTrainingOverview(overview);
+    } finally {
+      setIsTrainingOverviewLoading(false);
+    }
+  }
+
   useEffect(() => {
     refreshRuns()
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsLoading(false));
     refreshFeedbackQuality().catch((err: Error) => setError(err.message));
+    refreshTrainingOverview().catch((err: Error) => setError(err.message));
   }, []);
 
   useEffect(() => {
@@ -952,6 +971,20 @@ export default function App() {
 
     return () => window.clearInterval(timer);
   }, [runs, selectedRunId]);
+
+  useEffect(() => {
+    const hasActiveTraining = Boolean(trainingOverview?.active_run);
+
+    if (!hasActiveTraining) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      refreshTrainingOverview().catch((err: Error) => setError(err.message));
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [trainingOverview?.active_run?.training_run_id, trainingOverview?.active_run?.status]);
 
   const selectedRun = useMemo(
     () => runs.find((run) => run.run_id === selectedRunId) ?? null,
@@ -1003,6 +1036,20 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setIsComparisonLoading(false);
+    }
+  }
+
+  async function handleStartModelTraining() {
+    setIsTrainingSubmitting(true);
+    setError(null);
+
+    try {
+      await createModelTrainingRun();
+      await Promise.all([refreshTrainingOverview(), refreshFeedbackQuality()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setIsTrainingSubmitting(false);
     }
   }
 
@@ -1457,6 +1504,17 @@ export default function App() {
             refreshFeedbackQuality().catch((err: Error) => setError(err.message))
           }
           quality={feedbackQuality}
+        />
+
+        <ModelTrainingPanel
+          feedbackQuality={feedbackQuality}
+          isLoading={isTrainingOverviewLoading}
+          isSubmitting={isTrainingSubmitting}
+          onRefresh={() =>
+            refreshTrainingOverview().catch((err: Error) => setError(err.message))
+          }
+          onStartTraining={handleStartModelTraining}
+          overview={trainingOverview}
         />
 
         {!selectedRun && !isLoading && (
@@ -1925,6 +1983,159 @@ function AIQualityPanel({
       )}
     </section>
   );
+}
+
+function ModelTrainingPanel({
+  feedbackQuality,
+  isLoading,
+  isSubmitting,
+  onRefresh,
+  onStartTraining,
+  overview
+}: {
+  feedbackQuality: FeedbackQuality | null;
+  isLoading: boolean;
+  isSubmitting: boolean;
+  onRefresh: () => void;
+  onStartTraining: () => void;
+  overview: ModelTrainingOverview | null;
+}) {
+  const activeRun = overview?.active_run ?? null;
+  const latestRun = overview?.latest_run ?? null;
+  const productionModel = overview?.production_model ?? null;
+  const hasActiveRun = Boolean(activeRun);
+  const latestDuration = formatDuration(latestRun?.execution_duration_seconds);
+
+  return (
+    <section className="model-training-panel insight-section wide">
+      <div className="section-heading model-training-heading">
+        <div>
+          <span className="eyebrow">Entrainement IA</span>
+          <h3>Pilotage du modele de sentiment</h3>
+          <p>
+            Lance un reentrainement avec les corrections humaines et suis la
+            version MLflow de production.
+          </p>
+        </div>
+        <div className="header-actions">
+          <button
+            className="secondary-action"
+            disabled={isLoading}
+            onClick={onRefresh}
+            type="button"
+          >
+            {isLoading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+            Actualiser
+          </button>
+          <button
+            className="primary-action compact-action"
+            disabled={isSubmitting || hasActiveRun}
+            onClick={onStartTraining}
+            type="button"
+          >
+            {isSubmitting || hasActiveRun ? (
+              <Loader2 className="spin" size={16} />
+            ) : (
+              <Play size={16} />
+            )}
+            {hasActiveRun ? "Entrainement en cours" : "Reentrainer"}
+          </button>
+        </div>
+      </div>
+
+      <div className="model-training-kpis">
+        <Kpi
+          label="Modele production"
+          value={productionModel ? `v${productionModel.version}` : "Non detecte"}
+          helper={productionModel?.model_uri ?? "Alias MLflow production"}
+        />
+        <Kpi
+          label="Dernier entrainement"
+          value={latestRun ? `#${latestRun.training_run_id}` : "Aucun"}
+          helper={latestRun ? formatTrainingStatus(latestRun.status) : "Pas encore lance"}
+        />
+        <Kpi
+          label="Accuracy"
+          value={formatPercent((latestRun?.accuracy ?? 0) * 100)}
+          helper={`Macro F1 ${formatPercent((latestRun?.macro_f1 ?? 0) * 100)}`}
+        />
+        <Kpi
+          label="Corrections pretes"
+          value={String(feedbackQuality?.training_ready_count ?? 0)}
+          helper={`Poids x${formatNumber(latestRun?.feedback_sample_weight ?? 6, 1)}`}
+        />
+      </div>
+
+      {activeRun && (
+        <div className="training-active-state">
+          <Hourglass size={22} />
+          <div>
+            <strong>Run d'entrainement #{activeRun.training_run_id}</strong>
+            <p>
+              Le worker Celery reentraine le modele. Cette zone se rafraichit
+              automatiquement jusqu'a la fin du run.
+            </p>
+          </div>
+          <TrainingStatusBadge status={activeRun.status} />
+        </div>
+      )}
+
+      {latestRun?.status === "failed" && (
+        <div className="training-error">
+          <AlertTriangle size={18} />
+          <span>{latestRun.error_message || "Le dernier entrainement a echoue."}</span>
+        </div>
+      )}
+
+      <div className="training-history">
+        <div className="training-history-heading">
+          <h4>Historique des entrainements</h4>
+          {latestDuration && <small>Derniere duree: {latestDuration}</small>}
+        </div>
+
+        {isLoading && !overview ? (
+          <div className="loading-line">
+            <Loader2 className="spin" size={18} />
+            Chargement des entrainements...
+          </div>
+        ) : overview?.runs.length ? (
+          <div className="training-run-list">
+            {overview.runs.map((run) => (
+              <div className="training-run-row" key={run.training_run_id}>
+                <div>
+                  <strong>Run #{run.training_run_id}</strong>
+                  <small>{formatDate(run.created_at)}</small>
+                </div>
+                <TrainingStatusBadge status={run.status} />
+                <span>{run.model_version ? `v${run.model_version}` : "-"}</span>
+                <span>{formatPercent((run.accuracy ?? 0) * 100)}</span>
+                <span>{run.training_feedback_rows} correction(s)</span>
+                <span>{formatDuration(run.execution_duration_seconds) ?? "-"}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">
+            Aucun entrainement lance depuis l'interface pour le moment.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TrainingStatusBadge({ status }: { status: ModelTrainingRun["status"] }) {
+  return <span className={`status-badge ${status}`}>{formatTrainingStatus(status)}</span>;
+}
+
+function formatTrainingStatus(status: ModelTrainingRun["status"]) {
+  const labels: Record<ModelTrainingRun["status"], string> = {
+    pending: "pending",
+    running: "running",
+    completed: "completed",
+    failed: "failed"
+  };
+  return labels[status];
 }
 
 function BenchmarkPanel({

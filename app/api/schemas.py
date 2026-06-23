@@ -174,6 +174,58 @@ class FeedbackQualityResponse(BaseModel):
     recent_corrections: list[FeedbackRecentCorrection] = Field(default_factory=list)
 
 
+class ModelTrainingRunCreate(BaseModel):
+    feedback_sample_weight: float | None = Field(
+        default=None,
+        ge=1.0,
+        le=50.0,
+        description="Poids applique aux corrections humaines. Null utilise la configuration serveur.",
+    )
+    execute_immediately: bool = Field(
+        default=True,
+        description="Envoie immediatement le reentrainement dans la file Celery.",
+    )
+
+
+class ProductionModelInfo(BaseModel):
+    name: str
+    alias: str
+    version: str
+    run_id: str | None = None
+    source: str | None = None
+    model_uri: str
+
+
+class ModelTrainingRunResponse(BaseModel):
+    training_run_id: int
+    status: str
+    celery_task_id: str | None = None
+    trigger_source: str
+    feedback_sample_weight: float | None = None
+    training_rows: int
+    training_manual_rows: int
+    training_feedback_rows: int
+    training_effective_rows: float | None = None
+    accuracy: float | None = None
+    macro_f1: float | None = None
+    weighted_f1: float | None = None
+    model_version: str | None = None
+    mlflow_run_id: str | None = None
+    model_uri: str | None = None
+    error_message: str | None = None
+    created_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    execution_duration_seconds: int | None = None
+
+
+class ModelTrainingOverviewResponse(BaseModel):
+    production_model: ProductionModelInfo | None = None
+    latest_run: ModelTrainingRunResponse | None = None
+    active_run: ModelTrainingRunResponse | None = None
+    runs: list[ModelTrainingRunResponse] = Field(default_factory=list)
+
+
 class BenchmarkTopicCount(BaseModel):
     topic: str
     count: int
