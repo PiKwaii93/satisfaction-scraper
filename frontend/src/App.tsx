@@ -29,6 +29,7 @@ import {
   getRunEvents,
   getSummary,
   listRuns,
+  previewCsvFile,
   saveReviewFeedback,
   uploadCsvRun
 } from "./api";
@@ -40,6 +41,7 @@ import type {
   BusinessPriority,
   BusinessStrength,
   BusinessWatchpoint,
+  CsvImportPreview,
   DistributionRow,
   FeedbackQuality,
   ModelTrainingOverview,
@@ -907,6 +909,9 @@ export default function App() {
   const [sourceMode, setSourceMode] =
     useState<AnalysisRun["source"]>("trustpilot");
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<CsvImportPreview | null>(null);
+  const [csvPreviewError, setCsvPreviewError] = useState<string | null>(null);
+  const [isCsvPreviewLoading, setIsCsvPreviewLoading] = useState(false);
   const [pagesPerStar, setPagesPerStar] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -1061,6 +1066,28 @@ export default function App() {
     }
   }
 
+  async function handleCsvFileChange(file: File | null) {
+    setCsvFile(file);
+    setCsvPreview(null);
+    setCsvPreviewError(null);
+
+    if (!file) {
+      return;
+    }
+
+    setIsCsvPreviewLoading(true);
+    try {
+      const preview = await previewCsvFile(file);
+      setCsvPreview(preview);
+    } catch (err) {
+      setCsvPreviewError(
+        err instanceof Error ? err.message : "CSV impossible a previsualiser"
+      );
+    } finally {
+      setIsCsvPreviewLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!selectedRunId || !selectedRun) {
       setRunEvents([]);
@@ -1154,6 +1181,12 @@ export default function App() {
       return;
     } else if (!csvFile) {
       setError("Selectionne un fichier CSV d'avis clients.");
+      return;
+    } else if (isCsvPreviewLoading) {
+      setError("Attends la fin de la previsualisation du CSV.");
+      return;
+    } else if (csvPreviewError || !csvPreview) {
+      setError(csvPreviewError ?? "Previsualise le CSV avant de lancer l'analyse.");
       return;
     }
 
@@ -1416,11 +1449,52 @@ export default function App() {
                   disabled={isSubmitting}
                   id="csv-file"
                   onChange={(event) =>
-                    setCsvFile(event.target.files?.[0] ?? null)
+                    handleCsvFileChange(event.target.files?.[0] ?? null)
                   }
                   type="file"
                 />
               </label>
+              {isCsvPreviewLoading && (
+                <div className="csv-preview-card">
+                  <Loader2 className="spin" size={16} />
+                  <span>Lecture du CSV...</span>
+                </div>
+              )}
+              {csvPreviewError && (
+                <div className="csv-preview-card error">
+                  <AlertTriangle size={16} />
+                  <span>{csvPreviewError}</span>
+                </div>
+              )}
+              {csvPreview && !csvPreviewError && (
+                <div className="csv-preview-card">
+                  <div className="csv-preview-heading">
+                    <strong>Controle avant import</strong>
+                    <span>{csvPreview.review_count} avis</span>
+                  </div>
+                  <div className="csv-preview-stats">
+                    <span>{csvPreview.review_count} exploitables</span>
+                    <span>{csvPreview.skipped_rows} ignores</span>
+                  </div>
+                  <div className="csv-column-map">
+                    {Object.entries(csvPreview.detected_columns).map(
+                      ([field, column]) => (
+                        <span key={field}>
+                          {field} <strong>{column}</strong>
+                        </span>
+                      )
+                    )}
+                  </div>
+                  <div className="csv-preview-list">
+                    {csvPreview.preview_reviews.map((review) => (
+                      <article key={review.row_number}>
+                        <strong>{review.rating} / 5</strong>
+                        <p>{review.verbatim}</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -1441,7 +1515,14 @@ export default function App() {
             </>
           )}
 
-          <button className="primary-action" disabled={isSubmitting}>
+          <button
+            className="primary-action"
+            disabled={
+              isSubmitting ||
+              (sourceMode === "csv" &&
+                (!csvPreview || Boolean(csvPreviewError) || isCsvPreviewLoading))
+            }
+          >
             {isSubmitting ? (
               <Loader2 className="spin" size={18} />
             ) : (

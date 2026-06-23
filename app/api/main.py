@@ -8,7 +8,7 @@ from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.model_training import router as model_training_router
 
 API_DESCRIPTION = """
-API produit pour lancer, suivre et consulter des analyses d'avis clients Trustpilot.
+API produit pour lancer, suivre et consulter des analyses d'avis clients depuis Trustpilot ou CSV.
 
 Les endpoints métier sont protégés par une clé API à transmettre dans le header
 `X-API-Key`. L'endpoint `/health` reste public pour les sondes de disponibilité.

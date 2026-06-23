@@ -68,6 +68,22 @@ class AnalysisRunResponse(BaseModel):
     error_message: str | None = None
 
 
+class CsvPreviewReview(BaseModel):
+    row_number: int
+    rating: int
+    author: str
+    date: str
+    company_responded: bool
+    verbatim: str
+
+
+class CsvImportPreviewResponse(BaseModel):
+    review_count: int
+    skipped_rows: int
+    detected_columns: dict[str, str]
+    preview_reviews: list[CsvPreviewReview]
+
+
 class AnalysisRunEventResponse(BaseModel):
     event_id: int
     run_id: int

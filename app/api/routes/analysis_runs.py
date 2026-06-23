@@ -18,6 +18,7 @@ from app.api.schemas import (
     AnalysisRunEventResponse,
     AnalysisRunResponse,
     AnalysisRunsComparisonResponse,
+    CsvImportPreviewResponse,
     ErrorResponse,
     FeedbackQualityResponse,
     ReviewFeedbackCreate,
@@ -27,6 +28,7 @@ from app.api.schemas import (
 from app.api.security import require_api_key
 from app.api.services.analysis_service import (
     ActiveAnalysisRunError,
+    build_csv_import_preview,
     create_analysis_run,
     create_csv_analysis_run,
     delete_review_feedback,
@@ -77,6 +79,28 @@ def create_run(payload: AnalysisRunCreate):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return run
+
+
+@router.post(
+    "/preview-csv",
+    response_model=CsvImportPreviewResponse,
+    summary="Previsualiser un CSV d'avis",
+    description=(
+        "Analyse les colonnes d'un CSV et retourne un apercu avant de lancer "
+        "le run d'analyse."
+    ),
+    responses={400: {"model": ErrorResponse}},
+)
+async def preview_csv_run(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        if not content:
+            raise ValueError("Le fichier CSV est vide.")
+        return build_csv_import_preview(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post(
