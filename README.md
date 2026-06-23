@@ -251,9 +251,11 @@ docker-compose up -d dashboard
 Le script :
 
 - charge `annotations_training.csv` ;
+- ajoute automatiquement les corrections humaines stockées dans `review_feedback` si PostgreSQL est disponible ;
 - ignore les verbatims vides pour l'entraînement ;
+- écrit un snapshot auditable du dataset combiné dans `data/training/sentiment_training_dataset.csv` ;
 - effectue un split train/test stratifié ;
-- affiche accuracy, precision, recall et F1-score par classe ;
+- affiche accuracy, precision, recall et F1-score par classe, globalement et par source de dataset ;
 - réentraîne un modèle final sur 100 % des verbatims annotés non vides ;
 - sérialise le modèle dans `app/models/sentiment_model.pkl` ;
 - publie une nouvelle version dans MLflow avec l'alias `production` ;
@@ -383,12 +385,10 @@ Pour améliorer le modèle progressivement :
 
 1. Scraper une nouvelle entreprise externe.
 2. Afficher le résultat dans le dashboard.
-3. Télécharger le CSV du dashboard.
-4. Auditer les incohérences.
-5. Annoter les cas utiles.
-6. Fusionner les annotations fiables dans `annotations_training.csv`.
-7. Réentraîner le modèle.
-8. Retester sur une autre entreprise inconnue.
+3. Corriger directement les prédictions incohérentes dans le tableau d'avis.
+4. Exporter les corrections si besoin pour audit.
+5. Réentraîner le modèle avec `app/train_model.py`.
+6. Retester sur une autre entreprise inconnue.
 
 Ce cycle évite d'optimiser uniquement sur une entreprise donnée et rend le modèle plus robuste hors du dataset initial.
 
