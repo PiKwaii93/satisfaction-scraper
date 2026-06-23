@@ -256,29 +256,44 @@ a {
   font-weight: 800;
 }
 
-.csv-column-map {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.csv-mapping-grid {
+  display: grid;
+  gap: 8px;
 }
 
-.csv-column-map span {
-  display: inline-flex;
-  max-width: 100%;
+.csv-mapping-grid label {
+  display: grid;
   gap: 4px;
-  padding: 4px 6px;
-  border-radius: 999px;
-  background: #eef2ff;
   color: #475467;
+  font-size: 0.74rem;
+}
+
+.csv-mapping-grid label span {
   font-weight: 800;
 }
 
-.csv-column-map strong {
-  max-width: 92px;
-  overflow: hidden;
-  color: #1d4ed8;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.csv-mapping-grid select {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 800;
+}
+
+.csv-preview-inline-error {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #991b1b;
+  font-weight: 800;
 }
 
 .csv-preview-list {

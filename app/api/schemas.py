@@ -81,7 +81,9 @@ class CsvImportPreviewResponse(BaseModel):
     review_count: int
     skipped_rows: int
     detected_columns: dict[str, str]
+    available_columns: list[str]
     preview_reviews: list[CsvPreviewReview]
+    error_message: str | None = None
 
 
 class AnalysisRunEventResponse(BaseModel):

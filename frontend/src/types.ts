@@ -60,11 +60,21 @@ export type CsvPreviewReview = {
   verbatim: string;
 };
 
+export type CsvColumnMapping = {
+  verbatim?: string;
+  rating?: string;
+  author?: string;
+  date?: string;
+  company_responded?: string;
+};
+
 export type CsvImportPreview = {
   review_count: number;
   skipped_rows: number;
   detected_columns: Record<string, string>;
+  available_columns: string[];
   preview_reviews: CsvPreviewReview[];
+  error_message: string | null;
 };
 
 export type SummaryReview = {

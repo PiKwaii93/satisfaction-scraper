@@ -1,4 +1,5 @@
 import csv
+import json
 from io import StringIO
 
 from fastapi import (
@@ -57,6 +58,26 @@ router = APIRouter(
 )
 
 
+def parse_csv_column_mapping(column_mapping: str | None):
+    if not column_mapping:
+        return None
+
+    try:
+        payload = json.loads(column_mapping)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Mapping CSV invalide: JSON attendu.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Mapping CSV invalide: objet JSON attendu.")
+
+    allowed_fields = {"verbatim", "rating", "author", "date", "company_responded"}
+    return {
+        str(field): (str(column).strip() if column is not None else "")
+        for field, column in payload.items()
+        if field in allowed_fields
+    }
+
+
 @router.post(
     "",
     response_model=AnalysisRunResponse,
@@ -91,12 +112,18 @@ def create_run(payload: AnalysisRunCreate):
     ),
     responses={400: {"model": ErrorResponse}},
 )
-async def preview_csv_run(file: UploadFile = File(...)):
+async def preview_csv_run(
+    file: UploadFile = File(...),
+    column_mapping: str | None = Form(default=None),
+):
     try:
         content = await file.read()
         if not content:
             raise ValueError("Le fichier CSV est vide.")
-        return build_csv_import_preview(content)
+        return build_csv_import_preview(
+            content,
+            column_mapping=parse_csv_column_mapping(column_mapping),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -120,6 +147,7 @@ async def preview_csv_run(file: UploadFile = File(...)):
 async def import_csv_run(
     company: str = Form(..., min_length=2),
     file: UploadFile = File(...),
+    column_mapping: str | None = Form(default=None),
 ):
     try:
         content = await file.read()
@@ -129,6 +157,7 @@ async def import_csv_run(
             company_input=company,
             file_bytes=content,
             original_filename=file.filename,
+            column_mapping=parse_csv_column_mapping(column_mapping),
         )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

@@ -142,22 +142,46 @@ def detect_csv_dialect(csv_text):
         return csv.excel
 
 
-def resolve_csv_columns(fieldnames):
+def resolve_csv_column(fieldnames, selected_column):
+    normalized_selected_column = normalize_csv_header(selected_column)
+    for header in fieldnames or []:
+        if normalize_csv_header(header) == normalized_selected_column:
+            return header
+    return None
+
+
+def resolve_csv_columns(fieldnames, column_mapping=None):
     normalized_headers = {
         normalize_csv_header(header): header for header in fieldnames or []
     }
     resolved_columns = {}
     missing_columns = []
+    column_mapping = column_mapping or {}
 
     for canonical_name, aliases in CSV_COLUMN_ALIASES.items():
-        column = next(
-            (
-                normalized_headers[normalize_csv_header(alias)]
-                for alias in aliases
-                if normalize_csv_header(alias) in normalized_headers
-            ),
-            None,
-        )
+        mapped_column = column_mapping.get(canonical_name)
+        explicitly_ignored = canonical_name in column_mapping and not mapped_column
+
+        if mapped_column:
+            column = resolve_csv_column(fieldnames, mapped_column)
+            if not column:
+                available = ", ".join(str(header) for header in fieldnames or [])
+                raise ValueError(
+                    f"Colonne inconnue pour {canonical_name}: {mapped_column}. "
+                    f"Colonnes disponibles: {available or 'aucune'}."
+                )
+        elif explicitly_ignored:
+            column = None
+        else:
+            column = next(
+                (
+                    normalized_headers[normalize_csv_header(alias)]
+                    for alias in aliases
+                    if normalize_csv_header(alias) in normalized_headers
+                ),
+                None,
+            )
+
         if column:
             resolved_columns[canonical_name] = column
         elif canonical_name == "verbatim":
@@ -191,7 +215,18 @@ def normalize_csv_rating(value):
     return min(5, max(1, rating))
 
 
-def parse_reviews_csv(file_bytes):
+def read_csv_fieldnames(file_bytes):
+    csv_text = decode_csv_bytes(file_bytes)
+    if not csv_text.strip():
+        raise ValueError("Le fichier CSV est vide.")
+
+    reader = csv.DictReader(StringIO(csv_text), dialect=detect_csv_dialect(csv_text))
+    if not reader.fieldnames:
+        raise ValueError("Le CSV doit contenir une ligne d'en-tetes.")
+    return list(reader.fieldnames)
+
+
+def parse_reviews_csv(file_bytes, column_mapping=None):
     csv_text = decode_csv_bytes(file_bytes)
     if not csv_text.strip():
         raise ValueError("Le fichier CSV est vide.")
@@ -200,7 +235,7 @@ def parse_reviews_csv(file_bytes):
     if not reader.fieldnames:
         raise ValueError("Le CSV doit contenir une ligne d'en-tetes.")
 
-    columns = resolve_csv_columns(reader.fieldnames)
+    columns = resolve_csv_columns(reader.fieldnames, column_mapping=column_mapping)
     reviews = []
     skipped_rows = 0
 
@@ -242,11 +277,24 @@ def parse_reviews_csv(file_bytes):
         "reviews": reviews,
         "skipped_rows": skipped_rows,
         "detected_columns": columns,
+        "available_columns": list(reader.fieldnames or []),
     }
 
 
-def build_csv_import_preview(file_bytes, preview_limit=5):
-    parsed_csv = parse_reviews_csv(file_bytes)
+def build_csv_import_preview(file_bytes, column_mapping=None, preview_limit=5):
+    try:
+        parsed_csv = parse_reviews_csv(file_bytes, column_mapping=column_mapping)
+        error_message = None
+    except ValueError as exc:
+        return {
+            "review_count": 0,
+            "skipped_rows": 0,
+            "detected_columns": {},
+            "available_columns": read_csv_fieldnames(file_bytes),
+            "preview_reviews": [],
+            "error_message": str(exc),
+        }
+
     preview_reviews = [
         {
             "row_number": index,
@@ -266,7 +314,9 @@ def build_csv_import_preview(file_bytes, preview_limit=5):
         "review_count": len(parsed_csv["reviews"]),
         "skipped_rows": parsed_csv["skipped_rows"],
         "detected_columns": parsed_csv["detected_columns"],
+        "available_columns": parsed_csv["available_columns"],
         "preview_reviews": preview_reviews,
+        "error_message": error_message,
     }
 
 
@@ -526,8 +576,13 @@ def create_analysis_run(request):
     return get_analysis_run(run_id)
 
 
-def create_csv_analysis_run(company_input, file_bytes, original_filename=None):
-    parsed_csv = parse_reviews_csv(file_bytes)
+def create_csv_analysis_run(
+    company_input,
+    file_bytes,
+    original_filename=None,
+    column_mapping=None,
+):
+    parsed_csv = parse_reviews_csv(file_bytes, column_mapping=column_mapping)
     company = get_or_create_company(company_input, source=CSV_SOURCE)
     active_run = find_active_analysis_run(
         company_id=company["company_id"],
@@ -573,6 +628,7 @@ def create_csv_analysis_run(company_input, file_bytes, original_filename=None):
         "source": CSV_SOURCE,
         "original_filename": original_filename,
         "detected_columns": parsed_csv["detected_columns"],
+        "available_columns": parsed_csv["available_columns"],
         "skipped_rows": parsed_csv["skipped_rows"],
         "reviews": parsed_csv["reviews"],
     }

@@ -1,6 +1,7 @@
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  CsvColumnMapping,
   CsvImportPreview,
   FeedbackQuality,
   ModelTrainingOverview,
@@ -71,10 +72,24 @@ export function createRun(payload: CreateRunPayload) {
   });
 }
 
-export async function uploadCsvRun(company: string, file: File) {
+function appendCsvColumnMapping(
+  formData: FormData,
+  columnMapping?: CsvColumnMapping | null
+) {
+  if (columnMapping) {
+    formData.append("column_mapping", JSON.stringify(columnMapping));
+  }
+}
+
+export async function uploadCsvRun(
+  company: string,
+  file: File,
+  columnMapping?: CsvColumnMapping | null
+) {
   const formData = new FormData();
   formData.append("company", company);
   formData.append("file", file);
+  appendCsvColumnMapping(formData, columnMapping);
 
   const response = await fetch(`${API_BASE_URL}/analysis-runs/import-csv`, {
     method: "POST",
@@ -92,9 +107,13 @@ export async function uploadCsvRun(company: string, file: File) {
   return response.json() as Promise<AnalysisRun>;
 }
 
-export async function previewCsvFile(file: File) {
+export async function previewCsvFile(
+  file: File,
+  columnMapping?: CsvColumnMapping | null
+) {
   const formData = new FormData();
   formData.append("file", file);
+  appendCsvColumnMapping(formData, columnMapping);
 
   const response = await fetch(`${API_BASE_URL}/analysis-runs/preview-csv`, {
     method: "POST",

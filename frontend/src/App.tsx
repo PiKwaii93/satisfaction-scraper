@@ -41,6 +41,7 @@ import type {
   BusinessPriority,
   BusinessStrength,
   BusinessWatchpoint,
+  CsvColumnMapping,
   CsvImportPreview,
   DistributionRow,
   FeedbackQuality,
@@ -69,6 +70,18 @@ const SOURCE_LABELS: Record<AnalysisRun["source"], string> = {
   trustpilot: "Trustpilot",
   csv: "CSV"
 };
+
+const CSV_MAPPING_FIELDS: Array<{
+  key: keyof CsvColumnMapping;
+  label: string;
+  required?: boolean;
+}> = [
+  { key: "verbatim", label: "Texte", required: true },
+  { key: "rating", label: "Note" },
+  { key: "author", label: "Auteur" },
+  { key: "date", label: "Date" },
+  { key: "company_responded", label: "Reponse entreprise" }
+];
 
 const sentimentClass: Record<SentimentLabel, string> = {
   Négatif: "negative",
@@ -909,6 +922,8 @@ export default function App() {
   const [sourceMode, setSourceMode] =
     useState<AnalysisRun["source"]>("trustpilot");
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvColumnMapping, setCsvColumnMapping] =
+    useState<CsvColumnMapping>({});
   const [csvPreview, setCsvPreview] = useState<CsvImportPreview | null>(null);
   const [csvPreviewError, setCsvPreviewError] = useState<string | null>(null);
   const [isCsvPreviewLoading, setIsCsvPreviewLoading] = useState(false);
@@ -1066,8 +1081,41 @@ export default function App() {
     }
   }
 
+  function buildDetectedColumnMapping(preview: CsvImportPreview): CsvColumnMapping {
+    return CSV_MAPPING_FIELDS.reduce<CsvColumnMapping>((mapping, field) => {
+      mapping[field.key] = preview.detected_columns[field.key] ?? "";
+      return mapping;
+    }, {});
+  }
+
+  async function loadCsvPreview(
+    file: File,
+    columnMapping: CsvColumnMapping | null,
+    syncDetectedMapping = false
+  ) {
+    setCsvPreview(null);
+    setCsvPreviewError(null);
+    setIsCsvPreviewLoading(true);
+
+    try {
+      const preview = await previewCsvFile(file, columnMapping);
+      setCsvPreview(preview);
+      setCsvPreviewError(preview.error_message);
+      if (syncDetectedMapping) {
+        setCsvColumnMapping(buildDetectedColumnMapping(preview));
+      }
+    } catch (err) {
+      setCsvPreviewError(
+        err instanceof Error ? err.message : "CSV impossible a previsualiser"
+      );
+    } finally {
+      setIsCsvPreviewLoading(false);
+    }
+  }
+
   async function handleCsvFileChange(file: File | null) {
     setCsvFile(file);
+    setCsvColumnMapping({});
     setCsvPreview(null);
     setCsvPreviewError(null);
 
@@ -1075,16 +1123,23 @@ export default function App() {
       return;
     }
 
-    setIsCsvPreviewLoading(true);
-    try {
-      const preview = await previewCsvFile(file);
-      setCsvPreview(preview);
-    } catch (err) {
-      setCsvPreviewError(
-        err instanceof Error ? err.message : "CSV impossible a previsualiser"
+    await loadCsvPreview(file, null, true);
+  }
+
+  function handleCsvColumnMappingChange(
+    field: keyof CsvColumnMapping,
+    column: string
+  ) {
+    const nextMapping = {
+      ...csvColumnMapping,
+      [field]: column
+    };
+    setCsvColumnMapping(nextMapping);
+
+    if (csvFile) {
+      loadCsvPreview(csvFile, nextMapping).catch((err: Error) =>
+        setCsvPreviewError(err.message)
       );
-    } finally {
-      setIsCsvPreviewLoading(false);
     }
   }
 
@@ -1196,7 +1251,7 @@ export default function App() {
     try {
       const run =
         sourceMode === "csv"
-          ? await uploadCsvRun(company.trim(), csvFile as File)
+          ? await uploadCsvRun(company.trim(), csvFile as File, csvColumnMapping)
           : await createRun({
               company: company.trim(),
               source: "trustpilot",
@@ -1460,13 +1515,13 @@ export default function App() {
                   <span>Lecture du CSV...</span>
                 </div>
               )}
-              {csvPreviewError && (
+              {csvPreviewError && !csvPreview && (
                 <div className="csv-preview-card error">
                   <AlertTriangle size={16} />
                   <span>{csvPreviewError}</span>
                 </div>
               )}
-              {csvPreview && !csvPreviewError && (
+              {csvPreview && (
                 <div className="csv-preview-card">
                   <div className="csv-preview-heading">
                     <strong>Controle avant import</strong>
@@ -1476,15 +1531,43 @@ export default function App() {
                     <span>{csvPreview.review_count} exploitables</span>
                     <span>{csvPreview.skipped_rows} ignores</span>
                   </div>
-                  <div className="csv-column-map">
-                    {Object.entries(csvPreview.detected_columns).map(
-                      ([field, column]) => (
-                        <span key={field}>
-                          {field} <strong>{column}</strong>
+                  <div className="csv-mapping-grid">
+                    {CSV_MAPPING_FIELDS.map((field) => (
+                      <label key={field.key}>
+                        <span>
+                          {field.label}
+                          {field.required ? " *" : ""}
                         </span>
-                      )
-                    )}
+                        <select
+                          onChange={(event) =>
+                            handleCsvColumnMappingChange(
+                              field.key,
+                              event.target.value
+                            )
+                          }
+                          value={csvColumnMapping[field.key] ?? ""}
+                        >
+                          {!field.required && (
+                            <option value="">Ignorer</option>
+                          )}
+                          {field.required && (
+                            <option value="">Selectionner</option>
+                          )}
+                          {csvPreview.available_columns.map((column) => (
+                            <option key={column} value={column}>
+                              {column}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
                   </div>
+                  {csvPreview.error_message && (
+                    <div className="csv-preview-inline-error">
+                      <AlertTriangle size={14} />
+                      <span>{csvPreview.error_message}</span>
+                    </div>
+                  )}
                   <div className="csv-preview-list">
                     {csvPreview.preview_reviews.map((review) => (
                       <article key={review.row_number}>
