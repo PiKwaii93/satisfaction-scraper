@@ -254,8 +254,9 @@ Le script :
 
 - charge `annotations_training.csv` ;
 - ajoute automatiquement les corrections humaines stockées dans `review_feedback` si PostgreSQL est disponible ;
+- pondère les corrections humaines avec `FEEDBACK_SAMPLE_WEIGHT` (`6.0` par défaut) pour leur donner plus d'influence que les annotations historiques ;
 - ignore les verbatims vides pour l'entraînement ;
-- écrit un snapshot auditable du dataset combiné dans `data/training/sentiment_training_dataset.csv` ;
+- écrit un snapshot auditable du dataset combiné dans `data/training/sentiment_training_dataset.csv`, incluant le poids d'entraînement de chaque ligne ;
 - effectue un split train/test stratifié ;
 - affiche accuracy, precision, recall et F1-score par classe, globalement et par source de dataset ;
 - réentraîne un modèle final sur 100 % des verbatims annotés non vides ;
