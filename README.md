@@ -227,6 +227,41 @@ npm install
 npm run build
 ```
 
+## Tests et CI
+
+Le projet contient une base de tests automatises pour securiser l'API produit,
+l'import CSV et les regles de securite par API key.
+
+Installer les dependances de test en local :
+
+```powershell
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+Lancer les tests backend :
+
+```powershell
+pytest -q
+```
+
+Verifier la compilation de l'API :
+
+```powershell
+python -m compileall app/api
+```
+
+Verifier le build frontend :
+
+```powershell
+npm --prefix frontend run build
+```
+
+La CI GitHub Actions execute trois jobs sur les pull requests vers `main` :
+
+- tests backend Python ;
+- build frontend React/Vite ;
+- build Docker de l'image applicative.
+
 ## Pipeline Principal
 
 Pour relancer le pipeline historique complet :

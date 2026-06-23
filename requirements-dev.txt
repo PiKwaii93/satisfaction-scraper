@@ -1,0 +1,4 @@
+# Tests and CI
+pytest
+httpx
+
