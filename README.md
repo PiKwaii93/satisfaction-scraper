@@ -124,6 +124,7 @@ Endpoints principaux :
 ```text
 GET    /health
 POST   /analysis-runs
+POST   /analysis-runs/preview-csv
 POST   /analysis-runs/import-csv
 GET    /analysis-runs
 GET    /analysis-runs/{run_id}
@@ -177,6 +178,8 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -Headers
 
 L'application peut aussi analyser un fichier CSV fourni par l'utilisateur, sans passer par le scraping Trustpilot. C'est le chemin recommande pour brancher des exports clients, des avis issus d'autres plateformes ou une future integration API.
 
+Avant le lancement, le frontend previsualise le fichier pour afficher les colonnes detectees, le nombre d'avis exploitables, les lignes ignorees et quelques exemples de verbatims.
+
 Colonnes acceptees :
 
 - `verbatim` obligatoire, avec alias possibles : `avis`, `review`, `text`, `texte`, `comment`, `commentaire`, `body`, `message` ;
@@ -194,7 +197,7 @@ Le dossier `frontend/` contient la premiere interface client React + Vite + Type
 Elle permet de :
 
 - lancer une nouvelle analyse Trustpilot ;
-- importer un CSV d'avis clients ;
+- previsualiser puis importer un CSV d'avis clients ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;

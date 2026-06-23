@@ -1,6 +1,7 @@
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  CsvImportPreview,
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
@@ -89,6 +90,26 @@ export async function uploadCsvRun(company: string, file: File) {
   }
 
   return response.json() as Promise<AnalysisRun>;
+}
+
+export async function previewCsvFile(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/analysis-runs/preview-csv`, {
+    method: "POST",
+    headers: {
+      "X-API-Key": API_KEY
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(parseApiError(detail, response.status));
+  }
+
+  return response.json() as Promise<CsvImportPreview>;
 }
 
 export function executeRun(runId: number, skipScrape = false) {

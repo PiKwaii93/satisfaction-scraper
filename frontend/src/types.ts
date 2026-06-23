@@ -51,6 +51,22 @@ export type Review = {
   topics: string[];
 };
 
+export type CsvPreviewReview = {
+  row_number: number;
+  rating: number;
+  author: string;
+  date: string;
+  company_responded: boolean;
+  verbatim: string;
+};
+
+export type CsvImportPreview = {
+  review_count: number;
+  skipped_rows: number;
+  detected_columns: Record<string, string>;
+  preview_reviews: CsvPreviewReview[];
+};
+
 export type SummaryReview = {
   review_id: number;
   rating: number | null;

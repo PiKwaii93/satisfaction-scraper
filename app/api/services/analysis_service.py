@@ -245,6 +245,31 @@ def parse_reviews_csv(file_bytes):
     }
 
 
+def build_csv_import_preview(file_bytes, preview_limit=5):
+    parsed_csv = parse_reviews_csv(file_bytes)
+    preview_reviews = [
+        {
+            "row_number": index,
+            "rating": review["rating"],
+            "author": review["author"],
+            "date": review["date"],
+            "company_responded": review["company_responded"],
+            "verbatim": review["verbatim"],
+        }
+        for index, review in enumerate(
+            parsed_csv["reviews"][:preview_limit],
+            start=1,
+        )
+    ]
+
+    return {
+        "review_count": len(parsed_csv["reviews"]),
+        "skipped_rows": parsed_csv["skipped_rows"],
+        "detected_columns": parsed_csv["detected_columns"],
+        "preview_reviews": preview_reviews,
+    }
+
+
 def rating_to_int(raw_rating):
     match = re.search(r"\d+", str(raw_rating))
     return int(match.group()) if match else 3
