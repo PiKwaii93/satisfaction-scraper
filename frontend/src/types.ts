@@ -188,3 +188,51 @@ export type ReviewFeedback = {
   created_at: string | null;
   updated_at: string | null;
 };
+
+export type FeedbackCompanySummary = {
+  company_id: number;
+  company_name: string;
+  correction_count: number;
+  changed_label_count: number;
+  run_count: number;
+  latest_feedback_at: string | null;
+};
+
+export type FeedbackLabelDistribution = {
+  label: SentimentLabel;
+  count: number;
+};
+
+export type FeedbackTransition = {
+  predicted_label: SentimentLabel;
+  corrected_label: SentimentLabel;
+  count: number;
+};
+
+export type FeedbackRecentCorrection = {
+  feedback_id: number;
+  review_id: number;
+  run_id: number;
+  company_name: string;
+  rating: number | null;
+  predicted_label: SentimentLabel;
+  corrected_label: SentimentLabel;
+  feedback_comment: string | null;
+  feedback_updated_at: string | null;
+  verbatim: string | null;
+};
+
+export type FeedbackQuality = {
+  total_corrections: number;
+  changed_label_count: number;
+  confirmed_label_count: number;
+  apparent_error_rate: number;
+  training_ready_count: number;
+  corrected_company_count: number;
+  corrected_run_count: number;
+  latest_feedback_at: string | null;
+  by_company: FeedbackCompanySummary[];
+  corrected_label_distribution: FeedbackLabelDistribution[];
+  transitions: FeedbackTransition[];
+  recent_corrections: FeedbackRecentCorrection[];
+};

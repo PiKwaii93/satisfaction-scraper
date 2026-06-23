@@ -124,6 +124,56 @@ class ReviewFeedbackResponse(BaseModel):
     updated_at: datetime | None = None
 
 
+class FeedbackCompanySummary(BaseModel):
+    company_id: int
+    company_name: str
+    correction_count: int
+    changed_label_count: int
+    run_count: int
+    latest_feedback_at: datetime | None = None
+
+
+class FeedbackLabelDistribution(BaseModel):
+    label: str
+    count: int
+
+
+class FeedbackTransition(BaseModel):
+    predicted_label: str
+    corrected_label: str
+    count: int
+
+
+class FeedbackRecentCorrection(BaseModel):
+    feedback_id: int
+    review_id: int
+    run_id: int
+    company_name: str
+    rating: int | None = None
+    predicted_label: str
+    corrected_label: str
+    feedback_comment: str | None = None
+    feedback_updated_at: datetime | None = None
+    verbatim: str | None = None
+
+
+class FeedbackQualityResponse(BaseModel):
+    total_corrections: int
+    changed_label_count: int
+    confirmed_label_count: int
+    apparent_error_rate: float
+    training_ready_count: int
+    corrected_company_count: int
+    corrected_run_count: int
+    latest_feedback_at: datetime | None = None
+    by_company: list[FeedbackCompanySummary] = Field(default_factory=list)
+    corrected_label_distribution: list[FeedbackLabelDistribution] = Field(
+        default_factory=list
+    )
+    transitions: list[FeedbackTransition] = Field(default_factory=list)
+    recent_corrections: list[FeedbackRecentCorrection] = Field(default_factory=list)
+
+
 class BenchmarkTopicCount(BaseModel):
     topic: str
     count: int

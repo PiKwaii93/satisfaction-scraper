@@ -1206,5 +1206,149 @@ def get_feedback_export_rows(run_id):
         return [dict(row) for row in cursor.fetchall()]
 
 
+def get_feedback_quality_summary(recent_limit=8):
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS total_corrections,
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN REPLACE(rf.corrected_label, 'Ã©', 'é')
+                                <> REPLACE(rf.predicted_label, 'Ã©', 'é')
+                            THEN 1
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS changed_label_count,
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN REPLACE(rf.corrected_label, 'Ã©', 'é')
+                                = REPLACE(rf.predicted_label, 'Ã©', 'é')
+                            THEN 1
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS confirmed_label_count,
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN COALESCE(r.verbatim, '') <> '' THEN 1
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS training_ready_count,
+                COUNT(DISTINCT c.company_id) AS corrected_company_count,
+                COUNT(DISTINCT r.run_id) AS corrected_run_count,
+                MAX(rf.updated_at) AS latest_feedback_at
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id;
+            """
+        )
+        summary = dict(cursor.fetchone())
+
+        total_corrections = int(summary["total_corrections"] or 0)
+        changed_label_count = int(summary["changed_label_count"] or 0)
+        apparent_error_rate = percentage(changed_label_count, total_corrections)
+
+        cursor.execute(
+            """
+            SELECT
+                c.company_id,
+                c.company_name,
+                COUNT(*) AS correction_count,
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN REPLACE(rf.corrected_label, 'Ã©', 'é')
+                                <> REPLACE(rf.predicted_label, 'Ã©', 'é')
+                            THEN 1
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS changed_label_count,
+                COUNT(DISTINCT r.run_id) AS run_count,
+                MAX(rf.updated_at) AS latest_feedback_at
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            GROUP BY c.company_id, c.company_name
+            ORDER BY correction_count DESC, latest_feedback_at DESC
+            LIMIT 8;
+            """
+        )
+        by_company = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT REPLACE(corrected_label, 'Ã©', 'é') AS label, COUNT(*) AS count
+            FROM review_feedback
+            GROUP BY REPLACE(corrected_label, 'Ã©', 'é')
+            ORDER BY count DESC, label;
+            """
+        )
+        corrected_label_distribution = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT
+                REPLACE(predicted_label, 'Ã©', 'é') AS predicted_label,
+                REPLACE(corrected_label, 'Ã©', 'é') AS corrected_label,
+                COUNT(*) AS count
+            FROM review_feedback
+            GROUP BY
+                REPLACE(predicted_label, 'Ã©', 'é'),
+                REPLACE(corrected_label, 'Ã©', 'é')
+            ORDER BY count DESC, predicted_label, corrected_label;
+            """
+        )
+        transitions = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            """
+            SELECT
+                rf.feedback_id,
+                r.review_id,
+                r.run_id,
+                c.company_name,
+                r.rating,
+                REPLACE(rf.predicted_label, 'Ã©', 'é') AS predicted_label,
+                REPLACE(rf.corrected_label, 'Ã©', 'é') AS corrected_label,
+                rf.comment AS feedback_comment,
+                rf.updated_at AS feedback_updated_at,
+                r.verbatim
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            ORDER BY rf.updated_at DESC, rf.feedback_id DESC
+            LIMIT %s;
+            """,
+            (recent_limit,),
+        )
+        recent_corrections = [dict(row) for row in cursor.fetchall()]
+
+    return {
+        "total_corrections": total_corrections,
+        "changed_label_count": changed_label_count,
+        "confirmed_label_count": int(summary["confirmed_label_count"] or 0),
+        "apparent_error_rate": apparent_error_rate,
+        "training_ready_count": int(summary["training_ready_count"] or 0),
+        "corrected_company_count": int(summary["corrected_company_count"] or 0),
+        "corrected_run_count": int(summary["corrected_run_count"] or 0),
+        "latest_feedback_at": summary["latest_feedback_at"],
+        "by_company": by_company,
+        "corrected_label_distribution": corrected_label_distribution,
+        "transitions": transitions,
+        "recent_corrections": recent_corrections,
+    }
+
+
 def get_export_rows(run_id):
     return get_run_reviews(run_id, limit=10000, offset=0)["reviews"]

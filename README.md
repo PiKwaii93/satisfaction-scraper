@@ -131,6 +131,7 @@ GET    /analysis-runs/{run_id}/summary
 GET    /analysis-runs/{run_id}/reviews
 POST   /analysis-runs/{run_id}/reviews/{review_id}/feedback
 DELETE /analysis-runs/{run_id}/reviews/{review_id}/feedback
+GET    /analysis-runs/feedback/quality
 GET    /analysis-runs/{run_id}/events
 GET    /analysis-runs/{run_id}/export
 GET    /analysis-runs/{run_id}/feedback/export
@@ -181,6 +182,7 @@ Elle permet de :
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
+- piloter la qualite IA avec les corrections humaines disponibles pour le prochain entrainement ;
 - suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
 - corriger manuellement le sentiment d'un avis pour alimenter un futur dataset de reentrainement ;
