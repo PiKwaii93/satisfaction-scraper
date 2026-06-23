@@ -178,7 +178,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8000/analysis-runs -Headers
 
 L'application peut aussi analyser un fichier CSV fourni par l'utilisateur, sans passer par le scraping Trustpilot. C'est le chemin recommande pour brancher des exports clients, des avis issus d'autres plateformes ou une future integration API.
 
-Avant le lancement, le frontend previsualise le fichier pour afficher les colonnes detectees, le nombre d'avis exploitables, les lignes ignorees et quelques exemples de verbatims.
+Avant le lancement, le frontend previsualise le fichier pour afficher les colonnes detectees, le nombre d'avis exploitables, les lignes ignorees et quelques exemples de verbatims. Si l'auto-detection ne correspond pas au fichier fourni, l'utilisateur peut corriger le mapping des colonnes avant de confirmer l'import.
 
 Colonnes acceptees :
 
