@@ -10,6 +10,7 @@ import type {
   ModelTrainingRun,
   OrganizationUser,
   OrganizationUserCreate,
+  ReviewSource,
   ReviewFeedback,
   ReviewListResponse,
   RunsComparison,
@@ -126,6 +127,10 @@ export function createOrganizationUser(payload: OrganizationUserCreate) {
     method: "POST",
     body: JSON.stringify(payload)
   });
+}
+
+export function listReviewSources() {
+  return request<ReviewSource[]>("/review-sources");
 }
 
 export function listRuns() {

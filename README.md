@@ -127,6 +127,7 @@ POST   /auth/login
 GET    /auth/me
 GET    /auth/organization/users
 POST   /auth/organization/users
+GET    /review-sources
 POST   /analysis-runs
 POST   /analysis-runs/preview-csv
 POST   /analysis-runs/import-csv
@@ -224,12 +225,31 @@ Colonnes acceptees :
 
 Les runs importes en CSV alimentent le meme rapport entreprise, le meme benchmark, les memes corrections humaines et les memes exports que les runs Trustpilot.
 
+### Sources d'avis et connecteurs
+
+Le frontend consomme le endpoint `GET /review-sources` pour afficher le catalogue des sources d'avis disponibles dans l'espace client.
+
+Sources actives dans le MVP :
+
+- `Trustpilot` : collecte publique par URL ou domaine Trustpilot ;
+- `CSV` : import de fichiers d'avis fournis par l'entreprise.
+
+Connecteurs prepares pour la suite :
+
+- `Google Reviews` via Google Business Profile ;
+- `Zendesk` pour les tickets SAV ;
+- `Shopify` pour les donnees e-commerce ;
+- `SAV interne` pour des exports CRM ou support generiques.
+
+Cette couche permet de presenter l'application comme un produit B2B configure autour des canaux d'avis client, tout en gardant Trustpilot et CSV comme sources reellement exploitables aujourd'hui.
+
 ## Frontend React
 
 Le dossier `frontend/` contient la premiere interface client React + Vite + TypeScript.
 
 Elle permet de :
 
+- choisir une source d'avis active depuis le catalogue de connecteurs ;
 - lancer une nouvelle analyse Trustpilot ;
 - previsualiser puis importer un CSV d'avis clients ;
 - consulter l'historique des analyses ;

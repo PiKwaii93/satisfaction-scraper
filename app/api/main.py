@@ -7,6 +7,7 @@ from app.api.database import ensure_product_schema
 from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.model_training import router as model_training_router
+from app.api.routes.review_sources import router as review_sources_router
 
 API_DESCRIPTION = """
 API produit pour lancer, suivre et consulter des analyses d'avis clients depuis Trustpilot ou CSV.
@@ -27,6 +28,10 @@ OPENAPI_TAGS = [
     {
         "name": "analysis-runs",
         "description": "Creation, suivi, consultation et export des analyses client.",
+    },
+    {
+        "name": "review-sources",
+        "description": "Catalogue des sources d'avis disponibles ou planifiees.",
     },
     {
         "name": "model-training",
@@ -65,6 +70,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(review_sources_router)
 app.include_router(analysis_runs_router)
 app.include_router(model_training_router)
 

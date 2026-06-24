@@ -171,6 +171,31 @@ def test_member_cannot_create_organization_user(test_app):
     assert response.status_code == 403
 
 
+def test_list_review_sources_requires_authentication(client):
+    response = client.get("/review-sources")
+
+    assert response.status_code == 401
+
+
+def test_list_review_sources(authenticated_client):
+    response = authenticated_client.get("/review-sources")
+
+    assert response.status_code == 200
+    payload = response.json()
+    active_sources = {
+        source["source_id"]
+        for source in payload
+        if source["status"] == "active" and source["supports_analysis"]
+    }
+    planned_sources = {
+        source["source_id"] for source in payload if source["status"] == "planned"
+    }
+
+    assert {"trustpilot", "csv"}.issubset(active_sources)
+    assert "google_reviews" in planned_sources
+    assert payload[1]["column_aliases"]["verbatim"]
+
+
 def test_protected_endpoint_requires_authentication(client):
     response = client.get("/analysis-runs")
 

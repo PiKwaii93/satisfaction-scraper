@@ -37,6 +37,7 @@ import {
   getSummary,
   hasAuthToken,
   listOrganizationUsers,
+  listReviewSources,
   listRuns,
   login,
   previewCsvFile,
@@ -46,6 +47,7 @@ import {
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  AnalysisSource,
   BenchmarkCompany,
   BusinessInsights,
   BusinessPriority,
@@ -60,6 +62,7 @@ import type {
   ModelTrainingRun,
   OrganizationUser,
   Review,
+  ReviewSource,
   RunsComparison,
   RunSummary,
   SentimentLabel,
@@ -79,10 +82,41 @@ const FEEDBACK_SENTIMENTS = SENTIMENTS.filter(
 );
 
 const REVIEW_PAGE_SIZES = [30, 60, 120, 500];
-const SOURCE_LABELS: Record<AnalysisRun["source"], string> = {
+const SOURCE_LABELS: Record<AnalysisSource, string> = {
   trustpilot: "Trustpilot",
   csv: "CSV"
 };
+
+const DEFAULT_REVIEW_SOURCES: ReviewSource[] = [
+  {
+    source_id: "trustpilot",
+    label: "Trustpilot",
+    status: "active",
+    category: "web public",
+    description: "Avis publics Trustpilot par entreprise et par note.",
+    primary_action: "Coller une URL ou un domaine",
+    setup_hint: "Disponible sans configuration.",
+    supports_analysis: true,
+    is_configured: true,
+    required_fields: ["URL ou domaine Trustpilot"],
+    optional_fields: ["Pages par note"],
+    column_aliases: {}
+  },
+  {
+    source_id: "csv",
+    label: "CSV",
+    status: "active",
+    category: "import fichier",
+    description: "Exports clients, SAV, enquete ou autres plateformes.",
+    primary_action: "Importer un fichier CSV",
+    setup_hint: "Mapping des colonnes avant import.",
+    supports_analysis: true,
+    is_configured: true,
+    required_fields: ["verbatim"],
+    optional_fields: ["rating", "author", "date", "company_responded"],
+    column_aliases: {}
+  }
+];
 
 const CSV_MAPPING_FIELDS: Array<{
   key: keyof CsvColumnMapping;
@@ -155,6 +189,22 @@ function validateCompanyInput(value: string) {
   }
 
   return null;
+}
+
+function isAnalysisSource(sourceId: string): sourceId is AnalysisSource {
+  return sourceId === "trustpilot" || sourceId === "csv";
+}
+
+function sourceIcon(sourceId: string) {
+  if (sourceId === "trustpilot") {
+    return <Search aria-hidden="true" size={18} />;
+  }
+
+  if (sourceId === "csv") {
+    return <FileText aria-hidden="true" size={18} />;
+  }
+
+  return <ListChecks aria-hidden="true" size={18} />;
 }
 
 function formatDuration(seconds: number | null | undefined) {
@@ -937,6 +987,12 @@ export default function App() {
   );
   const [organizationUserMessage, setOrganizationUserMessage] =
     useState<string | null>(null);
+  const [reviewSources, setReviewSources] =
+    useState<ReviewSource[]>(DEFAULT_REVIEW_SOURCES);
+  const [isReviewSourcesLoading, setIsReviewSourcesLoading] = useState(false);
+  const [reviewSourcesError, setReviewSourcesError] = useState<string | null>(
+    null
+  );
   const [runs, setRuns] = useState<AnalysisRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
@@ -950,8 +1006,7 @@ export default function App() {
   const [company, setCompany] = useState(
     "https://fr.trustpilot.com/review/www.darty.com"
   );
-  const [sourceMode, setSourceMode] =
-    useState<AnalysisRun["source"]>("trustpilot");
+  const [sourceMode, setSourceMode] = useState<AnalysisSource>("trustpilot");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvColumnMapping, setCsvColumnMapping] =
     useState<CsvColumnMapping>({});
@@ -1017,6 +1072,26 @@ export default function App() {
     }
   }
 
+  async function refreshReviewSources() {
+    setIsReviewSourcesLoading(true);
+    setReviewSourcesError(null);
+    try {
+      const sources = await listReviewSources();
+      setReviewSources(sources);
+      const activeSources = sources.filter(
+        (source) =>
+          source.status === "active" &&
+          source.supports_analysis &&
+          isAnalysisSource(source.source_id)
+      );
+      if (!activeSources.some((source) => source.source_id === sourceMode)) {
+        setSourceMode((activeSources[0]?.source_id as AnalysisSource) ?? "trustpilot");
+      }
+    } finally {
+      setIsReviewSourcesLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!hasAuthToken()) {
       setIsAuthLoading(false);
@@ -1045,6 +1120,7 @@ export default function App() {
     refreshFeedbackQuality().catch((err: Error) => setError(err.message));
     refreshTrainingOverview().catch((err: Error) => setError(err.message));
     refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
+    refreshReviewSources().catch((err: Error) => setReviewSourcesError(err.message));
   }, [currentUser?.user_id]);
 
   useEffect(() => {
@@ -1124,6 +1200,8 @@ export default function App() {
     setOrganizationUsers([]);
     setOrganizationUserError(null);
     setOrganizationUserMessage(null);
+    setReviewSources(DEFAULT_REVIEW_SOURCES);
+    setReviewSourcesError(null);
     setError(null);
   }
 
@@ -1153,6 +1231,15 @@ export default function App() {
     } finally {
       setIsCreatingOrganizationUser(false);
     }
+  }
+
+  function handleReviewSourceSelect(sourceId: string) {
+    if (!isAnalysisSource(sourceId)) {
+      return;
+    }
+
+    setSourceMode(sourceId);
+    setError(null);
   }
 
   function toggleComparisonRun(runId: number) {
@@ -1668,23 +1755,23 @@ export default function App() {
           </button>
         </section>
 
+        <ReviewSourcesPanel
+          currentSource={sourceMode}
+          error={reviewSourcesError}
+          isLoading={isReviewSourcesLoading}
+          onRefresh={() =>
+            refreshReviewSources().catch((err: Error) =>
+              setReviewSourcesError(err.message)
+            )
+          }
+          onSelectSource={handleReviewSourceSelect}
+          sources={reviewSources}
+        />
+
         <form className="analysis-form" onSubmit={handleSubmit}>
-          <label>Source d'avis</label>
-          <div className="segmented source-switch">
-            {(["trustpilot", "csv"] as const).map((source) => (
-              <button
-                className={sourceMode === source ? "active" : ""}
-                disabled={isSubmitting}
-                key={source}
-                onClick={() => {
-                  setSourceMode(source);
-                  setError(null);
-                }}
-                type="button"
-              >
-                {SOURCE_LABELS[source]}
-              </button>
-            ))}
+          <div className="analysis-form-heading">
+            <span>Nouvelle analyse</span>
+            <strong>{SOURCE_LABELS[sourceMode]}</strong>
           </div>
 
           <label htmlFor="company">
@@ -2303,6 +2390,96 @@ function FailedRunState({
           {isRetrying ? "Relance en cours" : "Relancer l'analyse"}
         </button>
       </div>
+    </section>
+  );
+}
+
+function ReviewSourcesPanel({
+  currentSource,
+  error,
+  isLoading,
+  onRefresh,
+  onSelectSource,
+  sources
+}: {
+  currentSource: AnalysisSource;
+  error: string | null;
+  isLoading: boolean;
+  onRefresh: () => void;
+  onSelectSource: (sourceId: string) => void;
+  sources: ReviewSource[];
+}) {
+  const activeSources = sources.filter(
+    (source) => source.status === "active" && source.supports_analysis
+  );
+  const plannedSources = sources.filter((source) => source.status === "planned");
+
+  return (
+    <section className="sources-panel">
+      <div className="panel-heading compact-heading">
+        <div>
+          <span>Sources d'avis</span>
+          <small>{activeSources.length} active(s)</small>
+        </div>
+        <button
+          className="icon-button"
+          disabled={isLoading}
+          onClick={onRefresh}
+          title="Actualiser les sources"
+          type="button"
+        >
+          {isLoading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+        </button>
+      </div>
+
+      {error ? <p className="form-error">{error}</p> : null}
+
+      <div className="source-card-list">
+        {activeSources.map((source) => {
+          const canSelect =
+            source.status === "active" &&
+            source.supports_analysis &&
+            isAnalysisSource(source.source_id);
+          const isSelected = source.source_id === currentSource;
+
+          return (
+            <button
+              className={`source-card ${isSelected ? "selected" : ""}`}
+              disabled={!canSelect}
+              key={source.source_id}
+              onClick={() => onSelectSource(source.source_id)}
+              type="button"
+            >
+              <span className="source-card-icon">{sourceIcon(source.source_id)}</span>
+              <span className="source-card-body">
+                <strong>{source.label}</strong>
+                <small>{source.category}</small>
+                <span>{source.primary_action ?? "Connecteur a configurer"}</span>
+              </span>
+              <span
+                className={
+                  source.status === "active"
+                    ? "source-status active"
+                    : "source-status planned"
+                }
+              >
+                {source.status === "active" ? "Actif" : "Bientot"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {plannedSources.length > 0 ? (
+        <div className="sources-roadmap">
+          <span>Prochains connecteurs</span>
+          <div>
+            {plannedSources.map((source) => (
+              <small key={source.source_id}>{source.label}</small>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
