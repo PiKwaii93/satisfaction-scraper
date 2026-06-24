@@ -9,8 +9,11 @@ import type {
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
+  OrganizationAuditEvent,
   OrganizationInvitationAccept,
   OrganizationInvitationCreate,
+  OrganizationSettings,
+  OrganizationSettingsUpdate,
   OrganizationUser,
   OrganizationUserCreate,
   ReviewSource,
@@ -132,6 +135,27 @@ export function getCurrentUser() {
 
 export function listOrganizationUsers() {
   return request<OrganizationUser[]>("/auth/organization/users");
+}
+
+export function getOrganizationSettings() {
+  return request<OrganizationSettings>("/auth/organization/settings");
+}
+
+export function updateOrganizationSettings(payload: OrganizationSettingsUpdate) {
+  return request<OrganizationSettings>("/auth/organization/settings", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listOrganizationAuditEvents(limit = 30, offset = 0) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset)
+  });
+  return request<OrganizationAuditEvent[]>(
+    `/auth/organization/audit-events?${params.toString()}`
+  );
 }
 
 export function createOrganizationUser(payload: OrganizationUserCreate) {

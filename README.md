@@ -126,6 +126,9 @@ GET    /health
 POST   /auth/login
 POST   /auth/invitations/accept
 GET    /auth/me
+GET    /auth/organization/settings
+PATCH  /auth/organization/settings
+GET    /auth/organization/audit-events
 GET    /auth/organization/users
 POST   /auth/organization/users
 POST   /auth/organization/invitations
@@ -195,7 +198,7 @@ L'application fonctionne maintenant par organisation. Un utilisateur connecte ne
 
 Le compte demo local est administrateur de son organisation. Il peut inviter des membres depuis l'interface React, dans le bloc **Espace client**. Les roles disponibles sont :
 
-- `admin` : pilote l'espace client, invite les utilisateurs, lance ou relance les analyses, importe des CSV, corrige les labels, exporte les corrections humaines et declenche les reentrainements IA ;
+- `admin` : pilote l'espace client, modifie les preferences de l'organisation, consulte le journal d'activite, invite les utilisateurs, lance ou relance les analyses, importe des CSV, corrige les labels, exporte les corrections humaines et declenche les reentrainements IA ;
 - `member` : consulte les rapports, historiques, benchmarks, tendances, journaux d'execution et exports d'avis, sans modifier les donnees ni piloter l'IA.
 
 Matrice simplifiee des permissions :
@@ -210,6 +213,8 @@ Matrice simplifiee des permissions :
 | Corriger ou supprimer un label | Oui | Non |
 | Exporter les corrections humaines | Oui | Non |
 | Inviter un utilisateur | Oui | Non |
+| Modifier les preferences organisation | Oui | Non |
+| Consulter le journal d'activite admin | Oui | Non |
 | Lancer un reentrainement IA | Oui | Non |
 
 Une invitation cree un utilisateur `pending` et genere un lien local de type :
@@ -219,6 +224,8 @@ http://localhost:5173/?invitation_token=...
 ```
 
 L'utilisateur invite choisit ensuite son mot de passe depuis l'ecran de connexion. Dans le MVP, le lien est affiche a l'administrateur au lieu d'etre envoye par email.
+
+Les preferences d'organisation permettent de pre-remplir les analyses avec une source par defaut (`trustpilot` ou `csv`) et un nombre de pages par note par defaut. Le journal d'activite conserve les actions administrateur importantes : creation d'analyse, import CSV, relance, correction, export de corrections, invitation utilisateur et reentrainement.
 
 Exemple de lancement d'analyse depuis PowerShell :
 

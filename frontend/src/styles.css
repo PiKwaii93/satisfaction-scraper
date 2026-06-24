@@ -440,7 +440,7 @@ a {
 
 .client-space-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -488,8 +488,16 @@ a {
   gap: 12px;
 }
 
+.client-ops-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+}
+
 .client-members-list,
-.client-user-form {
+.client-user-form,
+.organization-settings-form,
+.audit-events-card {
   display: grid;
   align-content: start;
   gap: 10px;
@@ -604,7 +612,9 @@ a {
 }
 
 .client-user-form input,
-.client-user-form select {
+.client-user-form select,
+.organization-settings-form input,
+.organization-settings-form select {
   min-height: 40px;
   width: 100%;
   border: 1px solid var(--border);
@@ -612,6 +622,55 @@ a {
   padding: 0 10px;
   color: var(--text);
   background: #ffffff;
+}
+
+.organization-settings-form label {
+  color: #344054;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.audit-events-card .mini-heading {
+  align-items: center;
+}
+
+.audit-event-list {
+  display: grid;
+  max-height: 280px;
+  overflow: auto;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.audit-event-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.audit-event-row div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.audit-event-row strong,
+.audit-event-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-event-row small,
+.audit-event-row span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
 }
 
 .analysis-form label {
@@ -2272,7 +2331,8 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .client-members-layout {
+  .client-members-layout,
+  .client-ops-layout {
     grid-template-columns: 1fr;
   }
 
@@ -2328,7 +2388,8 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  .member-row {
+  .member-row,
+  .audit-event-row {
     grid-template-columns: 1fr;
     justify-items: start;
   }

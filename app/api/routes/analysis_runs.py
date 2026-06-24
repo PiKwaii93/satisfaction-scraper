@@ -47,6 +47,7 @@ from app.api.services.analysis_service import (
     queue_analysis_run,
     save_review_feedback,
 )
+from app.api.services.organization_service import record_audit_event
 
 
 router = APIRouter(
@@ -97,6 +98,18 @@ def create_run(
     require_org_admin(current_user)
     try:
         run = create_analysis_run(payload, organization_id=current_user.organization_id)
+        record_audit_event(
+            organization_id=current_user.organization_id,
+            actor_user=current_user,
+            event_type="analysis.created",
+            summary=f"Analyse Trustpilot creee pour {run['company_name']}.",
+            entity_type="analysis_run",
+            entity_id=run["run_id"],
+            metadata={
+                "source": run["source"],
+                "pages_per_star": run["pages_per_star"],
+            },
+        )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
@@ -168,6 +181,15 @@ async def import_csv_run(
             organization_id=current_user.organization_id,
             original_filename=file.filename,
             column_mapping=parse_csv_column_mapping(column_mapping),
+        )
+        record_audit_event(
+            organization_id=current_user.organization_id,
+            actor_user=current_user,
+            event_type="analysis.csv_imported",
+            summary=f"Import CSV lance pour {run['company_name']}.",
+            entity_type="analysis_run",
+            entity_id=run["run_id"],
+            metadata={"source": run["source"], "filename": file.filename},
         )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -275,6 +297,15 @@ def execute_run(
 
     try:
         queue_analysis_run(run_id, skip_scrape=skip_scrape)
+        record_audit_event(
+            organization_id=current_user.organization_id,
+            actor_user=current_user,
+            event_type="analysis.requeued",
+            summary=f"Analyse #{run_id} replacee dans la file.",
+            entity_type="analysis_run",
+            entity_id=run_id,
+            metadata={"skip_scrape": skip_scrape},
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -335,6 +366,18 @@ def save_feedback(
 
     if feedback is None:
         raise HTTPException(status_code=404, detail="Avis introuvable")
+    record_audit_event(
+        organization_id=current_user.organization_id,
+        actor_user=current_user,
+        event_type="feedback.saved",
+        summary=f"Correction enregistree sur l'avis #{review_id}.",
+        entity_type="review",
+        entity_id=review_id,
+        metadata={
+            "run_id": run_id,
+            "corrected_label": feedback["corrected_label"],
+        },
+    )
     return feedback
 
 
@@ -358,6 +401,15 @@ def delete_feedback(
         organization_id=current_user.organization_id,
     ):
         raise HTTPException(status_code=404, detail="Correction introuvable")
+    record_audit_event(
+        organization_id=current_user.organization_id,
+        actor_user=current_user,
+        event_type="feedback.deleted",
+        summary=f"Correction supprimee sur l'avis #{review_id}.",
+        entity_type="review",
+        entity_id=review_id,
+        metadata={"run_id": run_id},
+    )
     return Response(status_code=204)
 
 
@@ -433,6 +485,15 @@ def export_feedback(
     rows = get_feedback_export_rows(
         run_id,
         organization_id=current_user.organization_id,
+    )
+    record_audit_event(
+        organization_id=current_user.organization_id,
+        actor_user=current_user,
+        event_type="feedback.exported",
+        summary=f"Corrections exportees pour le run #{run_id}.",
+        entity_type="analysis_run",
+        entity_id=run_id,
+        metadata={"row_count": len(rows)},
     )
     buffer = StringIO()
     writer = csv.DictWriter(
