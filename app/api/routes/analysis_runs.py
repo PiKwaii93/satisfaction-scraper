@@ -21,12 +21,19 @@ from app.api.schemas import (
     AnalysisRunResponse,
     AnalysisRunTrendResponse,
     AnalysisRunsComparisonResponse,
+    BusinessAlertResponse,
+    BusinessAlertStatusUpdate,
     CsvImportPreviewResponse,
     ErrorResponse,
     FeedbackQualityResponse,
     ReviewFeedbackCreate,
     ReviewFeedbackResponse,
     ReviewListResponse,
+)
+from app.api.services.alert_service import (
+    list_business_alerts,
+    update_business_alert_status,
+    upsert_business_alerts_for_run,
 )
 from app.api.services.analysis_service import (
     ActiveAnalysisRunError,
@@ -264,6 +271,72 @@ def get_feedback_quality(
 
 
 @router.get(
+    "/alerts",
+    response_model=list[BusinessAlertResponse],
+    summary="Lister les alertes metier",
+    description="Retourne les alertes ouvertes ou historisees de l'organisation.",
+    responses={400: {"model": ErrorResponse}},
+)
+def get_business_alerts(
+    status: str | None = Query(default="open"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    if status == "all":
+        status = None
+    if status not in {None, "open", "acknowledged", "resolved"}:
+        raise HTTPException(status_code=400, detail="Statut d'alerte invalide")
+    return list_business_alerts(
+        organization_id=current_user.organization_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.patch(
+    "/alerts/{alert_id}",
+    response_model=BusinessAlertResponse,
+    summary="Mettre a jour une alerte",
+    description="Acquitte, rouvre ou resout une alerte metier.",
+    responses={404: {"model": ErrorResponse}},
+)
+def patch_business_alert(
+    alert_id: int,
+    payload: BusinessAlertStatusUpdate,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(current_user)
+    try:
+        alert = update_business_alert_status(
+            alert_id=alert_id,
+            organization_id=current_user.organization_id,
+            status=payload.status,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alerte introuvable")
+
+    record_audit_event(
+        organization_id=current_user.organization_id,
+        actor_user=current_user,
+        event_type="business_alert.status_updated",
+        summary=f"Alerte #{alert_id} mise a jour: {payload.status}.",
+        entity_type="business_alert",
+        entity_id=alert_id,
+        metadata={
+            "status": payload.status,
+            "alert_type": alert["alert_type"],
+            "run_id": alert.get("run_id"),
+        },
+    )
+    return alert
+
+
+@router.get(
     "/{run_id}",
     response_model=AnalysisRunResponse,
     summary="Consulter une analyse",
@@ -467,6 +540,43 @@ def get_trend(
     if trend is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     return trend
+
+
+@router.post(
+    "/{run_id}/alerts/refresh",
+    response_model=list[BusinessAlertResponse],
+    summary="Regenerer les alertes d'un run",
+    description="Recalcule les alertes metier d'une analyse terminee.",
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def refresh_business_alerts_for_run(
+    run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(current_user)
+    run = get_analysis_run(run_id, organization_id=current_user.organization_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    if run["status"] != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Les alertes sont disponibles uniquement pour une analyse terminee.",
+        )
+
+    alerts = upsert_business_alerts_for_run(
+        run_id=run_id,
+        organization_id=current_user.organization_id,
+    )
+    record_audit_event(
+        organization_id=current_user.organization_id,
+        actor_user=current_user,
+        event_type="business_alert.generated",
+        summary=f"Alertes metier regenerees pour le run #{run_id}.",
+        entity_type="analysis_run",
+        entity_id=run_id,
+        metadata={"alert_count": len(alerts)},
+    )
+    return alerts
 
 
 @router.get(

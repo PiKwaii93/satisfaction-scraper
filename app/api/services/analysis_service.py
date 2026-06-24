@@ -406,6 +406,7 @@ def serialize_run(row):
     return {
         "run_id": row["run_id"],
         "company_id": row["company_id"],
+        "organization_id": row.get("organization_id"),
         "company_name": row["company_name"],
         "trustpilot_slug": row["trustpilot_slug"],
         "source": row["source"],

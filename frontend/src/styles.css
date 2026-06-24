@@ -673,6 +673,122 @@ a {
   font-weight: 800;
 }
 
+.business-alerts-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.alert-heading {
+  align-items: flex-start;
+}
+
+.alert-heading p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.business-alert-list {
+  display: grid;
+  gap: 10px;
+}
+
+.business-alert-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.business-alert-row.critical {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.business-alert-row.warning {
+  border-color: #fed7aa;
+  background: #fffaf3;
+}
+
+.business-alert-marker {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--amber);
+}
+
+.business-alert-row.critical .business-alert-marker {
+  color: var(--red);
+}
+
+.business-alert-body {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.business-alert-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.business-alert-topline strong {
+  color: var(--text);
+}
+
+.business-alert-body p {
+  margin: 0;
+  color: #344054;
+  line-height: 1.45;
+}
+
+.business-alert-body small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.business-alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.alert-severity {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.alert-severity.critical {
+  background: #fff1f2;
+  color: var(--red);
+}
+
+.alert-severity.warning {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.alert-severity.info {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .analysis-form label {
   color: #344054;
   font-size: 0.86rem;
@@ -2389,9 +2505,14 @@ tbody tr:last-child td {
   }
 
   .member-row,
-  .audit-event-row {
+  .audit-event-row,
+  .business-alert-row {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .business-alert-actions {
+    justify-content: flex-start;
   }
 
   .training-active-state {

@@ -188,6 +188,23 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         created_at TIMESTAMP DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS business_alerts (
+        alert_id SERIAL PRIMARY KEY,
+        organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
+        run_id INT REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
+        company_id INT REFERENCES companies(company_id) ON DELETE SET NULL,
+        alert_type VARCHAR(80) NOT NULL,
+        severity VARCHAR(20) NOT NULL DEFAULT 'warning',
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        acknowledged_at TIMESTAMP,
+        resolved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS model_training_runs (
         training_run_id SERIAL PRIMARY KEY,
         organization_id INT REFERENCES organizations(organization_id) ON DELETE CASCADE,
@@ -282,6 +299,12 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         ON audit_events(organization_id, audit_event_id DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_events_type
         ON audit_events(event_type);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_business_alerts_unique_run_type
+        ON business_alerts(organization_id, run_id, alert_type);
+    CREATE INDEX IF NOT EXISTS idx_business_alerts_org_status
+        ON business_alerts(organization_id, status, alert_id DESC);
+    CREATE INDEX IF NOT EXISTS idx_business_alerts_run
+        ON business_alerts(run_id);
     CREATE INDEX IF NOT EXISTS idx_model_training_runs_status
         ON model_training_runs(status);
     CREATE INDEX IF NOT EXISTS idx_model_training_runs_org

@@ -40,13 +40,16 @@ import {
   getSummary,
   hasAuthToken,
   inviteOrganizationUser,
+  listBusinessAlerts,
   listOrganizationAuditEvents,
   listOrganizationUsers,
   listReviewSources,
   listRuns,
   login,
   previewCsvFile,
+  refreshRunBusinessAlerts,
   saveReviewFeedback,
+  updateBusinessAlertStatus,
   updateOrganizationSettings,
   uploadCsvRun
 } from "./api";
@@ -56,6 +59,8 @@ import type {
   AnalysisRunTrend,
   AnalysisSource,
   BenchmarkCompany,
+  BusinessAlert,
+  BusinessAlertStatus,
   BusinessInsights,
   BusinessPriority,
   BusinessStrength,
@@ -1076,6 +1081,13 @@ export default function App() {
   const [trend, setTrend] = useState<AnalysisRunTrend | null>(null);
   const [isTrendLoading, setIsTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState<string | null>(null);
+  const [businessAlerts, setBusinessAlerts] = useState<BusinessAlert[]>([]);
+  const [isBusinessAlertsLoading, setIsBusinessAlertsLoading] = useState(false);
+  const [businessAlertsError, setBusinessAlertsError] = useState<string | null>(
+    null
+  );
+  const [updatingAlertId, setUpdatingAlertId] = useState<number | null>(null);
+  const [isRefreshingRunAlerts, setIsRefreshingRunAlerts] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
   const [reviewsLimit, setReviewsLimit] = useState(30);
@@ -1139,6 +1151,17 @@ export default function App() {
       setTrainingOverview(overview);
     } finally {
       setIsTrainingOverviewLoading(false);
+    }
+  }
+
+  async function refreshBusinessAlerts() {
+    setIsBusinessAlertsLoading(true);
+    setBusinessAlertsError(null);
+    try {
+      const alerts = await listBusinessAlerts("open");
+      setBusinessAlerts(alerts);
+    } finally {
+      setIsBusinessAlertsLoading(false);
     }
   }
 
@@ -1240,6 +1263,9 @@ export default function App() {
       .finally(() => setIsLoading(false));
     refreshFeedbackQuality().catch((err: Error) => setError(err.message));
     refreshTrainingOverview().catch((err: Error) => setError(err.message));
+    refreshBusinessAlerts().catch((err: Error) =>
+      setBusinessAlertsError(err.message)
+    );
     refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
     refreshOrganizationSettings().catch((err: Error) =>
       setOrganizationSettingsError(err.message)
@@ -1265,7 +1291,9 @@ export default function App() {
     }
 
     const timer = window.setInterval(() => {
-      refreshRuns().catch((err: Error) => setError(err.message));
+      refreshRuns()
+        .then(() => refreshBusinessAlerts())
+        .catch((err: Error) => setError(err.message));
     }, 3000);
 
     return () => window.clearInterval(timer);
@@ -1354,6 +1382,10 @@ export default function App() {
     setComparison(null);
     setFeedbackQuality(null);
     setTrainingOverview(null);
+    setBusinessAlerts([]);
+    setBusinessAlertsError(null);
+    setUpdatingAlertId(null);
+    setIsRefreshingRunAlerts(false);
     setOrganizationUsers([]);
     setOrganizationUserError(null);
     setOrganizationUserMessage(null);
@@ -1522,6 +1554,62 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setIsTrainingSubmitting(false);
+    }
+  }
+
+  async function handleUpdateBusinessAlertStatus(
+    alertId: number,
+    status: BusinessAlertStatus
+  ) {
+    if (!canManageWorkspace) {
+      setBusinessAlertsError("Seul un administrateur peut traiter les alertes.");
+      return;
+    }
+
+    setUpdatingAlertId(alertId);
+    setBusinessAlertsError(null);
+
+    try {
+      await updateBusinessAlertStatus(alertId, status);
+      await refreshBusinessAlerts();
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setBusinessAlertsError(
+        err instanceof Error ? err.message : "Alerte impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingAlertId(null);
+    }
+  }
+
+  async function handleRefreshRunBusinessAlerts() {
+    if (!selectedRun) {
+      return;
+    }
+    if (!canManageWorkspace) {
+      setBusinessAlertsError("Seul un administrateur peut recalculer les alertes.");
+      return;
+    }
+    if (selectedRun.status !== "completed") {
+      setBusinessAlertsError(
+        "Les alertes sont disponibles uniquement pour une analyse terminee."
+      );
+      return;
+    }
+
+    setIsRefreshingRunAlerts(true);
+    setBusinessAlertsError(null);
+
+    try {
+      await refreshRunBusinessAlerts(selectedRun.run_id);
+      await refreshBusinessAlerts();
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setBusinessAlertsError(
+        err instanceof Error ? err.message : "Alertes impossibles a recalculer"
+      );
+    } finally {
+      setIsRefreshingRunAlerts(false);
     }
   }
 
@@ -2444,6 +2532,23 @@ export default function App() {
           usersError={organizationUserError}
         />
 
+        <BusinessAlertsPanel
+          alerts={businessAlerts}
+          canManage={canManageWorkspace}
+          error={businessAlertsError}
+          isLoading={isBusinessAlertsLoading}
+          isRefreshingRunAlerts={isRefreshingRunAlerts}
+          onRefresh={() =>
+            refreshBusinessAlerts().catch((err: Error) =>
+              setBusinessAlertsError(err.message)
+            )
+          }
+          onRefreshRunAlerts={handleRefreshRunBusinessAlerts}
+          onUpdateStatus={handleUpdateBusinessAlertStatus}
+          selectedRun={selectedRun}
+          updatingAlertId={updatingAlertId}
+        />
+
         <AIQualityPanel
           isLoading={isFeedbackQualityLoading}
           onRefresh={() =>
@@ -3224,8 +3329,169 @@ function ClientSpacePanel({
   );
 }
 
+function BusinessAlertsPanel({
+  alerts,
+  canManage,
+  error,
+  isLoading,
+  isRefreshingRunAlerts,
+  onRefresh,
+  onRefreshRunAlerts,
+  onUpdateStatus,
+  selectedRun,
+  updatingAlertId
+}: {
+  alerts: BusinessAlert[];
+  canManage: boolean;
+  error: string | null;
+  isLoading: boolean;
+  isRefreshingRunAlerts: boolean;
+  onRefresh: () => void;
+  onRefreshRunAlerts: () => void;
+  onUpdateStatus: (alertId: number, status: BusinessAlertStatus) => void;
+  selectedRun: AnalysisRun | null;
+  updatingAlertId: number | null;
+}) {
+  const criticalCount = alerts.filter((alert) => alert.severity === "critical").length;
+  const warningCount = alerts.filter((alert) => alert.severity === "warning").length;
+  const canRefreshSelectedRun = canManage && selectedRun?.status === "completed";
+
+  return (
+    <section className="business-alerts-panel insight-section wide">
+      <div className="section-heading alert-heading">
+        <div>
+          <span className="eyebrow">Alertes metier</span>
+          <h3>Signaux a traiter</h3>
+          <p>
+            {alerts.length} alerte(s) ouverte(s), dont {criticalCount} critique(s)
+            et {warningCount} a surveiller.
+          </p>
+        </div>
+        <div className="header-actions">
+          <button
+            className="secondary-action compact-action"
+            disabled={isLoading}
+            onClick={onRefresh}
+            type="button"
+          >
+            {isLoading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+            Actualiser
+          </button>
+          <button
+            className="secondary-action compact-action"
+            disabled={!canRefreshSelectedRun || isRefreshingRunAlerts}
+            onClick={onRefreshRunAlerts}
+            title={
+              canRefreshSelectedRun
+                ? "Recalculer les alertes du run selectionne"
+                : "Selectionne un run termine avec un compte admin"
+            }
+            type="button"
+          >
+            {isRefreshingRunAlerts ? (
+              <Loader2 className="spin" size={16} />
+            ) : (
+              <AlertTriangle size={16} />
+            )}
+            Regenerer run
+          </button>
+        </div>
+      </div>
+
+      {error ? <p className="form-error">{error}</p> : null}
+      {!canManage ? (
+        <p className="permission-hint">
+          Lecture seule: un administrateur peut acquitter ou resoudre les alertes.
+        </p>
+      ) : null}
+
+      {isLoading && alerts.length === 0 ? (
+        <div className="loading-line compact-loading">
+          <Loader2 className="spin" size={18} />
+          Chargement des alertes...
+        </div>
+      ) : null}
+
+      {!isLoading && alerts.length === 0 ? (
+        <div className="empty-inline-state">
+          <strong>Aucune alerte ouverte.</strong>
+          <span>Les prochains runs termines alimenteront ce panneau automatiquement.</span>
+        </div>
+      ) : (
+        <div className="business-alert-list">
+          {alerts.map((alert) => {
+            const isUpdating = updatingAlertId === alert.alert_id;
+            return (
+              <article
+                className={`business-alert-row ${alert.severity}`}
+                key={alert.alert_id}
+              >
+                <div className="business-alert-marker">
+                  <AlertTriangle size={18} />
+                </div>
+                <div className="business-alert-body">
+                  <div className="business-alert-topline">
+                    <strong>{alert.title}</strong>
+                    <span className={`alert-severity ${alert.severity}`}>
+                      {formatAlertSeverity(alert.severity)}
+                    </span>
+                  </div>
+                  <p>{alert.message}</p>
+                  <small>
+                    {alert.company_name ?? "Entreprise"}{" "}
+                    {alert.run_id ? `- Run #${alert.run_id}` : ""}{" "}
+                    {alert.created_at ? `- ${formatDate(alert.created_at)}` : ""}
+                  </small>
+                </div>
+                <div className="business-alert-actions">
+                  {canManage && alert.status === "open" ? (
+                    <button
+                      className="secondary-action compact-action"
+                      disabled={isUpdating}
+                      onClick={() =>
+                        onUpdateStatus(alert.alert_id, "acknowledged")
+                      }
+                      type="button"
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="spin" size={14} />
+                      ) : (
+                        <CheckCircle2 size={14} />
+                      )}
+                      Acquitter
+                    </button>
+                  ) : null}
+                  {canManage && alert.status !== "resolved" ? (
+                    <button
+                      className="secondary-action compact-action"
+                      disabled={isUpdating}
+                      onClick={() => onUpdateStatus(alert.alert_id, "resolved")}
+                      type="button"
+                    >
+                      Resoudre
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function RolePill({ role }: { role: UserRole }) {
   return <span className={`role-pill ${role}`}>{formatRole(role)}</span>;
+}
+
+function formatAlertSeverity(severity: string) {
+  const labels: Record<string, string> = {
+    critical: "Critique",
+    warning: "A surveiller",
+    info: "Info"
+  };
+  return labels[severity] ?? severity;
 }
 
 function formatAuditEventType(eventType: string) {

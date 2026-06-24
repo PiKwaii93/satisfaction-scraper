@@ -137,8 +137,11 @@ POST   /analysis-runs
 POST   /analysis-runs/preview-csv
 POST   /analysis-runs/import-csv
 GET    /analysis-runs
+GET    /analysis-runs/alerts
+PATCH  /analysis-runs/alerts/{alert_id}
 GET    /analysis-runs/{run_id}
 POST   /analysis-runs/{run_id}/execute
+POST   /analysis-runs/{run_id}/alerts/refresh
 GET    /analysis-runs/{run_id}/summary
 GET    /analysis-runs/{run_id}/trend
 GET    /analysis-runs/{run_id}/reviews
@@ -208,8 +211,10 @@ Matrice simplifiee des permissions :
 | Consulter les analyses et rapports | Oui | Oui |
 | Exporter les avis analyses | Oui | Oui |
 | Comparer plusieurs runs | Oui | Oui |
+| Consulter les alertes metier | Oui | Oui |
 | Lancer une analyse Trustpilot ou CSV | Oui | Non |
 | Relancer une analyse echouee | Oui | Non |
+| Acquitter ou resoudre une alerte | Oui | Non |
 | Corriger ou supprimer un label | Oui | Non |
 | Exporter les corrections humaines | Oui | Non |
 | Inviter un utilisateur | Oui | Non |
@@ -226,6 +231,19 @@ http://localhost:5173/?invitation_token=...
 L'utilisateur invite choisit ensuite son mot de passe depuis l'ecran de connexion. Dans le MVP, le lien est affiche a l'administrateur au lieu d'etre envoye par email.
 
 Les preferences d'organisation permettent de pre-remplir les analyses avec une source par defaut (`trustpilot` ou `csv`) et un nombre de pages par note par defaut. Le journal d'activite conserve les actions administrateur importantes : creation d'analyse, import CSV, relance, correction, export de corrections, invitation utilisateur et reentrainement.
+
+### Alertes metier
+
+Chaque analyse terminee peut generer des alertes rattachees a l'organisation. Elles signalent les cas a traiter en priorite :
+
+- part d'avis negatifs elevee ;
+- score sante faible ;
+- confiance IA basse ;
+- irritant dominant ;
+- absence de reponse entreprise sur un lot negatif ;
+- hausse du negatif ou d'un irritant par rapport au run precedent.
+
+Les nouvelles analyses generent automatiquement ces alertes. Pour les anciens runs deja presents en base, l'administrateur peut utiliser le bouton **Regenerer run** dans le bloc **Alertes metier**. Les membres peuvent consulter les alertes ouvertes, mais seuls les administrateurs peuvent les acquitter ou les resoudre.
 
 Exemple de lancement d'analyse depuis PowerShell :
 
@@ -288,6 +306,7 @@ Elle permet de :
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
 - comparer une analyse avec le run precedent de la meme entreprise pour suivre les tendances ;
+- suivre les alertes metier ouvertes et les traiter cote administrateur ;
 - piloter la qualite IA avec les corrections humaines disponibles pour le prochain entrainement ;
 - suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;

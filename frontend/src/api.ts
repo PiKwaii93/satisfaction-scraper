@@ -3,6 +3,8 @@ import type {
   AnalysisRun,
   AnalysisRunTrend,
   AuthToken,
+  BusinessAlert,
+  BusinessAlertStatus,
   CurrentUser,
   CsvColumnMapping,
   CsvImportPreview,
@@ -278,6 +280,32 @@ export function getFeedbackQuality(recentLimit = 8) {
   return request<FeedbackQuality>(
     `/analysis-runs/feedback/quality?${params.toString()}`
   );
+}
+
+export function listBusinessAlerts(status: BusinessAlertStatus | "all" = "open") {
+  const params = new URLSearchParams({
+    status,
+    limit: "20"
+  });
+  return request<BusinessAlert[]>(
+    `/analysis-runs/alerts?${params.toString()}`
+  );
+}
+
+export function updateBusinessAlertStatus(
+  alertId: number,
+  status: BusinessAlertStatus
+) {
+  return request<BusinessAlert>(`/analysis-runs/alerts/${alertId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status })
+  });
+}
+
+export function refreshRunBusinessAlerts(runId: number) {
+  return request<BusinessAlert[]>(`/analysis-runs/${runId}/alerts/refresh`, {
+    method: "POST"
+  });
 }
 
 export function getModelTrainingOverview(limit = 6) {
