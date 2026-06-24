@@ -19,6 +19,7 @@ from app.api.schemas import (
     AnalysisRunCreate,
     AnalysisRunEventResponse,
     AnalysisRunResponse,
+    AnalysisRunTrendResponse,
     AnalysisRunsComparisonResponse,
     CsvImportPreviewResponse,
     ErrorResponse,
@@ -40,6 +41,7 @@ from app.api.services.analysis_service import (
     get_run_events,
     get_run_reviews,
     get_run_summary,
+    get_run_trend,
     get_runs_comparison,
     list_analysis_runs,
     queue_analysis_run,
@@ -384,6 +386,30 @@ def get_summary(
     if summary is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     return summary
+
+
+@router.get(
+    "/{run_id}/trend",
+    response_model=AnalysisRunTrendResponse,
+    summary="Comparer avec l'analyse precedente",
+    description=(
+        "Compare une analyse terminee avec le run precedent termine de la meme "
+        "entreprise et de la meme source."
+    ),
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def get_trend(
+    run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    try:
+        trend = get_run_trend(run_id, organization_id=current_user.organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if trend is None:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    return trend
 
 
 @router.get(

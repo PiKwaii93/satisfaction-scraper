@@ -348,3 +348,99 @@ def test_import_csv_passes_mapping_to_service(authenticated_client, monkeypatch)
     assert captured["column_mapping"] == mapping
     assert captured["file_bytes"] == b"text,stars\nTres bon,5\n"
 
+
+def test_get_run_trend(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_get_run_trend(run_id, organization_id):
+        captured["run_id"] = run_id
+        captured["organization_id"] = organization_id
+        return {
+            "current_run": sample_run(run_id=12, status="completed"),
+            "previous_run": sample_run(run_id=9, status="completed"),
+            "has_previous": True,
+            "executive_summary": "La part negative baisse.",
+            "metrics": [
+                {
+                    "metric": "average_rating",
+                    "label": "Note moyenne",
+                    "previous_value": 2.8,
+                    "current_value": 3.1,
+                    "delta": 0.3,
+                    "direction": "up",
+                    "unit": "/5",
+                }
+            ],
+            "sentiment": [
+                {
+                    "label": "Negatif",
+                    "previous_count": 60,
+                    "current_count": 48,
+                    "previous_rate": 50.0,
+                    "current_rate": 40.0,
+                    "delta_count": -12,
+                    "delta_rate": -10.0,
+                    "direction": "down",
+                }
+            ],
+            "rising_topics": [],
+            "falling_topics": [
+                {
+                    "topic": "livraison",
+                    "previous_count": 20,
+                    "current_count": 12,
+                    "delta_count": -8,
+                    "direction": "down",
+                }
+            ],
+            "new_topics": [],
+            "resolved_topics": [],
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_run_trend",
+        fake_get_run_trend,
+    )
+
+    response = authenticated_client.get("/analysis-runs/12/trend")
+
+    assert response.status_code == 200
+    assert response.json()["previous_run"]["run_id"] == 9
+    assert captured == {"run_id": 12, "organization_id": 123}
+
+
+def test_get_run_trend_without_previous(authenticated_client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_run_trend",
+        lambda run_id, organization_id: {
+            "current_run": sample_run(run_id=12, status="completed"),
+            "previous_run": None,
+            "has_previous": False,
+            "executive_summary": "Aucune analyse precedente.",
+            "metrics": [],
+            "sentiment": [],
+            "rising_topics": [],
+            "falling_topics": [],
+            "new_topics": [],
+            "resolved_topics": [],
+        },
+    )
+
+    response = authenticated_client.get("/analysis-runs/12/trend")
+
+    assert response.status_code == 200
+    assert response.json()["has_previous"] is False
+
+
+def test_get_run_trend_rejects_unfinished_run(authenticated_client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_run_trend",
+        lambda run_id, organization_id: (_ for _ in ()).throw(
+            ValueError("La tendance est disponible uniquement pour une analyse terminee.")
+        ),
+    )
+
+    response = authenticated_client.get("/analysis-runs/12/trend")
+
+    assert response.status_code == 400
+    assert "tendance" in response.json()["detail"]

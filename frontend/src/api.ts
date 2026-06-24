@@ -1,6 +1,7 @@
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  AnalysisRunTrend,
   AuthToken,
   CurrentUser,
   CsvColumnMapping,
@@ -217,6 +218,10 @@ export function executeRun(runId: number, skipScrape = false) {
 
 export function getSummary(runId: number) {
   return request<RunSummary>(`/analysis-runs/${runId}/summary`);
+}
+
+export function getRunTrend(runId: number) {
+  return request<AnalysisRunTrend>(`/analysis-runs/${runId}/trend`);
 }
 
 export function compareRuns(runIds: number[]) {

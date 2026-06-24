@@ -34,6 +34,7 @@ import {
   getModelTrainingOverview,
   getReviews,
   getRunEvents,
+  getRunTrend,
   getSummary,
   hasAuthToken,
   listOrganizationUsers,
@@ -47,6 +48,7 @@ import {
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  AnalysisRunTrend,
   AnalysisSource,
   BenchmarkCompany,
   BusinessInsights,
@@ -263,6 +265,48 @@ function escapeHtml(value: string | number | null | undefined) {
 
 function formatPercent(value: number | null | undefined) {
   return `${formatNumber(value, 1)} %`;
+}
+
+function formatSignedNumber(value: number | null | undefined, digits = 1) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "n/a";
+  }
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatNumber(value, digits)}`;
+}
+
+function formatMetricValue(value: number | null | undefined, unit: string | null) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "n/a";
+  }
+  if (unit === "/5") {
+    return `${formatNumber(value)} / 5`;
+  }
+  if (unit === "/100") {
+    return `${formatNumber(value, 0)} / 100`;
+  }
+  if (unit === "score") {
+    return formatNumber(value, 2);
+  }
+  return `${formatNumber(value, 0)}${unit ? ` ${unit}` : ""}`;
+}
+
+function sentimentTrendTone(row: AnalysisRunTrend["sentiment"][number]) {
+  const label = row.label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (row.direction === "flat") {
+    return "flat";
+  }
+  if (label.includes("negatif")) {
+    return row.direction === "down" ? "positive" : "negative";
+  }
+  if (label.includes("positif")) {
+    return row.direction === "up" ? "positive" : "negative";
+  }
+  return row.direction;
 }
 
 function reportFileName(run: AnalysisRun) {
@@ -996,6 +1040,9 @@ export default function App() {
   const [runs, setRuns] = useState<AnalysisRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
+  const [trend, setTrend] = useState<AnalysisRunTrend | null>(null);
+  const [isTrendLoading, setIsTrendLoading] = useState(false);
+  const [trendError, setTrendError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
   const [reviewsLimit, setReviewsLimit] = useState(30);
@@ -1190,6 +1237,8 @@ export default function App() {
     setRuns([]);
     setSelectedRunId(null);
     setSummary(null);
+    setTrend(null);
+    setTrendError(null);
     setReviews([]);
     setReviewsTotal(0);
     setRunEvents([]);
@@ -1399,6 +1448,8 @@ export default function App() {
   useEffect(() => {
     if (!selectedRunId || !selectedRun) {
       setSummary(null);
+      setTrend(null);
+      setTrendError(null);
       setReviews([]);
       setReviewsTotal(0);
       return;
@@ -1406,9 +1457,12 @@ export default function App() {
 
     if (selectedRun.status !== "completed") {
       setSummary(null);
+      setTrend(null);
+      setTrendError(null);
       setReviews([]);
       setReviewsTotal(0);
       setIsSummaryLoading(false);
+      setIsTrendLoading(false);
       return;
     }
 
@@ -1433,6 +1487,38 @@ export default function App() {
     reviewsLimit,
     reviewsOffset
   ]);
+
+  useEffect(() => {
+    if (!selectedRunId || selectedRun?.status !== "completed") {
+      return;
+    }
+
+    let isCancelled = false;
+    setIsTrendLoading(true);
+    setTrendError(null);
+
+    getRunTrend(selectedRunId)
+      .then((nextTrend) => {
+        if (!isCancelled) {
+          setTrend(nextTrend);
+        }
+      })
+      .catch((err: Error) => {
+        if (!isCancelled) {
+          setTrend(null);
+          setTrendError(err.message);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsTrendLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedRunId, selectedRun?.status]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1488,6 +1574,8 @@ export default function App() {
       const run = await executeRun(runId);
       setSelectedRunId(run.run_id);
       setSummary(null);
+      setTrend(null);
+      setTrendError(null);
       setReviews([]);
       await refreshRuns();
     } catch (err) {
@@ -2219,6 +2307,12 @@ export default function App() {
                 </section>
 
                 <DecisionPanel insights={summary.business_insights} />
+
+                <TrendPanel
+                  error={trendError}
+                  isLoading={isTrendLoading}
+                  trend={trend}
+                />
 
                 <section className="insight-section">
                   <div className="section-heading">
@@ -3114,6 +3208,113 @@ function BenchmarkTopicList({ topics }: { topics: BenchmarkCompany["unique_topic
         </span>
       ))}
     </div>
+  );
+}
+
+function TrendPanel({
+  error,
+  isLoading,
+  trend
+}: {
+  error: string | null;
+  isLoading: boolean;
+  trend: AnalysisRunTrend | null;
+}) {
+  const topicGroups = [
+    { title: "En hausse", rows: trend?.rising_topics ?? [], tone: "negative" },
+    { title: "En baisse", rows: trend?.falling_topics ?? [], tone: "positive" },
+    { title: "Nouveaux", rows: trend?.new_topics ?? [], tone: "warning" },
+    { title: "Resolus", rows: trend?.resolved_topics ?? [], tone: "positive" }
+  ];
+
+  return (
+    <section className="trend-panel insight-section wide">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">Tendance</span>
+          <h3>Evolution depuis la derniere analyse</h3>
+        </div>
+        <BarChart3 size={18} />
+      </div>
+
+      {isLoading ? (
+        <div className="loading-line compact-loading">
+          <Loader2 className="spin" size={18} />
+          Calcul de la tendance...
+        </div>
+      ) : null}
+
+      {error ? <p className="form-error">{error}</p> : null}
+
+      {!isLoading && trend && !trend.has_previous ? (
+        <div className="empty-inline-state">
+          <strong>Pas encore de comparaison temporelle.</strong>
+          <span>{trend.executive_summary}</span>
+        </div>
+      ) : null}
+
+      {!isLoading && trend?.has_previous ? (
+        <>
+          <div className="trend-summary">
+            <p>{trend.executive_summary}</p>
+            <span>
+              Comparaison avec run #{trend.previous_run?.run_id} du{" "}
+              {formatDate(trend.previous_run?.created_at ?? null)}
+            </span>
+          </div>
+
+          <div className="trend-metric-grid">
+            {trend.metrics.map((metric) => (
+              <article className={`trend-metric ${metric.direction}`} key={metric.metric}>
+                <span>{metric.label}</span>
+                <strong>{formatMetricValue(metric.current_value, metric.unit)}</strong>
+                <small>
+                  {formatSignedNumber(metric.delta)}
+                  {metric.unit && metric.unit !== "score" ? ` ${metric.unit}` : ""}
+                </small>
+              </article>
+            ))}
+          </div>
+
+          <div className="trend-sentiment-grid">
+            {trend.sentiment.map((row) => {
+              const tone = sentimentTrendTone(row);
+
+              return (
+                <article className={`trend-sentiment ${tone}`} key={row.label}>
+                  <div>
+                    <strong>{row.label}</strong>
+                    <span>
+                      {row.current_count} avis - {formatPercent(row.current_rate)}
+                    </span>
+                  </div>
+                  <small>{formatSignedNumber(row.delta_rate)} pts</small>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="trend-topic-grid">
+            {topicGroups.map((group) => (
+              <article className="trend-topic-card" key={group.title}>
+                <h4>{group.title}</h4>
+                {group.rows.length === 0 ? (
+                  <span className="muted">Aucun signal.</span>
+                ) : (
+                  <div className="topic-tags trend-tags">
+                    {group.rows.slice(0, 4).map((topic) => (
+                      <span className={group.tone} key={topic.topic}>
+                        {formatTopic(topic.topic)} ({formatSignedNumber(topic.delta_count, 0)})
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </section>
   );
 }
 
