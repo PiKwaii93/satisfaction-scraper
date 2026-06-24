@@ -434,5 +434,27 @@ class AnalysisRunTrendResponse(BaseModel):
     resolved_topics: list[TrendTopicChange] = Field(default_factory=list)
 
 
+class BusinessAlertResponse(BaseModel):
+    alert_id: int
+    organization_id: int
+    run_id: int | None = None
+    company_id: int | None = None
+    company_name: str | None = None
+    alert_type: str
+    severity: Literal["info", "warning", "critical"]
+    title: str
+    message: str
+    status: Literal["open", "acknowledged", "resolved"]
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    acknowledged_at: datetime | None = None
+    resolved_at: datetime | None = None
+
+
+class BusinessAlertStatusUpdate(BaseModel):
+    status: Literal["open", "acknowledged", "resolved"]
+
+
 class ErrorResponse(BaseModel):
     detail: str

@@ -272,6 +272,27 @@ export type AnalysisRunTrend = {
   resolved_topics: TrendTopicChange[];
 };
 
+export type BusinessAlertStatus = "open" | "acknowledged" | "resolved";
+export type BusinessAlertSeverity = "info" | "warning" | "critical";
+
+export type BusinessAlert = {
+  alert_id: number;
+  organization_id: number;
+  run_id: number | null;
+  company_id: number | null;
+  company_name: string | null;
+  alert_type: string;
+  severity: BusinessAlertSeverity;
+  title: string;
+  message: string;
+  status: BusinessAlertStatus;
+  metadata: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+};
+
 export type RunSummary = {
   run: AnalysisRun;
   kpis: {

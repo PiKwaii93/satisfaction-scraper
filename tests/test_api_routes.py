@@ -8,6 +8,7 @@ def sample_run(**overrides):
     run = {
         "run_id": 42,
         "company_id": 7,
+        "organization_id": 123,
         "company_name": "demo-company.fr",
         "trustpilot_slug": "demo-company.fr",
         "source": "trustpilot",
@@ -24,6 +25,28 @@ def sample_run(**overrides):
     }
     run.update(overrides)
     return run
+
+
+def sample_alert(**overrides):
+    alert = {
+        "alert_id": 9,
+        "organization_id": 123,
+        "run_id": 42,
+        "company_id": 7,
+        "company_name": "demo-company.fr",
+        "alert_type": "negative_share_high",
+        "severity": "warning",
+        "title": "Part d'avis negatifs a surveiller",
+        "message": "42.0% des avis sont negatifs.",
+        "status": "open",
+        "metadata": {"negative_rate": 42.0},
+        "created_at": None,
+        "updated_at": None,
+        "acknowledged_at": None,
+        "resolved_at": None,
+    }
+    alert.update(overrides)
+    return alert
 
 
 def test_health_is_public(client):
@@ -649,6 +672,125 @@ def test_member_cannot_start_model_training(member_client):
         "/model-training/runs",
         json={"feedback_sample_weight": None, "execute_immediately": False},
     )
+
+    assert response.status_code == 403
+
+
+def test_list_business_alerts(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_list_business_alerts(organization_id, status, limit, offset):
+        captured["organization_id"] = organization_id
+        captured["status"] = status
+        captured["limit"] = limit
+        captured["offset"] = offset
+        return [sample_alert()]
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.list_business_alerts",
+        fake_list_business_alerts,
+    )
+
+    response = authenticated_client.get("/analysis-runs/alerts?status=open&limit=5")
+
+    assert response.status_code == 200
+    assert response.json()[0]["alert_type"] == "negative_share_high"
+    assert captured == {
+        "organization_id": 123,
+        "status": "open",
+        "limit": 5,
+        "offset": 0,
+    }
+
+
+def test_member_can_list_business_alerts(member_client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.list_business_alerts",
+        lambda organization_id, status, limit, offset: [sample_alert()],
+    )
+
+    response = member_client.get("/analysis-runs/alerts")
+
+    assert response.status_code == 200
+    assert response.json()[0]["status"] == "open"
+
+
+def test_admin_can_update_business_alert_status(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_update_business_alert_status(alert_id, organization_id, status):
+        captured["alert_id"] = alert_id
+        captured["organization_id"] = organization_id
+        captured["status"] = status
+        return sample_alert(alert_id=alert_id, status=status)
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.update_business_alert_status",
+        fake_update_business_alert_status,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event_type", kwargs["event_type"]),
+    )
+
+    response = authenticated_client.patch(
+        "/analysis-runs/alerts/9",
+        json={"status": "acknowledged"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "acknowledged"
+    assert captured == {
+        "alert_id": 9,
+        "organization_id": 123,
+        "status": "acknowledged",
+        "audit_event_type": "business_alert.status_updated",
+    }
+
+
+def test_member_cannot_update_business_alert_status(member_client):
+    response = member_client.patch(
+        "/analysis-runs/alerts/9",
+        json={"status": "resolved"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_can_refresh_run_business_alerts(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_upsert_business_alerts_for_run(run_id, organization_id):
+        captured["run_id"] = run_id
+        captured["organization_id"] = organization_id
+        return [sample_alert(run_id=run_id)]
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_analysis_run",
+        lambda run_id, organization_id: sample_run(run_id=run_id, status="completed"),
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.upsert_business_alerts_for_run",
+        fake_upsert_business_alerts_for_run,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event_type", kwargs["event_type"]),
+    )
+
+    response = authenticated_client.post("/analysis-runs/42/alerts/refresh")
+
+    assert response.status_code == 200
+    assert response.json()[0]["run_id"] == 42
+    assert captured == {
+        "run_id": 42,
+        "organization_id": 123,
+        "audit_event_type": "business_alert.generated",
+    }
+
+
+def test_member_cannot_refresh_run_business_alerts(member_client):
+    response = member_client.post("/analysis-runs/42/alerts/refresh")
 
     assert response.status_code == 403
 

@@ -1,5 +1,6 @@
 from app.api.celery_app import celery_app
 from app.api.database import ensure_product_schema
+from app.api.services.alert_service import generate_business_alerts_for_run
 from app.api.services.analysis_service import execute_analysis_run, get_analysis_run
 from app.api.services.training_service import (
     execute_model_training_run,
@@ -20,6 +21,11 @@ def analyze_run(self, run_id, skip_scrape=False):
     run = execute_analysis_run(run_id=run_id, skip_scrape=skip_scrape)
     if run is None:
         run = get_analysis_run(run_id)
+    if run and run["status"] == "completed":
+        try:
+            generate_business_alerts_for_run(run_id)
+        except Exception:
+            pass
     return {"run_id": run_id, "status": run["status"] if run else "unknown"}
 
 
