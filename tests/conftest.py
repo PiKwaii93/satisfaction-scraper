@@ -18,6 +18,15 @@ TEST_USER = AuthenticatedUser(
     organization_name="Demo Org",
 )
 
+TEST_MEMBER_USER = AuthenticatedUser(
+    user_id=2,
+    email="member@satisfaction.local",
+    full_name="Member Demo",
+    role="member",
+    organization_id=123,
+    organization_name="Demo Org",
+)
+
 
 @pytest.fixture(autouse=True)
 def configure_test_auth(monkeypatch):
@@ -47,6 +56,15 @@ def client(test_app):
 @pytest.fixture
 def authenticated_client(test_app):
     test_app.dependency_overrides[require_current_user] = lambda: TEST_USER
+    try:
+        yield TestClient(test_app)
+    finally:
+        test_app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def member_client(test_app):
+    test_app.dependency_overrides[require_current_user] = lambda: TEST_MEMBER_USER
     try:
         yield TestClient(test_app)
     finally:

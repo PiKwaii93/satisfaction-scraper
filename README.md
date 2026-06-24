@@ -195,8 +195,22 @@ L'application fonctionne maintenant par organisation. Un utilisateur connecte ne
 
 Le compte demo local est administrateur de son organisation. Il peut inviter des membres depuis l'interface React, dans le bloc **Espace client**. Les roles disponibles sont :
 
-- `admin` : peut inviter de nouveaux utilisateurs dans l'organisation ;
-- `member` : peut consulter et utiliser l'espace client, sans gerer les membres.
+- `admin` : pilote l'espace client, invite les utilisateurs, lance ou relance les analyses, importe des CSV, corrige les labels, exporte les corrections humaines et declenche les reentrainements IA ;
+- `member` : consulte les rapports, historiques, benchmarks, tendances, journaux d'execution et exports d'avis, sans modifier les donnees ni piloter l'IA.
+
+Matrice simplifiee des permissions :
+
+| Action | Admin | Member |
+| --- | --- | --- |
+| Consulter les analyses et rapports | Oui | Oui |
+| Exporter les avis analyses | Oui | Oui |
+| Comparer plusieurs runs | Oui | Oui |
+| Lancer une analyse Trustpilot ou CSV | Oui | Non |
+| Relancer une analyse echouee | Oui | Non |
+| Corriger ou supprimer un label | Oui | Non |
+| Exporter les corrections humaines | Oui | Non |
+| Inviter un utilisateur | Oui | Non |
+| Lancer un reentrainement IA | Oui | Non |
 
 Une invitation cree un utilisateur `pending` et genere un lien local de type :
 

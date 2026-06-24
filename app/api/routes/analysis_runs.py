@@ -14,7 +14,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 
-from app.api.auth import AuthenticatedUser, require_current_user
+from app.api.auth import AuthenticatedUser, require_current_user, require_org_admin
 from app.api.schemas import (
     AnalysisRunCreate,
     AnalysisRunEventResponse,
@@ -54,7 +54,7 @@ router = APIRouter(
     tags=["analysis-runs"],
     responses={
         401: {"model": ErrorResponse, "description": "Authentification requise"},
-        403: {"model": ErrorResponse, "description": "Token invalide"},
+        403: {"model": ErrorResponse, "description": "Acces refuse"},
     },
 )
 
@@ -94,6 +94,7 @@ def create_run(
     payload: AnalysisRunCreate,
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     try:
         run = create_analysis_run(payload, organization_id=current_user.organization_id)
     except ActiveAnalysisRunError as exc:
@@ -121,7 +122,7 @@ async def preview_csv_run(
     column_mapping: str | None = Form(default=None),
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
-    _ = current_user
+    require_org_admin(current_user)
     try:
         content = await file.read()
         if not content:
@@ -156,6 +157,7 @@ async def import_csv_run(
     column_mapping: str | None = Form(default=None),
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     try:
         content = await file.read()
         if not content:
@@ -267,6 +269,7 @@ def execute_run(
     skip_scrape: bool = False,
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
@@ -316,6 +319,7 @@ def save_feedback(
     payload: ReviewFeedbackCreate,
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
@@ -345,6 +349,7 @@ def delete_feedback(
     review_id: int,
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     if not delete_review_feedback(
@@ -421,6 +426,7 @@ def export_feedback(
     run_id: int,
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
