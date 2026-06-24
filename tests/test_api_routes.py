@@ -1,6 +1,7 @@
 import json
 
 from app.api.auth import AuthenticatedUser
+from app.api.auth import require_current_user
 
 
 def sample_run(**overrides):
@@ -73,6 +74,101 @@ def test_login_rejects_invalid_credentials(client, monkeypatch):
     )
 
     assert response.status_code == 401
+
+
+def test_list_organization_users(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_list_organization_users(organization_id):
+        captured["organization_id"] = organization_id
+        return [
+            {
+                "user_id": 1,
+                "email": "demo@satisfaction.local",
+                "full_name": "Admin Demo",
+                "role": "admin",
+                "is_active": True,
+                "created_at": None,
+            }
+        ]
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.list_organization_users",
+        fake_list_organization_users,
+    )
+
+    response = authenticated_client.get("/auth/organization/users")
+
+    assert response.status_code == 200
+    assert response.json()[0]["email"] == "demo@satisfaction.local"
+    assert captured["organization_id"] == 123
+
+
+def test_admin_can_create_organization_user(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_create_organization_user(organization_id, payload):
+        captured["organization_id"] = organization_id
+        captured["email"] = payload.email
+        captured["role"] = payload.role
+        return {
+            "user_id": 2,
+            "email": payload.email,
+            "full_name": payload.full_name,
+            "role": payload.role,
+            "is_active": True,
+            "created_at": None,
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.create_organization_user",
+        fake_create_organization_user,
+    )
+
+    response = authenticated_client.post(
+        "/auth/organization/users",
+        json={
+            "email": "analyste@satisfaction.local",
+            "password": "password-demo",
+            "full_name": "Analyste Demo",
+            "role": "member",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["email"] == "analyste@satisfaction.local"
+    assert captured == {
+        "organization_id": 123,
+        "email": "analyste@satisfaction.local",
+        "role": "member",
+    }
+
+
+def test_member_cannot_create_organization_user(test_app):
+    member_user = AuthenticatedUser(
+        user_id=2,
+        email="member@satisfaction.local",
+        full_name="Member Demo",
+        role="member",
+        organization_id=123,
+        organization_name="Demo Org",
+    )
+    test_app.dependency_overrides[require_current_user] = lambda: member_user
+    try:
+        from fastapi.testclient import TestClient
+
+        response = TestClient(test_app).post(
+            "/auth/organization/users",
+            json={
+                "email": "new@satisfaction.local",
+                "password": "password-demo",
+                "role": "member",
+            },
+        )
+    finally:
+        test_app.dependency_overrides.clear()
+
+    assert response.status_code == 403
 
 
 def test_protected_endpoint_requires_authentication(client):

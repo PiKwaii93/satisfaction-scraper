@@ -125,6 +125,8 @@ Endpoints principaux :
 GET    /health
 POST   /auth/login
 GET    /auth/me
+GET    /auth/organization/users
+POST   /auth/organization/users
 POST   /analysis-runs
 POST   /analysis-runs/preview-csv
 POST   /analysis-runs/import-csv
@@ -180,6 +182,17 @@ Invoke-RestMethod http://localhost:8000/analysis-runs -Headers $headers
 ```
 
 En production, il faut remplacer le secret JWT local par une valeur forte fournie via variable d'environnement `JWT_SECRET_KEY`.
+
+### Espace client
+
+L'application fonctionne maintenant par organisation. Un utilisateur connecte ne voit que les analyses, entreprises, avis, corrections et benchmarks rattaches a son espace client.
+
+Le compte demo local est administrateur de son organisation. Il peut ajouter des membres depuis l'interface React, dans le bloc **Espace client**. Les roles disponibles sont :
+
+- `admin` : peut ajouter de nouveaux utilisateurs dans l'organisation ;
+- `member` : peut consulter et utiliser l'espace client, sans gerer les membres.
+
+Cette base prepare les invitations et la gestion multi-clients plus avancee, sans ouvrir encore d'inscription publique.
 
 Exemple de lancement d'analyse depuis PowerShell :
 

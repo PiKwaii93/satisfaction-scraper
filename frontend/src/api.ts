@@ -8,6 +8,8 @@ import type {
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
+  OrganizationUser,
+  OrganizationUserCreate,
   ReviewFeedback,
   ReviewListResponse,
   RunsComparison,
@@ -113,6 +115,17 @@ export async function login(email: string, password: string) {
 
 export function getCurrentUser() {
   return request<CurrentUser>("/auth/me");
+}
+
+export function listOrganizationUsers() {
+  return request<OrganizationUser[]>("/auth/organization/users");
+}
+
+export function createOrganizationUser(payload: OrganizationUserCreate) {
+  return request<OrganizationUser>("/auth/organization/users", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function listRuns() {

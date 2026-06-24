@@ -28,6 +28,22 @@ class AuthTokenResponse(BaseModel):
     user: AuthMeResponse
 
 
+class OrganizationUserResponse(BaseModel):
+    user_id: int
+    email: str
+    full_name: str | None = None
+    role: Literal["admin", "member"]
+    is_active: bool
+    created_at: datetime | None = None
+
+
+class OrganizationUserCreate(BaseModel):
+    email: str = Field(..., min_length=3, examples=["analyste@societe.fr"])
+    password: str = Field(..., min_length=8, examples=["mot-de-passe-demo"])
+    full_name: str | None = Field(default=None, max_length=255)
+    role: Literal["admin", "member"] = "member"
+
+
 class AnalysisRunCreate(BaseModel):
     company: str = Field(
         ...,
