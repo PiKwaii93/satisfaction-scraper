@@ -31,18 +31,48 @@ CREATE TABLE fact_reviews (
 CREATE INDEX idx_verbatim ON fact_reviews(verbatim);
 
 -- Tables produit pour l'application client historisee
-CREATE TABLE IF NOT EXISTS companies (
-    company_id SERIAL PRIMARY KEY,
-    company_name VARCHAR(255) NOT NULL,
-    trustpilot_slug VARCHAR(255) UNIQUE NOT NULL,
-    source_url TEXT,
+CREATE TABLE IF NOT EXISTS organizations (
+    organization_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    user_id SERIAL PRIMARY KEY,
+    organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255),
+    password_hash TEXT NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'member',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+INSERT INTO organizations (name, slug, updated_at)
+VALUES ('Demo Satisfaction Client', 'demo', NOW())
+ON CONFLICT (slug) DO UPDATE
+SET updated_at = NOW();
+
+CREATE TABLE IF NOT EXISTS companies (
+    company_id SERIAL PRIMARY KEY,
+    organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE
+        DEFAULT 1,
+    company_name VARCHAR(255) NOT NULL,
+    trustpilot_slug VARCHAR(255) NOT NULL,
+    source_url TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (organization_id, trustpilot_slug)
 );
 
 CREATE TABLE IF NOT EXISTS analysis_runs (
     run_id SERIAL PRIMARY KEY,
     company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+    organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE
+        DEFAULT 1,
     source VARCHAR(50) NOT NULL DEFAULT 'trustpilot',
     status VARCHAR(30) NOT NULL DEFAULT 'pending',
     stars_requested TEXT,
@@ -112,6 +142,8 @@ CREATE TABLE IF NOT EXISTS review_feedback (
 
 CREATE TABLE IF NOT EXISTS model_training_runs (
     training_run_id SERIAL PRIMARY KEY,
+    organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE
+        DEFAULT 1,
     status VARCHAR(30) NOT NULL DEFAULT 'pending',
     celery_task_id TEXT,
     trigger_source VARCHAR(50) NOT NULL DEFAULT 'api',
@@ -134,10 +166,13 @@ CREATE TABLE IF NOT EXISTS model_training_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_company ON analysis_runs(company_id);
+CREATE INDEX IF NOT EXISTS idx_analysis_runs_org ON analysis_runs(organization_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run ON analysis_run_events(run_id);
+CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_run ON reviews(run_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_company ON reviews(company_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_label ON sentiment_predictions(label);
 CREATE INDEX IF NOT EXISTS idx_review_topics_topic ON review_topics(topic);
 CREATE INDEX IF NOT EXISTS idx_review_feedback_label ON review_feedback(corrected_label);
 CREATE INDEX IF NOT EXISTS idx_model_training_runs_status ON model_training_runs(status);
+CREATE INDEX IF NOT EXISTS idx_model_training_runs_org ON model_training_runs(organization_id);

@@ -467,7 +467,7 @@ def get_run_events(run_id, limit=100):
         return [serialize_run_event(row) for row in cursor.fetchall()]
 
 
-def get_or_create_company(company_input, source="trustpilot"):
+def get_or_create_company(company_input, organization_id, source="trustpilot"):
     company_slug = normalize_company_slug(company_input)
     company_name = (
         str(company_input or "").strip()
@@ -483,15 +483,22 @@ def get_or_create_company(company_input, source="trustpilot"):
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             """
-            INSERT INTO companies (company_name, trustpilot_slug, source_url, updated_at)
-            VALUES (%s, %s, %s, NOW())
-            ON CONFLICT (trustpilot_slug) DO UPDATE
+            INSERT INTO companies (
+                organization_id, company_name, trustpilot_slug, source_url, updated_at
+            )
+            VALUES (%s, %s, %s, %s, NOW())
+            ON CONFLICT (organization_id, trustpilot_slug) DO UPDATE
             SET company_name = EXCLUDED.company_name,
                 source_url = EXCLUDED.source_url,
                 updated_at = NOW()
-            RETURNING company_id, company_name, trustpilot_slug, source_url;
+            RETURNING
+                company_id,
+                organization_id,
+                company_name,
+                trustpilot_slug,
+                source_url;
             """,
-            (company_name, company_slug, source_url),
+            (organization_id, company_name, company_slug, source_url),
         )
         return cursor.fetchone()
 
@@ -525,13 +532,13 @@ def find_active_analysis_run(company_id, source, stars, pages_per_star):
         return serialize_run(cursor.fetchone())
 
 
-def create_analysis_run(request):
+def create_analysis_run(request, organization_id):
     stars = sorted(set(int(star) for star in request.stars))
     invalid_stars = [star for star in stars if star < 1 or star > 5]
     if not stars or invalid_stars:
         raise ValueError("Les notes ciblees doivent etre comprises entre 1 et 5.")
 
-    company = get_or_create_company(request.company)
+    company = get_or_create_company(request.company, organization_id=organization_id)
     active_run = find_active_analysis_run(
         company_id=company["company_id"],
         source=request.source,
@@ -555,13 +562,20 @@ def create_analysis_run(request):
         cursor.execute(
             """
             INSERT INTO analysis_runs (
-                company_id, source, status, stars_requested, pages_per_star, model_uri
+                company_id,
+                organization_id,
+                source,
+                status,
+                stars_requested,
+                pages_per_star,
+                model_uri
             )
-            VALUES (%s, %s, 'pending', %s, %s, %s)
+            VALUES (%s, %s, %s, 'pending', %s, %s, %s)
             RETURNING run_id;
             """,
             (
                 company["company_id"],
+                organization_id,
                 request.source,
                 ",".join(str(star) for star in stars),
                 request.pages_per_star,
@@ -579,11 +593,16 @@ def create_analysis_run(request):
 def create_csv_analysis_run(
     company_input,
     file_bytes,
+    organization_id,
     original_filename=None,
     column_mapping=None,
 ):
     parsed_csv = parse_reviews_csv(file_bytes, column_mapping=column_mapping)
-    company = get_or_create_company(company_input, source=CSV_SOURCE)
+    company = get_or_create_company(
+        company_input,
+        organization_id=organization_id,
+        source=CSV_SOURCE,
+    )
     active_run = find_active_analysis_run(
         company_id=company["company_id"],
         source=CSV_SOURCE,
@@ -606,13 +625,20 @@ def create_csv_analysis_run(
         cursor.execute(
             """
             INSERT INTO analysis_runs (
-                company_id, source, status, stars_requested, pages_per_star, model_uri
+                company_id,
+                organization_id,
+                source,
+                status,
+                stars_requested,
+                pages_per_star,
+                model_uri
             )
-            VALUES (%s, %s, 'pending', %s, %s, %s)
+            VALUES (%s, %s, %s, 'pending', %s, %s, %s)
             RETURNING run_id;
             """,
             (
                 company["company_id"],
+                organization_id,
                 CSV_SOURCE,
                 "",
                 1,
@@ -701,24 +727,30 @@ def queue_analysis_run(run_id, skip_scrape=False):
     return task_id
 
 
-def get_analysis_run(run_id):
+def get_analysis_run(run_id, organization_id=None):
+    filters = ["ar.run_id = %s"]
+    params = [run_id]
+    if organization_id is not None:
+        filters.append("ar.organization_id = %s")
+        params.append(organization_id)
+
     with get_cursor() as cursor:
         cursor.execute(
-            """
+            f"""
             SELECT
                 ar.*,
                 c.company_name,
                 c.trustpilot_slug
             FROM analysis_runs ar
             JOIN companies c ON c.company_id = ar.company_id
-            WHERE ar.run_id = %s;
+            WHERE {" AND ".join(filters)};
             """,
-            (run_id,),
+            params,
         )
         return serialize_run(cursor.fetchone())
 
 
-def list_analysis_runs(limit=50, offset=0):
+def list_analysis_runs(organization_id, limit=50, offset=0):
     with get_cursor() as cursor:
         cursor.execute(
             """
@@ -728,10 +760,11 @@ def list_analysis_runs(limit=50, offset=0):
                 c.trustpilot_slug
             FROM analysis_runs ar
             JOIN companies c ON c.company_id = ar.company_id
+            WHERE ar.organization_id = %s
             ORDER BY ar.created_at DESC
             LIMIT %s OFFSET %s;
             """,
-            (limit, offset),
+            (organization_id, limit, offset),
         )
         return [serialize_run(row) for row in cursor.fetchall()]
 
@@ -1041,9 +1074,12 @@ def write_predictions_csv(csv_path, target_company, rows):
             )
 
 
-def get_run_reviews(run_id, sentiment=None, limit=100, offset=0):
+def get_run_reviews(run_id, sentiment=None, limit=100, offset=0, organization_id=None):
     filters = ["r.run_id = %s"]
     params = [run_id]
+    if organization_id is not None:
+        filters.append("ar.organization_id = %s")
+        params.append(organization_id)
     if sentiment:
         filters.append("sp.label = %s")
         params.append(sentiment)
@@ -1070,6 +1106,7 @@ def get_run_reviews(run_id, sentiment=None, limit=100, offset=0):
                     ARRAY[]::varchar[]
                 ) AS topics
             FROM reviews r
+            JOIN analysis_runs ar ON ar.run_id = r.run_id
             JOIN sentiment_predictions sp ON sp.review_id = r.review_id
             LEFT JOIN review_feedback rf ON rf.review_id = r.review_id
             LEFT JOIN review_topics rt ON rt.review_id = r.review_id
@@ -1087,6 +1124,7 @@ def get_run_reviews(run_id, sentiment=None, limit=100, offset=0):
             f"""
             SELECT COUNT(*) AS total
             FROM reviews r
+            JOIN analysis_runs ar ON ar.run_id = r.run_id
             JOIN sentiment_predictions sp ON sp.review_id = r.review_id
             WHERE {" AND ".join(filters)};
             """,
@@ -1103,7 +1141,7 @@ def get_run_reviews(run_id, sentiment=None, limit=100, offset=0):
     }
 
 
-def save_review_feedback(run_id, review_id, payload):
+def save_review_feedback(run_id, review_id, payload, organization_id=None):
     corrected_label = normalize_sentiment_label(payload.corrected_label)
     comment = (payload.comment or "").strip() or None
 
@@ -1116,9 +1154,12 @@ def save_review_feedback(run_id, review_id, payload):
                 sp.label AS predicted_label
             FROM reviews r
             JOIN sentiment_predictions sp ON sp.review_id = r.review_id
-            WHERE r.run_id = %s AND r.review_id = %s;
+            JOIN analysis_runs ar ON ar.run_id = r.run_id
+            WHERE r.run_id = %s
+              AND r.review_id = %s
+              AND (%s IS NULL OR ar.organization_id = %s);
             """,
-            (run_id, review_id),
+            (run_id, review_id, organization_id, organization_id),
         )
         review = cursor.fetchone()
         if review is None:
@@ -1151,24 +1192,26 @@ def save_review_feedback(run_id, review_id, payload):
         return feedback
 
 
-def delete_review_feedback(run_id, review_id):
+def delete_review_feedback(run_id, review_id, organization_id=None):
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             """
             DELETE FROM review_feedback rf
             USING reviews r
+            JOIN analysis_runs ar ON ar.run_id = r.run_id
             WHERE rf.review_id = r.review_id
               AND r.run_id = %s
               AND r.review_id = %s
+              AND (%s IS NULL OR ar.organization_id = %s)
             RETURNING rf.feedback_id;
             """,
-            (run_id, review_id),
+            (run_id, review_id, organization_id, organization_id),
         )
         return cursor.fetchone() is not None
 
 
-def get_run_summary(run_id):
-    run = get_analysis_run(run_id)
+def get_run_summary(run_id, organization_id=None):
+    run = get_analysis_run(run_id, organization_id=organization_id)
     if run is None:
         return None
 
@@ -1420,7 +1463,7 @@ def build_benchmark_company(summary):
     }
 
 
-def get_runs_comparison(run_ids):
+def get_runs_comparison(run_ids, organization_id):
     unique_run_ids = []
     for run_id in run_ids:
         if run_id not in unique_run_ids:
@@ -1431,7 +1474,7 @@ def get_runs_comparison(run_ids):
 
     summaries = []
     for run_id in unique_run_ids:
-        summary = get_run_summary(run_id)
+        summary = get_run_summary(run_id, organization_id=organization_id)
         if summary is None:
             raise ValueError(f"Analyse introuvable: {run_id}")
         if summary["run"]["status"] != "completed":
@@ -1505,7 +1548,7 @@ def get_runs_comparison(run_ids):
     }
 
 
-def get_feedback_export_rows(run_id):
+def get_feedback_export_rows(run_id, organization_id=None):
     with get_cursor() as cursor:
         cursor.execute(
             """
@@ -1528,10 +1571,12 @@ def get_feedback_export_rows(run_id):
                 ) AS topics
             FROM review_feedback rf
             JOIN reviews r ON r.review_id = rf.review_id
+            JOIN analysis_runs ar ON ar.run_id = r.run_id
             JOIN companies c ON c.company_id = r.company_id
             JOIN sentiment_predictions sp ON sp.review_id = r.review_id
             LEFT JOIN review_topics rt ON rt.review_id = r.review_id
             WHERE r.run_id = %s
+              AND (%s IS NULL OR ar.organization_id = %s)
             GROUP BY
                 r.review_id,
                 c.company_name,
@@ -1542,12 +1587,12 @@ def get_feedback_export_rows(run_id):
                 rf.updated_at
             ORDER BY rf.updated_at DESC, r.review_id;
             """,
-            (run_id,),
+            (run_id, organization_id, organization_id),
         )
         return [dict(row) for row in cursor.fetchall()]
 
 
-def get_feedback_quality_summary(recent_limit=8):
+def get_feedback_quality_summary(recent_limit=8, organization_id=None):
     with get_cursor() as cursor:
         cursor.execute(
             """
@@ -1589,8 +1634,10 @@ def get_feedback_quality_summary(recent_limit=8):
                 MAX(rf.updated_at) AS latest_feedback_at
             FROM review_feedback rf
             JOIN reviews r ON r.review_id = rf.review_id
-            JOIN companies c ON c.company_id = r.company_id;
-            """
+            JOIN companies c ON c.company_id = r.company_id
+            WHERE (%s IS NULL OR c.organization_id = %s);
+            """,
+            (organization_id, organization_id),
         )
         summary = dict(cursor.fetchone())
 
@@ -1620,10 +1667,12 @@ def get_feedback_quality_summary(recent_limit=8):
             FROM review_feedback rf
             JOIN reviews r ON r.review_id = rf.review_id
             JOIN companies c ON c.company_id = r.company_id
+            WHERE (%s IS NULL OR c.organization_id = %s)
             GROUP BY c.company_id, c.company_name
             ORDER BY correction_count DESC, latest_feedback_at DESC
             LIMIT 8;
-            """
+            """,
+            (organization_id, organization_id),
         )
         by_company = [dict(row) for row in cursor.fetchall()]
 
@@ -1691,5 +1740,142 @@ def get_feedback_quality_summary(recent_limit=8):
     }
 
 
-def get_export_rows(run_id):
-    return get_run_reviews(run_id, limit=10000, offset=0)["reviews"]
+def get_feedback_quality_summary(recent_limit=8, organization_id=None):
+    with get_cursor() as cursor:
+        org_filter = "(%s IS NULL OR c.organization_id = %s)"
+        org_params = (organization_id, organization_id)
+
+        cursor.execute(
+            f"""
+            SELECT
+                COUNT(*) AS total_corrections,
+                COALESCE(
+                    SUM(CASE WHEN rf.corrected_label <> rf.predicted_label THEN 1 ELSE 0 END),
+                    0
+                ) AS changed_label_count,
+                COALESCE(
+                    SUM(CASE WHEN rf.corrected_label = rf.predicted_label THEN 1 ELSE 0 END),
+                    0
+                ) AS confirmed_label_count,
+                COALESCE(
+                    SUM(CASE WHEN COALESCE(r.verbatim, '') <> '' THEN 1 ELSE 0 END),
+                    0
+                ) AS training_ready_count,
+                COUNT(DISTINCT c.company_id) AS corrected_company_count,
+                COUNT(DISTINCT r.run_id) AS corrected_run_count,
+                MAX(rf.updated_at) AS latest_feedback_at
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            WHERE {org_filter};
+            """,
+            org_params,
+        )
+        summary = dict(cursor.fetchone())
+
+        total_corrections = int(summary["total_corrections"] or 0)
+        changed_label_count = int(summary["changed_label_count"] or 0)
+        apparent_error_rate = percentage(changed_label_count, total_corrections)
+
+        cursor.execute(
+            f"""
+            SELECT
+                c.company_id,
+                c.company_name,
+                COUNT(*) AS correction_count,
+                COALESCE(
+                    SUM(CASE WHEN rf.corrected_label <> rf.predicted_label THEN 1 ELSE 0 END),
+                    0
+                ) AS changed_label_count,
+                COUNT(DISTINCT r.run_id) AS run_count,
+                MAX(rf.updated_at) AS latest_feedback_at
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            WHERE {org_filter}
+            GROUP BY c.company_id, c.company_name
+            ORDER BY correction_count DESC, latest_feedback_at DESC
+            LIMIT 8;
+            """,
+            org_params,
+        )
+        by_company = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            f"""
+            SELECT rf.corrected_label AS label, COUNT(*) AS count
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            WHERE {org_filter}
+            GROUP BY rf.corrected_label
+            ORDER BY count DESC, label;
+            """,
+            org_params,
+        )
+        corrected_label_distribution = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            f"""
+            SELECT
+                rf.predicted_label AS predicted_label,
+                rf.corrected_label AS corrected_label,
+                COUNT(*) AS count
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            WHERE {org_filter}
+            GROUP BY rf.predicted_label, rf.corrected_label
+            ORDER BY count DESC, predicted_label, corrected_label;
+            """,
+            org_params,
+        )
+        transitions = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(
+            f"""
+            SELECT
+                rf.feedback_id,
+                r.review_id,
+                r.run_id,
+                c.company_name,
+                r.rating,
+                rf.predicted_label,
+                rf.corrected_label,
+                rf.comment AS feedback_comment,
+                rf.updated_at AS feedback_updated_at,
+                r.verbatim
+            FROM review_feedback rf
+            JOIN reviews r ON r.review_id = rf.review_id
+            JOIN companies c ON c.company_id = r.company_id
+            WHERE {org_filter}
+            ORDER BY rf.updated_at DESC, rf.feedback_id DESC
+            LIMIT %s;
+            """,
+            (*org_params, recent_limit),
+        )
+        recent_corrections = [dict(row) for row in cursor.fetchall()]
+
+    return {
+        "total_corrections": total_corrections,
+        "changed_label_count": changed_label_count,
+        "confirmed_label_count": int(summary["confirmed_label_count"] or 0),
+        "apparent_error_rate": apparent_error_rate,
+        "training_ready_count": int(summary["training_ready_count"] or 0),
+        "corrected_company_count": int(summary["corrected_company_count"] or 0),
+        "corrected_run_count": int(summary["corrected_run_count"] or 0),
+        "latest_feedback_at": summary["latest_feedback_at"],
+        "by_company": by_company,
+        "corrected_label_distribution": corrected_label_distribution,
+        "transitions": transitions,
+        "recent_corrections": recent_corrections,
+    }
+
+
+def get_export_rows(run_id, organization_id=None):
+    return get_run_reviews(
+        run_id,
+        limit=10000,
+        offset=0,
+        organization_id=organization_id,
+    )["reviews"]

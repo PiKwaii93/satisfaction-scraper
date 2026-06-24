@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.api.auth import AuthenticatedUser, require_current_user
 from app.api.schemas import (
     ErrorResponse,
     ModelTrainingOverviewResponse,
     ModelTrainingRunCreate,
     ModelTrainingRunResponse,
 )
-from app.api.security import require_api_key
 from app.api.services.training_service import (
     ActiveModelTrainingRunError,
     create_model_training_run,
@@ -19,10 +19,9 @@ from app.api.services.training_service import (
 router = APIRouter(
     prefix="/model-training",
     tags=["model-training"],
-    dependencies=[Depends(require_api_key)],
     responses={
-        401: {"model": ErrorResponse, "description": "API key manquante"},
-        403: {"model": ErrorResponse, "description": "API key invalide"},
+        401: {"model": ErrorResponse, "description": "Authentification requise"},
+        403: {"model": ErrorResponse, "description": "Token invalide"},
     },
 )
 
@@ -33,8 +32,14 @@ router = APIRouter(
     summary="Consulter l'etat d'entrainement IA",
     description="Retourne le modele en production et les derniers reentrainements.",
 )
-def get_training_overview(limit: int = Query(default=6, ge=1, le=20)):
-    return get_model_training_overview(limit=limit)
+def get_training_overview(
+    limit: int = Query(default=6, ge=1, le=20),
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    return get_model_training_overview(
+        organization_id=current_user.organization_id,
+        limit=limit,
+    )
 
 
 @router.get(
@@ -45,8 +50,13 @@ def get_training_overview(limit: int = Query(default=6, ge=1, le=20)):
 def list_training_runs(
     limit: int = Query(default=10, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
-    return list_model_training_runs(limit=limit, offset=offset)
+    return list_model_training_runs(
+        organization_id=current_user.organization_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post(
@@ -56,9 +66,15 @@ def list_training_runs(
     summary="Lancer un reentrainement du modele",
     responses={409: {"model": ErrorResponse}},
 )
-def create_training_run(payload: ModelTrainingRunCreate):
+def create_training_run(
+    payload: ModelTrainingRunCreate,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
     try:
-        return create_model_training_run(payload)
+        return create_model_training_run(
+            payload,
+            organization_id=current_user.organization_id,
+        )
     except ActiveModelTrainingRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
@@ -71,8 +87,14 @@ def create_training_run(payload: ModelTrainingRunCreate):
     summary="Consulter un entrainement du modele",
     responses={404: {"model": ErrorResponse}},
 )
-def get_training_run(training_run_id: int):
-    run = get_model_training_run(training_run_id)
+def get_training_run(
+    training_run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    run = get_model_training_run(
+        training_run_id,
+        organization_id=current_user.organization_id,
+    )
     if run is None:
         raise HTTPException(status_code=404, detail="Entrainement introuvable")
     return run

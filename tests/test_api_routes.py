@@ -1,5 +1,7 @@
 import json
 
+from app.api.auth import AuthenticatedUser
+
 
 def sample_run(**overrides):
     run = {
@@ -30,38 +32,92 @@ def test_health_is_public(client):
     assert response.json() == {"status": "ok"}
 
 
-def test_protected_endpoint_requires_api_key(client):
+def test_login_returns_token(client, monkeypatch):
+    demo_user = AuthenticatedUser(
+        user_id=1,
+        email="demo@satisfaction.local",
+        full_name="Admin Demo",
+        role="admin",
+        organization_id=123,
+        organization_name="Demo Org",
+    )
+    monkeypatch.setattr(
+        "app.api.routes.auth.authenticate_user",
+        lambda email, password: demo_user,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.auth.create_access_token",
+        lambda user_id: f"token-{user_id}",
+    )
+
+    response = client.post(
+        "/auth/login",
+        json={"email": "demo@satisfaction.local", "password": "demo-password"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["access_token"] == "token-1"
+    assert payload["user"]["organization"]["organization_id"] == 123
+
+
+def test_login_rejects_invalid_credentials(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.routes.auth.authenticate_user",
+        lambda email, password: None,
+    )
+
+    response = client.post(
+        "/auth/login",
+        json={"email": "demo@satisfaction.local", "password": "wrong"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_protected_endpoint_requires_authentication(client):
     response = client.get("/analysis-runs")
 
     assert response.status_code == 401
-    assert "API key" in response.json()["detail"]
+    assert "Authentification" in response.json()["detail"]
 
 
-def test_protected_endpoint_rejects_invalid_api_key(client):
-    response = client.get("/analysis-runs", headers={"X-API-Key": "wrong"})
+def test_protected_endpoint_rejects_invalid_token(client):
+    response = client.get(
+        "/analysis-runs",
+        headers={"Authorization": "Bearer wrong"},
+    )
 
     assert response.status_code == 403
     assert "invalide" in response.json()["detail"]
 
 
-def test_list_runs_with_valid_api_key(client, api_headers, monkeypatch):
+def test_list_runs_with_authenticated_user(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_list_analysis_runs(organization_id, limit, offset):
+        captured["organization_id"] = organization_id
+        return [sample_run()]
+
     monkeypatch.setattr(
         "app.api.routes.analysis_runs.list_analysis_runs",
-        lambda limit, offset: [sample_run()],
+        fake_list_analysis_runs,
     )
 
-    response = client.get("/analysis-runs", headers=api_headers)
+    response = authenticated_client.get("/analysis-runs")
 
     assert response.status_code == 200
     assert response.json()[0]["run_id"] == 42
+    assert captured["organization_id"] == 123
 
 
-def test_create_trustpilot_run_uses_service(client, api_headers, monkeypatch):
+def test_create_trustpilot_run_uses_service(authenticated_client, monkeypatch):
     captured_payload = {}
 
-    def fake_create_analysis_run(payload):
+    def fake_create_analysis_run(payload, organization_id):
         captured_payload["company"] = payload.company
         captured_payload["execute_immediately"] = payload.execute_immediately
+        captured_payload["organization_id"] = organization_id
         return sample_run(company_name="darty.com", trustpilot_slug="www.darty.com")
 
     monkeypatch.setattr(
@@ -69,9 +125,8 @@ def test_create_trustpilot_run_uses_service(client, api_headers, monkeypatch):
         fake_create_analysis_run,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/analysis-runs",
-        headers=api_headers,
         json={
             "company": "https://fr.trustpilot.com/review/www.darty.com",
             "pages_per_star": 1,
@@ -84,10 +139,11 @@ def test_create_trustpilot_run_uses_service(client, api_headers, monkeypatch):
     assert captured_payload == {
         "company": "https://fr.trustpilot.com/review/www.darty.com",
         "execute_immediately": False,
+        "organization_id": 123,
     }
 
 
-def test_preview_csv_endpoint_accepts_column_mapping(client, api_headers):
+def test_preview_csv_endpoint_accepts_column_mapping(authenticated_client):
     csv_content = (
         "stars_count;customer_review;client_name\n"
         "5;Produit conforme et livraison rapide;Alice\n"
@@ -99,9 +155,8 @@ def test_preview_csv_endpoint_accepts_column_mapping(client, api_headers):
         "author": "client_name",
     }
 
-    response = client.post(
+    response = authenticated_client.post(
         "/analysis-runs/preview-csv",
-        headers=api_headers,
         files={"file": ("reviews.csv", csv_content, "text/csv")},
         data={"column_mapping": json.dumps(mapping)},
     )
@@ -113,10 +168,9 @@ def test_preview_csv_endpoint_accepts_column_mapping(client, api_headers):
     assert payload["preview_reviews"][0]["rating"] == 5
 
 
-def test_preview_csv_endpoint_rejects_invalid_mapping_json(client, api_headers):
-    response = client.post(
+def test_preview_csv_endpoint_rejects_invalid_mapping_json(authenticated_client):
+    response = authenticated_client.post(
         "/analysis-runs/preview-csv",
-        headers=api_headers,
         files={"file": ("reviews.csv", b"avis,note\nOk,5\n", "text/csv")},
         data={"column_mapping": "{not-json"},
     )
@@ -125,16 +179,18 @@ def test_preview_csv_endpoint_rejects_invalid_mapping_json(client, api_headers):
     assert "Mapping CSV invalide" in response.json()["detail"]
 
 
-def test_import_csv_passes_mapping_to_service(client, api_headers, monkeypatch):
+def test_import_csv_passes_mapping_to_service(authenticated_client, monkeypatch):
     captured = {}
 
     def fake_create_csv_analysis_run(
         company_input,
         file_bytes,
+        organization_id,
         original_filename=None,
         column_mapping=None,
     ):
         captured["company_input"] = company_input
+        captured["organization_id"] = organization_id
         captured["original_filename"] = original_filename
         captured["column_mapping"] = column_mapping
         captured["file_bytes"] = file_bytes
@@ -154,9 +210,8 @@ def test_import_csv_passes_mapping_to_service(client, api_headers, monkeypatch):
     )
 
     mapping = {"verbatim": "text", "rating": "stars"}
-    response = client.post(
+    response = authenticated_client.post(
         "/analysis-runs/import-csv",
-        headers=api_headers,
         data={
             "company": "Client CSV",
             "column_mapping": json.dumps(mapping),
@@ -167,6 +222,7 @@ def test_import_csv_passes_mapping_to_service(client, api_headers, monkeypatch):
     assert response.status_code == 201
     assert response.json()["run_id"] == 77
     assert captured["company_input"] == "Client CSV"
+    assert captured["organization_id"] == 123
     assert captured["original_filename"] == "client.csv"
     assert captured["column_mapping"] == mapping
     assert captured["file_bytes"] == b"text,stars\nTres bon,5\n"

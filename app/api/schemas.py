@@ -4,6 +4,30 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class OrganizationResponse(BaseModel):
+    organization_id: int
+    name: str
+
+
+class AuthMeResponse(BaseModel):
+    user_id: int
+    email: str
+    full_name: str | None = None
+    role: str
+    organization: OrganizationResponse
+
+
+class AuthLoginRequest(BaseModel):
+    email: str = Field(..., min_length=3, examples=["demo@satisfaction.local"])
+    password: str = Field(..., min_length=1, examples=["demo-password"])
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthMeResponse
+
+
 class AnalysisRunCreate(BaseModel):
     company: str = Field(
         ...,

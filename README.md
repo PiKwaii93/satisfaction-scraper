@@ -123,6 +123,8 @@ Endpoints principaux :
 
 ```text
 GET    /health
+POST   /auth/login
+GET    /auth/me
 POST   /analysis-runs
 POST   /analysis-runs/preview-csv
 POST   /analysis-runs/import-csv
@@ -137,32 +139,51 @@ GET    /analysis-runs/feedback/quality
 GET    /analysis-runs/{run_id}/events
 GET    /analysis-runs/{run_id}/export
 GET    /analysis-runs/{run_id}/feedback/export
+GET    /model-training/overview
+POST   /model-training/runs
 ```
 
 ### Securite API
 
-Les endpoints `/analysis-runs` sont proteges par une API Key transmise dans le header `X-API-Key`.
+Les endpoints metier sont proteges par un token JWT transmis dans le header `Authorization: Bearer <token>`.
 L'endpoint `/health` reste public pour les sondes de disponibilite.
 
-En local Docker, la cle de developpement est configuree dans `docker-compose.yml` :
+En local Docker, un compte demo est cree automatiquement au demarrage de l'API si aucun utilisateur n'existe :
 
 ```text
-dev-satisfaction-key
+Organisation : Demo Satisfaction Client
+Email        : demo@satisfaction.local
+Mot de passe : demo-password
 ```
 
-Pour tester un endpoint protege depuis PowerShell :
+Ces valeurs sont configurables via les variables d'environnement :
+
+- `DEMO_ORG_NAME`
+- `DEMO_ADMIN_EMAIL`
+- `DEMO_ADMIN_PASSWORD`
+- `DEMO_ADMIN_NAME`
+- `JWT_SECRET_KEY`
+- `JWT_EXPIRE_MINUTES`
+
+Pour tester un endpoint protege depuis PowerShell, il faut d'abord recuperer un token :
 
 ```powershell
-$headers = @{ "X-API-Key" = "dev-satisfaction-key" }
+$loginBody = @{
+  email = "demo@satisfaction.local"
+  password = "demo-password"
+} | ConvertTo-Json
+
+$login = Invoke-RestMethod -Method Post -Uri http://localhost:8000/auth/login -ContentType "application/json" -Body $loginBody
+$headers = @{ Authorization = "Bearer $($login.access_token)" }
+
 Invoke-RestMethod http://localhost:8000/analysis-runs -Headers $headers
 ```
 
-En production, il faut remplacer cette valeur par une cle secrete fournie via variable d'environnement `API_KEY`.
+En production, il faut remplacer le secret JWT local par une valeur forte fournie via variable d'environnement `JWT_SECRET_KEY`.
 
 Exemple de lancement d'analyse depuis PowerShell :
 
 ```powershell
-$headers = @{ "X-API-Key" = "dev-satisfaction-key" }
 $body = @{
   company = "https://fr.trustpilot.com/review/www.darty.com"
   source = "trustpilot"

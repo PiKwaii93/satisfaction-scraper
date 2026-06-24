@@ -1,6 +1,8 @@
 import type {
   AnalysisRunEvent,
   AnalysisRun,
+  AuthToken,
+  CurrentUser,
   CsvColumnMapping,
   CsvImportPreview,
   FeedbackQuality,
@@ -16,7 +18,8 @@ import type {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ??
   "http://localhost:8000";
-const API_KEY = import.meta.env.VITE_API_KEY ?? "dev-satisfaction-key";
+const TOKEN_STORAGE_KEY = "satisfaction_client_access_token";
+let accessToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
 
 type CreateRunPayload = {
   company: string;
@@ -26,17 +29,55 @@ type CreateRunPayload = {
   execute_immediately: boolean;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export function setAuthToken(token: string) {
+  accessToken = token;
+  window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+export function clearAuthToken() {
+  accessToken = null;
+  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+export function hasAuthToken() {
+  return Boolean(accessToken);
+}
+
+function buildHeaders(headers?: HeadersInit, includeJson = false) {
+  const result = new Headers(headers);
+  if (includeJson) {
+    result.set("Content-Type", "application/json");
+  }
+  if (accessToken) {
+    result.set("Authorization", `Bearer ${accessToken}`);
+  }
+  return result;
+}
+
+async function requestPublic<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": API_KEY,
-      ...init?.headers
-    },
+    headers: buildHeaders(init?.headers, true),
     ...init
   });
 
   if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(parseApiError(detail, response.status));
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: buildHeaders(init?.headers, true),
+    ...init
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken();
+    }
     const detail = await response.text();
     throw new Error(parseApiError(detail, response.status));
   }
@@ -59,6 +100,19 @@ function parseApiError(detail: string, status: number) {
   }
 
   return detail || `Erreur API ${status}`;
+}
+
+export async function login(email: string, password: string) {
+  const token = await requestPublic<AuthToken>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  setAuthToken(token.access_token);
+  return token;
+}
+
+export function getCurrentUser() {
+  return request<CurrentUser>("/auth/me");
 }
 
 export function listRuns() {
@@ -93,13 +147,14 @@ export async function uploadCsvRun(
 
   const response = await fetch(`${API_BASE_URL}/analysis-runs/import-csv`, {
     method: "POST",
-    headers: {
-      "X-API-Key": API_KEY
-    },
+    headers: buildHeaders(),
     body: formData
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken();
+    }
     const detail = await response.text();
     throw new Error(parseApiError(detail, response.status));
   }
@@ -117,13 +172,14 @@ export async function previewCsvFile(
 
   const response = await fetch(`${API_BASE_URL}/analysis-runs/preview-csv`, {
     method: "POST",
-    headers: {
-      "X-API-Key": API_KEY
-    },
+    headers: buildHeaders(),
     body: formData
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken();
+    }
     const detail = await response.text();
     throw new Error(parseApiError(detail, response.status));
   }
@@ -178,12 +234,13 @@ export function createModelTrainingRun(feedbackSampleWeight?: number) {
 
 async function requestFile(path: string): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "X-API-Key": API_KEY
-    }
+    headers: buildHeaders()
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken();
+    }
     const detail = await response.text();
     throw new Error(parseApiError(detail, response.status));
   }

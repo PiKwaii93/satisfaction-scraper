@@ -75,48 +75,58 @@ def serialize_training_run(row):
     }
 
 
-def _get_training_run_row(training_run_id):
+def _get_training_run_row(training_run_id, organization_id=None):
+    filters = ["training_run_id = %s"]
+    params = [training_run_id]
+    if organization_id is not None:
+        filters.append("organization_id = %s")
+        params.append(organization_id)
+
     with get_cursor() as cursor:
         cursor.execute(
-            """
+            f"""
             SELECT *
             FROM model_training_runs
-            WHERE training_run_id = %s;
+            WHERE {" AND ".join(filters)};
             """,
-            (training_run_id,),
+            params,
         )
         return cursor.fetchone()
 
 
-def get_model_training_run(training_run_id):
-    return serialize_training_run(_get_training_run_row(training_run_id))
+def get_model_training_run(training_run_id, organization_id=None):
+    return serialize_training_run(
+        _get_training_run_row(training_run_id, organization_id=organization_id)
+    )
 
 
-def list_model_training_runs(limit=10, offset=0):
+def list_model_training_runs(organization_id, limit=10, offset=0):
     with get_cursor() as cursor:
         cursor.execute(
             """
             SELECT *
             FROM model_training_runs
+            WHERE organization_id = %s
             ORDER BY created_at DESC, training_run_id DESC
             LIMIT %s OFFSET %s;
             """,
-            (limit, offset),
+            (organization_id, limit, offset),
         )
         return [serialize_training_run(row) for row in cursor.fetchall()]
 
 
-def get_active_model_training_run():
+def get_active_model_training_run(organization_id):
     with get_cursor() as cursor:
         cursor.execute(
             """
             SELECT *
             FROM model_training_runs
-            WHERE status = ANY(%s)
+            WHERE organization_id = %s
+              AND status = ANY(%s)
             ORDER BY created_at DESC, training_run_id DESC
             LIMIT 1;
             """,
-            (list(ACTIVE_TRAINING_STATUSES),),
+            (organization_id, list(ACTIVE_TRAINING_STATUSES)),
         )
         return serialize_training_run(cursor.fetchone())
 
@@ -133,8 +143,8 @@ def enqueue_model_training_run(training_run_id, task_id=None):
     return task_id
 
 
-def create_model_training_run(payload):
-    active_run = get_active_model_training_run()
+def create_model_training_run(payload, organization_id):
+    active_run = get_active_model_training_run(organization_id)
     if active_run:
         raise ActiveModelTrainingRunError(
             "Un entrainement du modele est deja en file ou en cours."
@@ -150,15 +160,16 @@ def create_model_training_run(payload):
         cursor.execute(
             """
             INSERT INTO model_training_runs (
+                organization_id,
                 status,
                 trigger_source,
                 feedback_sample_weight,
                 model_uri
             )
-            VALUES ('pending', 'api', %s, %s)
+            VALUES (%s, 'pending', 'api', %s, %s)
             RETURNING training_run_id;
             """,
-            (feedback_sample_weight, PRODUCTION_MODEL_URI),
+            (organization_id, feedback_sample_weight, PRODUCTION_MODEL_URI),
         )
         training_run_id = cursor.fetchone()["training_run_id"]
         task_id = f"model-training-run-{training_run_id}"
@@ -174,7 +185,7 @@ def create_model_training_run(payload):
     if payload.execute_immediately:
         enqueue_model_training_run(training_run_id, task_id=task_id)
 
-    return get_model_training_run(training_run_id)
+    return get_model_training_run(training_run_id, organization_id=organization_id)
 
 
 def _set_training_run_failed(training_run_id, error_message):
@@ -297,8 +308,12 @@ def get_production_model_info():
         return None
 
 
-def get_model_training_overview(limit=6):
-    runs = list_model_training_runs(limit=limit, offset=0)
+def get_model_training_overview(organization_id, limit=6):
+    runs = list_model_training_runs(
+        organization_id=organization_id,
+        limit=limit,
+        offset=0,
+    )
     return {
         "production_model": get_production_model_info(),
         "latest_run": runs[0] if runs else None,

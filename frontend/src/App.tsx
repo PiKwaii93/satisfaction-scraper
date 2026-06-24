@@ -10,6 +10,7 @@ import {
   Hourglass,
   ListChecks,
   Loader2,
+  LogOut,
   Play,
   RefreshCw,
   Search,
@@ -19,16 +20,20 @@ import {
   compareRuns,
   createModelTrainingRun,
   createRun,
+  clearAuthToken,
   deleteReviewFeedback,
   executeRun,
   exportFeedback,
   exportReviews,
+  getCurrentUser,
   getFeedbackQuality,
   getModelTrainingOverview,
   getReviews,
   getRunEvents,
   getSummary,
+  hasAuthToken,
   listRuns,
+  login,
   previewCsvFile,
   saveReviewFeedback,
   uploadCsvRun
@@ -41,6 +46,7 @@ import type {
   BusinessPriority,
   BusinessStrength,
   BusinessWatchpoint,
+  CurrentUser,
   CsvColumnMapping,
   CsvImportPreview,
   DistributionRow,
@@ -906,6 +912,11 @@ function formatSeverity(value: string) {
 }
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("demo@satisfaction.local");
+  const [loginPassword, setLoginPassword] = useState("demo-password");
   const [runs, setRuns] = useState<AnalysisRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
@@ -977,12 +988,33 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!hasAuthToken()) {
+      setIsAuthLoading(false);
+      setIsLoading(false);
+      return;
+    }
+
+    getCurrentUser()
+      .then((user) => setCurrentUser(user))
+      .catch(() => {
+        clearAuthToken();
+        setCurrentUser(null);
+      })
+      .finally(() => setIsAuthLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    setIsLoading(true);
     refreshRuns()
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsLoading(false));
     refreshFeedbackQuality().catch((err: Error) => setError(err.message));
     refreshTrainingOverview().catch((err: Error) => setError(err.message));
-  }, []);
+  }, [currentUser?.user_id]);
 
   useEffect(() => {
     const hasActiveRun = runs.some(
@@ -1029,6 +1061,37 @@ export default function App() {
   const reviewsPageCount = Math.max(1, Math.ceil(reviewsTotal / reviewsLimit));
   const canGoToPreviousReviews = reviewsOffset > 0;
   const canGoToNextReviews = reviewsOffset + reviews.length < reviewsTotal;
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsLoginSubmitting(true);
+    setError(null);
+
+    try {
+      const token = await login(loginEmail.trim(), loginPassword);
+      setCurrentUser(token.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connexion impossible");
+    } finally {
+      setIsLoginSubmitting(false);
+    }
+  }
+
+  function handleLogout() {
+    clearAuthToken();
+    setCurrentUser(null);
+    setRuns([]);
+    setSelectedRunId(null);
+    setSummary(null);
+    setReviews([]);
+    setReviewsTotal(0);
+    setRunEvents([]);
+    setComparisonRunIds([]);
+    setComparison(null);
+    setFeedbackQuality(null);
+    setTrainingOverview(null);
+    setError(null);
+  }
 
   function toggleComparisonRun(runId: number) {
     if (comparisonRunIds.includes(runId)) {
@@ -1445,6 +1508,77 @@ export default function App() {
     }, 400);
   }
 
+  if (isAuthLoading) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-card">
+          <div className="brand auth-brand">
+            <div className="brand-mark">SC</div>
+            <div>
+              <h1>Satisfaction Client</h1>
+              <p>Chargement de la session</p>
+            </div>
+          </div>
+          <div className="loading-line">
+            <Loader2 className="spin" size={18} />
+            Verification de l'utilisateur connecte...
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-card">
+          <div className="brand auth-brand">
+            <div className="brand-mark">SC</div>
+            <div>
+              <h1>Satisfaction Client</h1>
+              <p>Espace client B2B</p>
+            </div>
+          </div>
+
+          <div className="section-heading">
+            <div>
+              <span>CONNEXION</span>
+              <h3>Acceder a ton espace entreprise</h3>
+              <p>Compte demo local cree automatiquement au demarrage de l'API.</p>
+            </div>
+          </div>
+
+          <form className="auth-form" onSubmit={handleLogin}>
+            <label htmlFor="login-email">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              value={loginEmail}
+              onChange={(event) => setLoginEmail(event.target.value)}
+              disabled={isLoginSubmitting}
+            />
+
+            <label htmlFor="login-password">Mot de passe</label>
+            <input
+              id="login-password"
+              type="password"
+              value={loginPassword}
+              onChange={(event) => setLoginPassword(event.target.value)}
+              disabled={isLoginSubmitting}
+            />
+
+            {error ? <p className="form-error">{error}</p> : null}
+
+            <button className="primary-action" disabled={isLoginSubmitting} type="submit">
+              {isLoginSubmitting ? <Loader2 className="spin" size={18} /> : <Play size={18} />}
+              Se connecter
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -1455,6 +1589,22 @@ export default function App() {
             <p>Analyse d'avis clients</p>
           </div>
         </div>
+
+        <section className="tenant-card">
+          <div>
+            <span>Espace client</span>
+            <strong>{currentUser.organization.name}</strong>
+            <small>{currentUser.email}</small>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={handleLogout}
+            title="Se deconnecter"
+          >
+            <LogOut size={18} />
+          </button>
+        </section>
 
         <form className="analysis-form" onSubmit={handleSubmit}>
           <label>Source d'avis</label>
