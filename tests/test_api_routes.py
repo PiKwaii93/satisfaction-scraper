@@ -366,6 +366,20 @@ def test_create_trustpilot_run_uses_service(authenticated_client, monkeypatch):
     }
 
 
+def test_member_cannot_create_trustpilot_run(member_client):
+    response = member_client.post(
+        "/analysis-runs",
+        json={
+            "company": "https://fr.trustpilot.com/review/www.darty.com",
+            "pages_per_star": 1,
+            "execute_immediately": False,
+        },
+    )
+
+    assert response.status_code == 403
+    assert "administrateurs" in response.json()["detail"]
+
+
 def test_preview_csv_endpoint_accepts_column_mapping(authenticated_client):
     csv_content = (
         "stars_count;customer_review;client_name\n"
@@ -389,6 +403,15 @@ def test_preview_csv_endpoint_accepts_column_mapping(authenticated_client):
     assert payload["review_count"] == 2
     assert payload["detected_columns"]["verbatim"] == "customer_review"
     assert payload["preview_reviews"][0]["rating"] == 5
+
+
+def test_member_cannot_preview_csv(member_client):
+    response = member_client.post(
+        "/analysis-runs/preview-csv",
+        files={"file": ("reviews.csv", b"avis,note\nOk,5\n", "text/csv")},
+    )
+
+    assert response.status_code == 403
 
 
 def test_preview_csv_endpoint_rejects_invalid_mapping_json(authenticated_client):
@@ -449,6 +472,52 @@ def test_import_csv_passes_mapping_to_service(authenticated_client, monkeypatch)
     assert captured["original_filename"] == "client.csv"
     assert captured["column_mapping"] == mapping
     assert captured["file_bytes"] == b"text,stars\nTres bon,5\n"
+
+
+def test_member_cannot_import_csv(member_client):
+    response = member_client.post(
+        "/analysis-runs/import-csv",
+        data={"company": "Client CSV"},
+        files={"file": ("client.csv", b"text,stars\nTres bon,5\n", "text/csv")},
+    )
+
+    assert response.status_code == 403
+
+
+def test_member_cannot_execute_run(member_client):
+    response = member_client.post("/analysis-runs/42/execute")
+
+    assert response.status_code == 403
+
+
+def test_member_cannot_save_review_feedback(member_client):
+    response = member_client.post(
+        "/analysis-runs/42/reviews/100/feedback",
+        json={"corrected_label": "Négatif"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_member_cannot_delete_review_feedback(member_client):
+    response = member_client.delete("/analysis-runs/42/reviews/100/feedback")
+
+    assert response.status_code == 403
+
+
+def test_member_cannot_export_feedback(member_client):
+    response = member_client.get("/analysis-runs/42/feedback/export")
+
+    assert response.status_code == 403
+
+
+def test_member_cannot_start_model_training(member_client):
+    response = member_client.post(
+        "/model-training/runs",
+        json={"feedback_sample_weight": None, "execute_immediately": False},
+    )
+
+    assert response.status_code == 403
 
 
 def test_get_run_trend(authenticated_client, monkeypatch):

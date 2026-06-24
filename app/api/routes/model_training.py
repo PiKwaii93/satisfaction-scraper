@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.auth import AuthenticatedUser, require_current_user
+from app.api.auth import AuthenticatedUser, require_current_user, require_org_admin
 from app.api.schemas import (
     ErrorResponse,
     ModelTrainingOverviewResponse,
@@ -21,7 +21,7 @@ router = APIRouter(
     tags=["model-training"],
     responses={
         401: {"model": ErrorResponse, "description": "Authentification requise"},
-        403: {"model": ErrorResponse, "description": "Token invalide"},
+        403: {"model": ErrorResponse, "description": "Acces refuse"},
     },
 )
 
@@ -70,6 +70,7 @@ def create_training_run(
     payload: ModelTrainingRunCreate,
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    require_org_admin(current_user)
     try:
         return create_model_training_run(
             payload,

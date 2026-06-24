@@ -1221,6 +1221,7 @@ export default function App() {
   const reviewsPageCount = Math.max(1, Math.ceil(reviewsTotal / reviewsLimit));
   const canGoToPreviousReviews = reviewsOffset > 0;
   const canGoToNextReviews = reviewsOffset + reviews.length < reviewsTotal;
+  const canManageWorkspace = currentUser?.role === "admin";
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1284,6 +1285,13 @@ export default function App() {
 
   async function handleCreateOrganizationUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canManageWorkspace) {
+      setOrganizationUserError(
+        "Seul un administrateur peut inviter des utilisateurs."
+      );
+      return;
+    }
+
     setOrganizationUserError(null);
     setOrganizationUserMessage(null);
     setIsCreatingOrganizationUser(true);
@@ -1313,6 +1321,10 @@ export default function App() {
   }
 
   function handleReviewSourceSelect(sourceId: string) {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     if (!isAnalysisSource(sourceId)) {
       return;
     }
@@ -1359,6 +1371,11 @@ export default function App() {
   }
 
   async function handleStartModelTraining() {
+    if (!canManageWorkspace) {
+      setError("Seul un administrateur peut lancer un reentrainement.");
+      return;
+    }
+
     setIsTrainingSubmitting(true);
     setError(null);
 
@@ -1405,6 +1422,11 @@ export default function App() {
   }
 
   async function handleCsvFileChange(file: File | null) {
+    if (!canManageWorkspace) {
+      setError("Mode lecture seule: un administrateur doit importer les fichiers CSV.");
+      return;
+    }
+
     setCsvFile(file);
     setCsvColumnMapping({});
     setCsvPreview(null);
@@ -1421,6 +1443,10 @@ export default function App() {
     field: keyof CsvColumnMapping,
     column: string
   ) {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     const nextMapping = {
       ...csvColumnMapping,
       [field]: column
@@ -1553,6 +1579,11 @@ export default function App() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!canManageWorkspace) {
+      setError("Mode lecture seule: un administrateur doit lancer les analyses.");
+      return;
+    }
+
     if (sourceMode === "trustpilot") {
       const validationError = validateCompanyInput(company);
       if (validationError) {
@@ -1597,6 +1628,11 @@ export default function App() {
   }
 
   async function handleRetryRun(runId: number) {
+    if (!canManageWorkspace) {
+      setError("Seul un administrateur peut relancer une analyse.");
+      return;
+    }
+
     setRetryingRunId(runId);
     setError(null);
 
@@ -1632,6 +1668,11 @@ export default function App() {
   }
 
   async function handleFeedbackExport(runId: number) {
+    if (!canManageWorkspace) {
+      setError("Seul un administrateur peut exporter les corrections humaines.");
+      return;
+    }
+
     try {
       const blob = await exportFeedback(runId);
       const url = window.URL.createObjectURL(blob);
@@ -1677,6 +1718,11 @@ export default function App() {
       return;
     }
 
+    if (!canManageWorkspace) {
+      setError("Seul un administrateur peut corriger les labels.");
+      return;
+    }
+
     setCorrectingReviewId(reviewId);
     setError(null);
 
@@ -1705,6 +1751,11 @@ export default function App() {
 
   async function handleDeleteReviewFeedback(reviewId: number) {
     if (!selectedRun) {
+      return;
+    }
+
+    if (!canManageWorkspace) {
+      setError("Seul un administrateur peut supprimer une correction.");
       return;
     }
 
@@ -1911,6 +1962,7 @@ export default function App() {
             <span>Espace client</span>
             <strong>{currentUser.organization.name}</strong>
             <small>{currentUser.email}</small>
+            <RolePill role={currentUser.role} />
           </div>
           <button
             className="icon-button"
@@ -1925,6 +1977,7 @@ export default function App() {
         <ReviewSourcesPanel
           currentSource={sourceMode}
           error={reviewSourcesError}
+          isReadOnly={!canManageWorkspace}
           isLoading={isReviewSourcesLoading}
           onRefresh={() =>
             refreshReviewSources().catch((err: Error) =>
@@ -1935,11 +1988,20 @@ export default function App() {
           sources={reviewSources}
         />
 
-        <form className="analysis-form" onSubmit={handleSubmit}>
+        <form
+          className={`analysis-form ${!canManageWorkspace ? "read-only-panel" : ""}`}
+          onSubmit={handleSubmit}
+        >
           <div className="analysis-form-heading">
             <span>Nouvelle analyse</span>
             <strong>{SOURCE_LABELS[sourceMode]}</strong>
           </div>
+          {!canManageWorkspace && (
+            <p className="permission-hint">
+              Mode lecture seule: demande a un administrateur de lancer ou importer
+              une analyse.
+            </p>
+          )}
 
           <label htmlFor="company">
             {sourceMode === "csv"
@@ -1955,7 +2017,7 @@ export default function App() {
               placeholder={
                 sourceMode === "csv" ? "Nom de l'entreprise" : "www.darty.com"
               }
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canManageWorkspace}
             />
           </div>
 
@@ -1967,7 +2029,7 @@ export default function App() {
                 <span>{csvFile ? csvFile.name : "Choisir un fichier .csv"}</span>
                 <input
                   accept=".csv,text/csv"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !canManageWorkspace}
                   id="csv-file"
                   onChange={(event) =>
                     handleCsvFileChange(event.target.files?.[0] ?? null)
@@ -2005,6 +2067,7 @@ export default function App() {
                           {field.required ? " *" : ""}
                         </span>
                         <select
+                          disabled={!canManageWorkspace}
                           onChange={(event) =>
                             handleCsvColumnMappingChange(
                               field.key,
@@ -2055,7 +2118,7 @@ export default function App() {
                     key={value}
                     type="button"
                     onClick={() => setPagesPerStar(value)}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !canManageWorkspace}
                   >
                     {value}
                   </button>
@@ -2067,6 +2130,7 @@ export default function App() {
           <button
             className="primary-action"
             disabled={
+              !canManageWorkspace ||
               isSubmitting ||
               (sourceMode === "csv" &&
                 (!csvPreview || Boolean(csvPreviewError) || isCsvPreviewLoading))
@@ -2227,6 +2291,7 @@ export default function App() {
         />
 
         <ModelTrainingPanel
+          canManage={canManageWorkspace}
           feedbackQuality={feedbackQuality}
           isLoading={isTrainingOverviewLoading}
           isSubmitting={isTrainingSubmitting}
@@ -2265,9 +2330,13 @@ export default function App() {
                 {selectedRun.status === "failed" && (
                   <button
                     className="secondary-action danger-action"
-                    disabled={retryingRunId === selectedRun.run_id}
+                    disabled={!canManageWorkspace || retryingRunId === selectedRun.run_id}
                     onClick={() => handleRetryRun(selectedRun.run_id)}
-                    title="Relancer cette analyse"
+                    title={
+                      canManageWorkspace
+                        ? "Relancer cette analyse"
+                        : "Reserve aux administrateurs"
+                    }
                     type="button"
                   >
                     {retryingRunId === selectedRun.run_id ? (
@@ -2300,9 +2369,13 @@ export default function App() {
                 </button>
                 <button
                   className="secondary-action"
-                  disabled={selectedRun.status !== "completed"}
+                  disabled={!canManageWorkspace || selectedRun.status !== "completed"}
                   onClick={() => handleFeedbackExport(selectedRun.run_id)}
-                  title="Exporter les corrections humaines"
+                  title={
+                    canManageWorkspace
+                      ? "Exporter les corrections humaines"
+                      : "Reserve aux administrateurs"
+                  }
                   type="button"
                 >
                   <Download size={18} />
@@ -2350,6 +2423,7 @@ export default function App() {
 
             {selectedRun.status === "failed" && (
               <FailedRunState
+                canRetry={canManageWorkspace}
                 errorMessage={selectedRun.error_message}
                 isRetrying={retryingRunId === selectedRun.run_id}
                 onRetry={() => handleRetryRun(selectedRun.run_id)}
@@ -2492,6 +2566,7 @@ export default function App() {
                     </div>
                   </div>
                   <ReviewsTable
+                    canManageFeedback={canManageWorkspace}
                     correctingReviewId={correctingReviewId}
                     onDeleteFeedback={handleDeleteReviewFeedback}
                     onSaveFeedback={handleSaveReviewFeedback}
@@ -2534,10 +2609,12 @@ function EmptyRunState({ message }: { message: string | null }) {
 }
 
 function FailedRunState({
+  canRetry,
   errorMessage,
   isRetrying,
   onRetry
 }: {
+  canRetry: boolean;
   errorMessage: string | null;
   isRetrying: boolean;
   onRetry: () => void;
@@ -2551,9 +2628,14 @@ function FailedRunState({
           {errorMessage?.trim() ||
             "Le worker n'a pas pu terminer cette analyse. Consulte le journal d'exécution pour identifier l'étape bloquante."}
         </p>
+        {!canRetry && (
+          <p className="permission-hint">
+            Mode lecture seule: seul un administrateur peut relancer ce run.
+          </p>
+        )}
         <button
           className="secondary-action danger-action"
-          disabled={isRetrying}
+          disabled={!canRetry || isRetrying}
           onClick={onRetry}
           type="button"
         >
@@ -2568,6 +2650,7 @@ function FailedRunState({
 function ReviewSourcesPanel({
   currentSource,
   error,
+  isReadOnly,
   isLoading,
   onRefresh,
   onSelectSource,
@@ -2575,6 +2658,7 @@ function ReviewSourcesPanel({
 }: {
   currentSource: AnalysisSource;
   error: string | null;
+  isReadOnly: boolean;
   isLoading: boolean;
   onRefresh: () => void;
   onSelectSource: (sourceId: string) => void;
@@ -2604,10 +2688,16 @@ function ReviewSourcesPanel({
       </div>
 
       {error ? <p className="form-error">{error}</p> : null}
+      {isReadOnly ? (
+        <p className="permission-hint">
+          Sources consultables. Le lancement d'analyse est reserve aux admins.
+        </p>
+      ) : null}
 
       <div className="source-card-list">
         {activeSources.map((source) => {
           const canSelect =
+            !isReadOnly &&
             source.status === "active" &&
             source.supports_analysis &&
             isAnalysisSource(source.source_id);
@@ -2985,6 +3075,7 @@ function AIQualityPanel({
 }
 
 function ModelTrainingPanel({
+  canManage,
   feedbackQuality,
   isLoading,
   isSubmitting,
@@ -2992,6 +3083,7 @@ function ModelTrainingPanel({
   onStartTraining,
   overview
 }: {
+  canManage: boolean;
   feedbackQuality: FeedbackQuality | null;
   isLoading: boolean;
   isSubmitting: boolean;
@@ -3028,8 +3120,13 @@ function ModelTrainingPanel({
           </button>
           <button
             className="primary-action compact-action"
-            disabled={isSubmitting || hasActiveRun}
+            disabled={!canManage || isSubmitting || hasActiveRun}
             onClick={onStartTraining}
+            title={
+              canManage
+                ? "Lancer un reentrainement"
+                : "Reserve aux administrateurs"
+            }
             type="button"
           >
             {isSubmitting || hasActiveRun ? (
@@ -3041,6 +3138,13 @@ function ModelTrainingPanel({
           </button>
         </div>
       </div>
+
+      {!canManage && (
+        <p className="permission-hint wide-hint">
+          Mode lecture seule: le reentrainement du modele est reserve aux
+          administrateurs.
+        </p>
+      )}
 
       <div className="model-training-kpis">
         <Kpi
@@ -3702,11 +3806,13 @@ function ReviewCards({ reviews }: { reviews: SummaryReview[] }) {
 }
 
 function ReviewsTable({
+  canManageFeedback,
   correctingReviewId,
   onDeleteFeedback,
   onSaveFeedback,
   reviews
 }: {
+  canManageFeedback: boolean;
   correctingReviewId: number | null;
   onDeleteFeedback: (reviewId: number) => void;
   onSaveFeedback: (reviewId: number, label: SentimentLabel) => void;
@@ -3747,32 +3853,36 @@ function ReviewsTable({
                   ) : (
                     <span className="feedback-status">Non corrigé</span>
                   )}
-                  <div className="feedback-actions">
-                    {FEEDBACK_SENTIMENTS.map((sentiment) => (
+                  {canManageFeedback ? (
+                    <div className="feedback-actions">
+                      {FEEDBACK_SENTIMENTS.map((sentiment) => (
+                        <button
+                          className={
+                            review.corrected_label === sentiment ? "active" : ""
+                          }
+                          disabled={correctingReviewId === review.review_id}
+                          key={sentiment}
+                          onClick={() => onSaveFeedback(review.review_id, sentiment)}
+                          type="button"
+                        >
+                          {sentiment}
+                        </button>
+                      ))}
                       <button
-                        className={
-                          review.corrected_label === sentiment ? "active" : ""
+                        className="remove-feedback"
+                        disabled={
+                          !review.corrected_label ||
+                          correctingReviewId === review.review_id
                         }
-                        disabled={correctingReviewId === review.review_id}
-                        key={sentiment}
-                        onClick={() => onSaveFeedback(review.review_id, sentiment)}
+                        onClick={() => onDeleteFeedback(review.review_id)}
                         type="button"
                       >
-                        {sentiment}
+                        Retirer
                       </button>
-                    ))}
-                    <button
-                      className="remove-feedback"
-                      disabled={
-                        !review.corrected_label ||
-                        correctingReviewId === review.review_id
-                      }
-                      onClick={() => onDeleteFeedback(review.review_id)}
-                      type="button"
-                    >
-                      Retirer
-                    </button>
-                  </div>
+                    </div>
+                  ) : (
+                    <span className="feedback-readonly">Lecture seule</span>
+                  )}
                 </div>
               </td>
               <td>{formatNumber(review.sentiment_score, 2)}</td>
