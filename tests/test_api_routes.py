@@ -79,8 +79,9 @@ def test_login_rejects_invalid_credentials(client, monkeypatch):
 def test_list_organization_users(authenticated_client, monkeypatch):
     captured = {}
 
-    def fake_list_organization_users(organization_id):
+    def fake_list_organization_users(organization_id, include_invitation_links=False):
         captured["organization_id"] = organization_id
+        captured["include_invitation_links"] = include_invitation_links
         return [
             {
                 "user_id": 1,
@@ -101,7 +102,7 @@ def test_list_organization_users(authenticated_client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json()[0]["email"] == "demo@satisfaction.local"
-    assert captured["organization_id"] == 123
+    assert captured == {"organization_id": 123, "include_invitation_links": True}
 
 
 def test_admin_can_create_organization_user(authenticated_client, monkeypatch):
@@ -169,6 +170,107 @@ def test_member_cannot_create_organization_user(test_app):
         test_app.dependency_overrides.clear()
 
     assert response.status_code == 403
+
+
+def test_admin_can_invite_organization_user(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_invite_organization_user(organization_id, payload):
+        captured["organization_id"] = organization_id
+        captured["email"] = payload.email
+        captured["role"] = payload.role
+        return {
+            "user_id": 3,
+            "email": payload.email,
+            "full_name": payload.full_name,
+            "role": payload.role,
+            "is_active": False,
+            "account_status": "pending",
+            "created_at": None,
+            "invited_at": None,
+            "activated_at": None,
+            "invitation_expires_at": None,
+            "invitation_accept_url": "http://localhost:5173/?invitation_token=abc",
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.invite_organization_user",
+        fake_invite_organization_user,
+    )
+
+    response = authenticated_client.post(
+        "/auth/organization/invitations",
+        json={
+            "email": "invite@satisfaction.local",
+            "full_name": "Invite Demo",
+            "role": "member",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["account_status"] == "pending"
+    assert response.json()["invitation_accept_url"].endswith("abc")
+    assert captured == {
+        "organization_id": 123,
+        "email": "invite@satisfaction.local",
+        "role": "member",
+    }
+
+
+def test_member_cannot_invite_organization_user(test_app):
+    member_user = AuthenticatedUser(
+        user_id=2,
+        email="member@satisfaction.local",
+        full_name="Member Demo",
+        role="member",
+        organization_id=123,
+        organization_name="Demo Org",
+    )
+    test_app.dependency_overrides[require_current_user] = lambda: member_user
+    try:
+        from fastapi.testclient import TestClient
+
+        response = TestClient(test_app).post(
+            "/auth/organization/invitations",
+            json={"email": "new@satisfaction.local", "role": "member"},
+        )
+    finally:
+        test_app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+
+
+def test_accept_invitation_returns_token(client, monkeypatch):
+    invited_user = AuthenticatedUser(
+        user_id=5,
+        email="invite@satisfaction.local",
+        full_name="Invite Demo",
+        role="member",
+        organization_id=123,
+        organization_name="Demo Org",
+    )
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.accept_organization_invitation",
+        lambda payload: invited_user,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.auth.create_access_token",
+        lambda user_id: f"token-{user_id}",
+    )
+
+    response = client.post(
+        "/auth/invitations/accept",
+        json={
+            "token": "invitation-token-demo",
+            "password": "password-demo",
+            "full_name": "Invite Demo",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["access_token"] == "token-5"
+    assert response.json()["user"]["role"] == "member"
 
 
 def test_list_review_sources_requires_authentication(client):

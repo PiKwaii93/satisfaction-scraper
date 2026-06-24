@@ -91,6 +91,19 @@ a {
   gap: 10px;
 }
 
+.invitation-form {
+  padding-top: 4px;
+}
+
+.auth-divider {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .auth-form label {
   color: #344054;
   font-size: 0.86rem;
@@ -103,6 +116,11 @@ a {
   border-radius: 8px;
   padding: 0 12px;
   color: var(--text);
+}
+
+.full-width-action {
+  width: 100%;
+  justify-content: center;
 }
 
 .form-error {
@@ -513,6 +531,15 @@ a {
   font-weight: 700;
 }
 
+.member-row a {
+  overflow: hidden;
+  color: var(--blue);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .role-pill,
 .status-dot {
   display: inline-flex;
@@ -544,6 +571,16 @@ a {
 .status-dot.active {
   background: #ecfdf3;
   color: var(--green);
+}
+
+.status-dot.pending {
+  background: #eff6ff;
+  color: var(--blue);
+}
+
+.status-dot.inactive {
+  background: #f2f4f7;
+  color: #667085;
 }
 
 .client-user-form input,

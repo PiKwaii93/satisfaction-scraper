@@ -9,6 +9,8 @@ import type {
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
+  OrganizationInvitationAccept,
+  OrganizationInvitationCreate,
   OrganizationUser,
   OrganizationUserCreate,
   ReviewSource,
@@ -115,6 +117,15 @@ export async function login(email: string, password: string) {
   return token;
 }
 
+export async function acceptOrganizationInvitation(payload: OrganizationInvitationAccept) {
+  const token = await requestPublic<AuthToken>("/auth/invitations/accept", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  setAuthToken(token.access_token);
+  return token;
+}
+
 export function getCurrentUser() {
   return request<CurrentUser>("/auth/me");
 }
@@ -125,6 +136,13 @@ export function listOrganizationUsers() {
 
 export function createOrganizationUser(payload: OrganizationUserCreate) {
   return request<OrganizationUser>("/auth/organization/users", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function inviteOrganizationUser(payload: OrganizationInvitationCreate) {
+  return request<OrganizationUser>("/auth/organization/invitations", {
     method: "POST",
     body: JSON.stringify(payload)
   });

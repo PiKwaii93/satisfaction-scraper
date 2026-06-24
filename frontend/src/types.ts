@@ -33,6 +33,7 @@ export type CurrentUser = {
 };
 
 export type UserRole = "admin" | "member";
+export type UserAccountStatus = "active" | "pending" | "inactive";
 
 export type OrganizationUser = {
   user_id: number;
@@ -40,7 +41,12 @@ export type OrganizationUser = {
   full_name: string | null;
   role: UserRole;
   is_active: boolean;
+  account_status: UserAccountStatus;
   created_at: string | null;
+  invited_at: string | null;
+  activated_at: string | null;
+  invitation_expires_at: string | null;
+  invitation_accept_url: string | null;
 };
 
 export type OrganizationUserCreate = {
@@ -48,6 +54,18 @@ export type OrganizationUserCreate = {
   password: string;
   full_name?: string | null;
   role: UserRole;
+};
+
+export type OrganizationInvitationCreate = {
+  email: string;
+  full_name?: string | null;
+  role: UserRole;
+};
+
+export type OrganizationInvitationAccept = {
+  token: string;
+  password: string;
+  full_name?: string | null;
 };
 
 export type AuthToken = {

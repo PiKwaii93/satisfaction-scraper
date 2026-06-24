@@ -47,6 +47,11 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'member',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    account_status VARCHAR(30) NOT NULL DEFAULT 'active',
+    invitation_token TEXT UNIQUE,
+    invitation_expires_at TIMESTAMP,
+    invited_at TIMESTAMP,
+    activated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -169,6 +174,8 @@ CREATE INDEX IF NOT EXISTS idx_analysis_runs_company ON analysis_runs(company_id
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_org ON analysis_runs(organization_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run ON analysis_run_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_users_invitation_token ON users(invitation_token)
+    WHERE invitation_token IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_reviews_run ON reviews(run_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_company ON reviews(company_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_label ON sentiment_predictions(label);

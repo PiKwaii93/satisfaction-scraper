@@ -2,14 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.auth import (
     AuthenticatedUser,
+    accept_organization_invitation,
     authenticate_user,
     create_access_token,
     create_organization_user,
+    invite_organization_user,
     list_organization_users,
     require_org_admin,
     require_current_user,
 )
 from app.api.schemas import (
+    OrganizationInvitationAccept,
+    OrganizationInvitationCreate,
     AuthLoginRequest,
     AuthMeResponse,
     AuthTokenResponse,
@@ -54,6 +58,26 @@ def login(payload: AuthLoginRequest):
     }
 
 
+@router.post(
+    "/invitations/accept",
+    response_model=AuthTokenResponse,
+    summary="Accepter une invitation",
+)
+def accept_invitation(payload: OrganizationInvitationAccept):
+    user = accept_organization_invitation(payload)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation invalide.",
+        )
+
+    return {
+        "access_token": create_access_token(user.user_id),
+        "token_type": "bearer",
+        "user": serialize_me(user),
+    }
+
+
 @router.get(
     "/me",
     response_model=AuthMeResponse,
@@ -69,7 +93,10 @@ def me(user: AuthenticatedUser = Depends(require_current_user)):
     summary="Lister les utilisateurs de l'organisation",
 )
 def organization_users(user: AuthenticatedUser = Depends(require_current_user)):
-    return list_organization_users(user.organization_id)
+    return list_organization_users(
+        user.organization_id,
+        include_invitation_links=user.role == "admin",
+    )
 
 
 @router.post(
@@ -84,3 +111,17 @@ def add_organization_user(
 ):
     require_org_admin(user)
     return create_organization_user(user.organization_id, payload)
+
+
+@router.post(
+    "/organization/invitations",
+    response_model=OrganizationUserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Inviter un utilisateur dans l'organisation",
+)
+def invite_user(
+    payload: OrganizationInvitationCreate,
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(user)
+    return invite_organization_user(user.organization_id, payload)

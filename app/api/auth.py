@@ -1,4 +1,5 @@
 import os
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -13,6 +14,7 @@ from app.api.database import get_cursor
 DEFAULT_JWT_SECRET = "dev-satisfaction-jwt-secret-change-me-32-bytes"
 DEFAULT_JWT_ALGORITHM = "HS256"
 DEFAULT_TOKEN_EXPIRE_MINUTES = 60 * 24
+DEFAULT_INVITATION_EXPIRE_DAYS = 7
 MAX_BCRYPT_PASSWORD_BYTES = 72
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -42,6 +44,17 @@ def get_token_expire_minutes():
         return DEFAULT_TOKEN_EXPIRE_MINUTES
 
 
+def get_invitation_expire_days():
+    try:
+        return max(1, int(os.getenv("INVITATION_EXPIRE_DAYS", DEFAULT_INVITATION_EXPIRE_DAYS)))
+    except ValueError:
+        return DEFAULT_INVITATION_EXPIRE_DAYS
+
+
+def get_frontend_base_url():
+    return os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+
+
 def get_bcrypt_password_bytes(password: str):
     return password.encode("utf-8")[:MAX_BCRYPT_PASSWORD_BYTES]
 
@@ -59,6 +72,16 @@ def verify_password(password: str, password_hash: str):
         )
     except ValueError:
         return False
+
+
+def create_invitation_token():
+    return secrets.token_urlsafe(32)
+
+
+def build_invitation_accept_url(token: str | None):
+    if not token:
+        return None
+    return f"{get_frontend_base_url()}/?invitation_token={token}"
 
 
 def create_access_token(user_id: int):
@@ -143,28 +166,53 @@ def authenticate_user(email: str, password: str):
 
 
 def serialize_organization_user(row):
+    account_status = row.get("account_status") or (
+        "active" if row.get("is_active", True) else "pending"
+    )
+    invitation_token = row.get("invitation_token")
     return {
         "user_id": int(row["user_id"]),
         "email": row["email"],
         "full_name": row.get("full_name"),
         "role": row.get("role") or "member",
         "is_active": bool(row.get("is_active", True)),
+        "account_status": account_status,
         "created_at": row.get("created_at"),
+        "invited_at": row.get("invited_at"),
+        "activated_at": row.get("activated_at"),
+        "invitation_expires_at": row.get("invitation_expires_at"),
+        "invitation_accept_url": build_invitation_accept_url(invitation_token),
     }
 
 
-def list_organization_users(organization_id: int):
+def list_organization_users(organization_id: int, include_invitation_links=False):
     with get_cursor() as cursor:
         cursor.execute(
             """
-            SELECT user_id, email, full_name, role, is_active, created_at
+            SELECT
+                user_id,
+                email,
+                full_name,
+                role,
+                is_active,
+                account_status,
+                created_at,
+                invited_at,
+                activated_at,
+                invitation_expires_at,
+                CASE
+                    WHEN %s = TRUE AND account_status = 'pending'
+                    THEN invitation_token
+                    ELSE NULL
+                END AS invitation_token
             FROM users
             WHERE organization_id = %s
             ORDER BY
+                CASE account_status WHEN 'pending' THEN 0 ELSE 1 END,
                 CASE role WHEN 'admin' THEN 0 ELSE 1 END,
                 LOWER(email);
             """,
-            (organization_id,),
+            (include_invitation_links, organization_id),
         )
         return [serialize_organization_user(row) for row in cursor.fetchall()]
 
@@ -192,10 +240,24 @@ def create_organization_user(organization_id: int, payload):
                 full_name,
                 password_hash,
                 role,
+                is_active,
+                account_status,
+                activated_at,
                 updated_at
             )
-            VALUES (%s, %s, %s, %s, %s, NOW())
-            RETURNING user_id, email, full_name, role, is_active, created_at;
+            VALUES (%s, %s, %s, %s, %s, TRUE, 'active', NOW(), NOW())
+            RETURNING
+                user_id,
+                email,
+                full_name,
+                role,
+                is_active,
+                account_status,
+                created_at,
+                invited_at,
+                activated_at,
+                invitation_expires_at,
+                invitation_token;
             """,
             (
                 organization_id,
@@ -206,6 +268,139 @@ def create_organization_user(organization_id: int, payload):
             ),
         )
         return serialize_organization_user(cursor.fetchone())
+
+
+def invite_organization_user(organization_id: int, payload):
+    normalized_email = payload.email.strip().lower()
+    full_name = payload.full_name.strip() if payload.full_name else None
+    invitation_token = create_invitation_token()
+    invitation_expires_at = datetime.now(timezone.utc) + timedelta(
+        days=get_invitation_expire_days()
+    )
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE LOWER(email) = LOWER(%s);",
+            (normalized_email,),
+        )
+        if cursor.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Un utilisateur existe deja avec cet email.",
+            )
+
+        cursor.execute(
+            """
+            INSERT INTO users (
+                organization_id,
+                email,
+                full_name,
+                password_hash,
+                role,
+                is_active,
+                account_status,
+                invitation_token,
+                invitation_expires_at,
+                invited_at,
+                updated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, FALSE, 'pending', %s, %s, NOW(), NOW())
+            RETURNING
+                user_id,
+                email,
+                full_name,
+                role,
+                is_active,
+                account_status,
+                created_at,
+                invited_at,
+                activated_at,
+                invitation_expires_at,
+                invitation_token;
+            """,
+            (
+                organization_id,
+                normalized_email,
+                full_name,
+                hash_password(secrets.token_urlsafe(48)),
+                payload.role,
+                invitation_token,
+                invitation_expires_at,
+            ),
+        )
+        return serialize_organization_user(cursor.fetchone())
+
+
+def accept_organization_invitation(payload):
+    token = payload.token.strip()
+    full_name = payload.full_name.strip() if payload.full_name else None
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            SELECT
+                u.user_id,
+                u.organization_id,
+                u.email,
+                u.full_name,
+                u.role,
+                u.is_active,
+                u.account_status,
+                u.invitation_expires_at,
+                o.name AS organization_name
+            FROM users u
+            JOIN organizations o ON o.organization_id = u.organization_id
+            WHERE u.invitation_token = %s
+              AND u.account_status = 'pending';
+            """,
+            (token,),
+        )
+        invitation = cursor.fetchone()
+
+        if invitation is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation invalide ou deja utilisee.",
+            )
+
+        expires_at = invitation.get("invitation_expires_at")
+        expires_at_utc = expires_at.replace(tzinfo=timezone.utc) if expires_at else None
+        if expires_at_utc is not None and expires_at_utc < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation expiree. Demande une nouvelle invitation.",
+            )
+
+        cursor.execute(
+            """
+            UPDATE users
+            SET password_hash = %s,
+                full_name = COALESCE(%s, full_name),
+                is_active = TRUE,
+                account_status = 'active',
+                invitation_token = NULL,
+                invitation_expires_at = NULL,
+                activated_at = NOW(),
+                updated_at = NOW()
+            WHERE user_id = %s
+            RETURNING
+                user_id,
+                organization_id,
+                email,
+                full_name,
+                role,
+                is_active,
+                account_status;
+            """,
+            (
+                hash_password(payload.password),
+                full_name,
+                invitation["user_id"],
+            ),
+        )
+        activated_user = cursor.fetchone()
+        activated_user["organization_name"] = invitation["organization_name"]
+        return serialize_authenticated_user(activated_user)
 
 
 def require_org_admin(user: AuthenticatedUser):
@@ -326,9 +521,11 @@ def seed_demo_identity():
                     full_name,
                     password_hash,
                     role,
+                    account_status,
+                    activated_at,
                     updated_at
                 )
-                VALUES (%s, %s, %s, %s, 'admin', NOW());
+                VALUES (%s, %s, %s, %s, 'admin', 'active', NOW(), NOW());
                 """,
                 (
                     organization_id,
