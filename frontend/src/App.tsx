@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import {
   compareRuns,
-  createOrganizationUser,
+  acceptOrganizationInvitation,
   createModelTrainingRun,
   createRun,
   clearAuthToken,
@@ -37,6 +37,7 @@ import {
   getRunTrend,
   getSummary,
   hasAuthToken,
+  inviteOrganizationUser,
   listOrganizationUsers,
   listReviewSources,
   listRuns,
@@ -1016,14 +1017,19 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
+  const [isAcceptingInvitation, setIsAcceptingInvitation] = useState(false);
   const [loginEmail, setLoginEmail] = useState("demo@satisfaction.local");
   const [loginPassword, setLoginPassword] = useState("demo-password");
+  const [invitationToken, setInvitationToken] = useState(
+    () => new URLSearchParams(window.location.search).get("invitation_token") ?? ""
+  );
+  const [invitationFullName, setInvitationFullName] = useState("");
+  const [invitationPassword, setInvitationPassword] = useState("");
   const [organizationUsers, setOrganizationUsers] = useState<OrganizationUser[]>([]);
   const [isOrganizationUsersLoading, setIsOrganizationUsersLoading] = useState(false);
   const [isCreatingOrganizationUser, setIsCreatingOrganizationUser] = useState(false);
   const [organizationUserEmail, setOrganizationUserEmail] = useState("");
   const [organizationUserFullName, setOrganizationUserFullName] = useState("");
-  const [organizationUserPassword, setOrganizationUserPassword] = useState("");
   const [organizationUserRole, setOrganizationUserRole] =
     useState<UserRole>("member");
   const [organizationUserError, setOrganizationUserError] = useState<string | null>(
@@ -1231,6 +1237,28 @@ export default function App() {
     }
   }
 
+  async function handleAcceptInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsAcceptingInvitation(true);
+    setError(null);
+
+    try {
+      const token = await acceptOrganizationInvitation({
+        token: invitationToken.trim(),
+        password: invitationPassword,
+        full_name: invitationFullName.trim() || null
+      });
+      setInvitationPassword("");
+      setInvitationFullName("");
+      setCurrentUser(token.user);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invitation impossible a accepter");
+    } finally {
+      setIsAcceptingInvitation(false);
+    }
+  }
+
   function handleLogout() {
     clearAuthToken();
     setCurrentUser(null);
@@ -1261,21 +1289,23 @@ export default function App() {
     setIsCreatingOrganizationUser(true);
 
     try {
-      const createdUser = await createOrganizationUser({
+      const invitedUser = await inviteOrganizationUser({
         email: organizationUserEmail.trim(),
-        password: organizationUserPassword,
         full_name: organizationUserFullName.trim() || null,
         role: organizationUserRole
       });
       setOrganizationUserEmail("");
       setOrganizationUserFullName("");
-      setOrganizationUserPassword("");
       setOrganizationUserRole("member");
-      setOrganizationUserMessage(`${createdUser.email} a ete ajoute a l'espace client.`);
+      setOrganizationUserMessage(
+        invitedUser.invitation_accept_url
+          ? `Invitation creee pour ${invitedUser.email}. Lien: ${invitedUser.invitation_accept_url}`
+          : `Invitation creee pour ${invitedUser.email}.`
+      );
       await refreshOrganizationUsers();
     } catch (err) {
       setOrganizationUserError(
-        err instanceof Error ? err.message : "Creation utilisateur impossible"
+        err instanceof Error ? err.message : "Invitation utilisateur impossible"
       );
     } finally {
       setIsCreatingOrganizationUser(false);
@@ -1811,6 +1841,55 @@ export default function App() {
               Se connecter
             </button>
           </form>
+
+          <div className="auth-divider">ou</div>
+
+          <form className="auth-form invitation-form" onSubmit={handleAcceptInvitation}>
+            <div className="mini-heading">
+              <strong>Accepter une invitation</strong>
+              <span>Nouvel utilisateur</span>
+            </div>
+            <label htmlFor="invitation-token">Token d'invitation</label>
+            <input
+              id="invitation-token"
+              onChange={(event) => setInvitationToken(event.target.value)}
+              placeholder="Token recu dans le lien"
+              type="text"
+              value={invitationToken}
+              disabled={isAcceptingInvitation}
+            />
+            <label htmlFor="invitation-name">Nom complet</label>
+            <input
+              id="invitation-name"
+              onChange={(event) => setInvitationFullName(event.target.value)}
+              placeholder="Nom complet"
+              type="text"
+              value={invitationFullName}
+              disabled={isAcceptingInvitation}
+            />
+            <label htmlFor="invitation-password">Mot de passe</label>
+            <input
+              id="invitation-password"
+              minLength={8}
+              onChange={(event) => setInvitationPassword(event.target.value)}
+              placeholder="Choisis un mot de passe"
+              type="password"
+              value={invitationPassword}
+              disabled={isAcceptingInvitation}
+            />
+            <button
+              className="secondary-action full-width-action"
+              disabled={isAcceptingInvitation || !invitationToken.trim()}
+              type="submit"
+            >
+              {isAcceptingInvitation ? (
+                <Loader2 className="spin" size={18} />
+              ) : (
+                <UserPlus size={18} />
+              )}
+              Activer mon compte
+            </button>
+          </form>
         </section>
       </main>
     );
@@ -2125,7 +2204,6 @@ export default function App() {
           message={organizationUserMessage}
           newUserEmail={organizationUserEmail}
           newUserFullName={organizationUserFullName}
-          newUserPassword={organizationUserPassword}
           newUserRole={organizationUserRole}
           onCreateUser={handleCreateOrganizationUser}
           onRefreshUsers={() =>
@@ -2135,7 +2213,6 @@ export default function App() {
           }
           onUpdateNewUserEmail={setOrganizationUserEmail}
           onUpdateNewUserFullName={setOrganizationUserFullName}
-          onUpdateNewUserPassword={setOrganizationUserPassword}
           onUpdateNewUserRole={setOrganizationUserRole}
           users={organizationUsers}
           usersError={organizationUserError}
@@ -2585,13 +2662,11 @@ function ClientSpacePanel({
   message,
   newUserEmail,
   newUserFullName,
-  newUserPassword,
   newUserRole,
   onCreateUser,
   onRefreshUsers,
   onUpdateNewUserEmail,
   onUpdateNewUserFullName,
-  onUpdateNewUserPassword,
   onUpdateNewUserRole,
   users,
   usersError
@@ -2602,18 +2677,18 @@ function ClientSpacePanel({
   message: string | null;
   newUserEmail: string;
   newUserFullName: string;
-  newUserPassword: string;
   newUserRole: UserRole;
   onCreateUser: (event: FormEvent<HTMLFormElement>) => void;
   onRefreshUsers: () => void;
   onUpdateNewUserEmail: (value: string) => void;
   onUpdateNewUserFullName: (value: string) => void;
-  onUpdateNewUserPassword: (value: string) => void;
   onUpdateNewUserRole: (value: UserRole) => void;
   users: OrganizationUser[];
   usersError: string | null;
 }) {
   const isAdmin = currentUser.role === "admin";
+  const activeUsers = users.filter((user) => user.account_status === "active");
+  const pendingUsers = users.filter((user) => user.account_status === "pending");
 
   return (
     <section className="client-space-panel insight-section wide">
@@ -2622,8 +2697,8 @@ function ClientSpacePanel({
           <span className="eyebrow">Espace client</span>
           <h3>{currentUser.organization.name}</h3>
           <p>
-            Gestion minimale des membres rattaches a cette organisation. Les
-            invitations email arriveront dans une prochaine etape.
+            Gestion des membres rattaches a cette organisation. Les invitations
+            creent un compte en attente a activer par lien.
           </p>
         </div>
         <button
@@ -2651,7 +2726,9 @@ function ClientSpacePanel({
           <div>
             <span>Membres</span>
             <strong>{users.length}</strong>
-            <small>{users.filter((user) => user.is_active).length} actif(s)</small>
+            <small>
+              {activeUsers.length} actif(s), {pendingUsers.length} en attente
+            </small>
           </div>
         </div>
         <div className="client-card">
@@ -2682,10 +2759,13 @@ function ClientSpacePanel({
                   <div>
                     <strong>{user.full_name || user.email}</strong>
                     <small>{user.email}</small>
+                    {user.invitation_accept_url ? (
+                      <a href={user.invitation_accept_url}>{user.invitation_accept_url}</a>
+                    ) : null}
                   </div>
                   <RolePill role={user.role} />
-                  <span className={user.is_active ? "status-dot active" : "status-dot"}>
-                    {user.is_active ? "Actif" : "Inactif"}
+                  <span className={`status-dot ${user.account_status}`}>
+                    {formatAccountStatus(user.account_status)}
                   </span>
                 </div>
               ))}
@@ -2695,7 +2775,7 @@ function ClientSpacePanel({
 
         <form className="client-user-form" onSubmit={onCreateUser}>
           <div className="mini-heading">
-            <strong>Ajouter un utilisateur</strong>
+            <strong>Inviter un utilisateur</strong>
             <span>{isAdmin ? "Admin" : "Lecture seule"}</span>
           </div>
           <input
@@ -2720,25 +2800,21 @@ function ClientSpacePanel({
             <option value="member">Membre</option>
             <option value="admin">Admin</option>
           </select>
-          <input
-            disabled={!isAdmin || isCreatingUser}
-            minLength={8}
-            onChange={(event) => onUpdateNewUserPassword(event.target.value)}
-            placeholder="Mot de passe temporaire"
-            type="password"
-            value={newUserPassword}
-          />
           <button
             className="primary-action compact-action"
             disabled={!isAdmin || isCreatingUser}
             type="submit"
           >
             {isCreatingUser ? <Loader2 className="spin" size={16} /> : <UserPlus size={16} />}
-            Ajouter
+            Inviter
           </button>
           {!isAdmin ? (
-            <p className="muted">Seuls les administrateurs peuvent ajouter un membre.</p>
-          ) : null}
+            <p className="muted">Seuls les administrateurs peuvent inviter un membre.</p>
+          ) : (
+            <p className="muted">
+              MVP local : copie le lien genere pour que le membre active son compte.
+            </p>
+          )}
         </form>
       </div>
     </section>
@@ -2751,6 +2827,15 @@ function RolePill({ role }: { role: UserRole }) {
 
 function formatRole(role: string) {
   return role === "admin" ? "Admin" : "Membre";
+}
+
+function formatAccountStatus(status: string) {
+  const labels: Record<string, string> = {
+    active: "Actif",
+    pending: "Invite",
+    inactive: "Inactif"
+  };
+  return labels[status] ?? status;
 }
 
 function AIQualityPanel({

@@ -59,9 +59,33 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         password_hash TEXT NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'member',
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        account_status VARCHAR(30) NOT NULL DEFAULT 'active',
+        invitation_token TEXT UNIQUE,
+        invitation_expires_at TIMESTAMP,
+        invited_at TIMESTAMP,
+        activated_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
     );
+
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS account_status VARCHAR(30) NOT NULL DEFAULT 'active';
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS invitation_token TEXT UNIQUE;
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS invitation_expires_at TIMESTAMP;
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS invited_at TIMESTAMP;
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP;
+
+    UPDATE users
+    SET account_status = CASE WHEN is_active THEN 'active' ELSE 'pending' END
+    WHERE account_status IS NULL;
+
+    UPDATE users
+    SET activated_at = COALESCE(activated_at, created_at)
+    WHERE is_active = TRUE;
 
     CREATE TABLE IF NOT EXISTS companies (
         company_id SERIAL PRIMARY KEY,
@@ -215,6 +239,9 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         ON companies(organization_id, trustpilot_slug);
     CREATE INDEX IF NOT EXISTS idx_users_org
         ON users(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_users_invitation_token
+        ON users(invitation_token)
+        WHERE invitation_token IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_analysis_runs_company
         ON analysis_runs(company_id);
     CREATE INDEX IF NOT EXISTS idx_analysis_runs_org

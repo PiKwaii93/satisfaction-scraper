@@ -34,7 +34,12 @@ class OrganizationUserResponse(BaseModel):
     full_name: str | None = None
     role: Literal["admin", "member"]
     is_active: bool
+    account_status: Literal["active", "pending", "inactive"] = "active"
     created_at: datetime | None = None
+    invited_at: datetime | None = None
+    activated_at: datetime | None = None
+    invitation_expires_at: datetime | None = None
+    invitation_accept_url: str | None = None
 
 
 class OrganizationUserCreate(BaseModel):
@@ -42,6 +47,18 @@ class OrganizationUserCreate(BaseModel):
     password: str = Field(..., min_length=8, examples=["mot-de-passe-demo"])
     full_name: str | None = Field(default=None, max_length=255)
     role: Literal["admin", "member"] = "member"
+
+
+class OrganizationInvitationCreate(BaseModel):
+    email: str = Field(..., min_length=3, examples=["analyste@societe.fr"])
+    full_name: str | None = Field(default=None, max_length=255)
+    role: Literal["admin", "member"] = "member"
+
+
+class OrganizationInvitationAccept(BaseModel):
+    token: str = Field(..., min_length=16)
+    password: str = Field(..., min_length=8, examples=["nouveau-mot-de-passe"])
+    full_name: str | None = Field(default=None, max_length=255)
 
 
 class ReviewSourceResponse(BaseModel):

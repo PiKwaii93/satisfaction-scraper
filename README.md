@@ -124,9 +124,11 @@ Endpoints principaux :
 ```text
 GET    /health
 POST   /auth/login
+POST   /auth/invitations/accept
 GET    /auth/me
 GET    /auth/organization/users
 POST   /auth/organization/users
+POST   /auth/organization/invitations
 GET    /review-sources
 POST   /analysis-runs
 POST   /analysis-runs/preview-csv
@@ -168,6 +170,8 @@ Ces valeurs sont configurables via les variables d'environnement :
 - `DEMO_ADMIN_NAME`
 - `JWT_SECRET_KEY`
 - `JWT_EXPIRE_MINUTES`
+- `INVITATION_EXPIRE_DAYS`
+- `FRONTEND_BASE_URL`
 
 Pour tester un endpoint protege depuis PowerShell, il faut d'abord recuperer un token :
 
@@ -189,12 +193,18 @@ En production, il faut remplacer le secret JWT local par une valeur forte fourni
 
 L'application fonctionne maintenant par organisation. Un utilisateur connecte ne voit que les analyses, entreprises, avis, corrections et benchmarks rattaches a son espace client.
 
-Le compte demo local est administrateur de son organisation. Il peut ajouter des membres depuis l'interface React, dans le bloc **Espace client**. Les roles disponibles sont :
+Le compte demo local est administrateur de son organisation. Il peut inviter des membres depuis l'interface React, dans le bloc **Espace client**. Les roles disponibles sont :
 
-- `admin` : peut ajouter de nouveaux utilisateurs dans l'organisation ;
+- `admin` : peut inviter de nouveaux utilisateurs dans l'organisation ;
 - `member` : peut consulter et utiliser l'espace client, sans gerer les membres.
 
-Cette base prepare les invitations et la gestion multi-clients plus avancee, sans ouvrir encore d'inscription publique.
+Une invitation cree un utilisateur `pending` et genere un lien local de type :
+
+```text
+http://localhost:5173/?invitation_token=...
+```
+
+L'utilisateur invite choisit ensuite son mot de passe depuis l'ecran de connexion. Dans le MVP, le lien est affiche a l'administrateur au lieu d'etre envoye par email.
 
 Exemple de lancement d'analyse depuis PowerShell :
 
