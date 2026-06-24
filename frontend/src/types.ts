@@ -185,6 +185,48 @@ export type BusinessInsights = {
   critical_review_count: number;
 };
 
+export type TrendMetricChange = {
+  metric: string;
+  label: string;
+  previous_value: number | null;
+  current_value: number | null;
+  delta: number | null;
+  direction: "up" | "down" | "flat" | "unknown";
+  unit: string | null;
+};
+
+export type TrendSentimentChange = {
+  label: SentimentLabel | string;
+  previous_count: number;
+  current_count: number;
+  previous_rate: number;
+  current_rate: number;
+  delta_count: number;
+  delta_rate: number;
+  direction: "up" | "down" | "flat";
+};
+
+export type TrendTopicChange = {
+  topic: string;
+  previous_count: number;
+  current_count: number;
+  delta_count: number;
+  direction: "up" | "down" | "flat" | "new" | "resolved";
+};
+
+export type AnalysisRunTrend = {
+  current_run: AnalysisRun;
+  previous_run: AnalysisRun | null;
+  has_previous: boolean;
+  executive_summary: string;
+  metrics: TrendMetricChange[];
+  sentiment: TrendSentimentChange[];
+  rising_topics: TrendTopicChange[];
+  falling_topics: TrendTopicChange[];
+  new_topics: TrendTopicChange[];
+  resolved_topics: TrendTopicChange[];
+};
+
 export type RunSummary = {
   run: AnalysisRun;
   kpis: {

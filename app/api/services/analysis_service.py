@@ -1422,6 +1422,289 @@ def percentage(part, total):
     return round((part / total) * 100, 1)
 
 
+def rounded_delta(current_value, previous_value, digits=1):
+    if current_value is None or previous_value is None:
+        return None
+    return round(float(current_value) - float(previous_value), digits)
+
+
+def change_direction(delta, positive_is_good=True):
+    if delta is None:
+        return "unknown"
+    if abs(delta) < 0.05:
+        return "flat"
+    if delta > 0:
+        return "up" if positive_is_good else "down"
+    return "down" if positive_is_good else "up"
+
+
+def sentiment_direction(delta):
+    if abs(delta) < 0.05:
+        return "flat"
+    return "up" if delta > 0 else "down"
+
+
+def topic_count_map(rows):
+    return {
+        str(row.get("topic") or "Sujet"): int(row.get("count") or 0)
+        for row in rows
+    }
+
+
+def build_topic_trends(current_topics, previous_topics):
+    current_map = topic_count_map(current_topics)
+    previous_map = topic_count_map(previous_topics)
+    topic_names = sorted(set(current_map) | set(previous_map))
+    trends = []
+
+    for topic in topic_names:
+        current_count = current_map.get(topic, 0)
+        previous_count = previous_map.get(topic, 0)
+        delta_count = current_count - previous_count
+        if previous_count == 0 and current_count > 0:
+            direction = "new"
+        elif previous_count > 0 and current_count == 0:
+            direction = "resolved"
+        elif delta_count > 0:
+            direction = "up"
+        elif delta_count < 0:
+            direction = "down"
+        else:
+            direction = "flat"
+
+        trends.append(
+            {
+                "topic": topic,
+                "previous_count": previous_count,
+                "current_count": current_count,
+                "delta_count": delta_count,
+                "direction": direction,
+            }
+        )
+
+    return trends
+
+
+def get_previous_completed_run(run, organization_id):
+    params = [
+        organization_id,
+        run["company_id"],
+        run["source"],
+        run["run_id"],
+        run["run_id"],
+    ]
+
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                ar.*,
+                c.company_name,
+                c.trustpilot_slug
+            FROM analysis_runs ar
+            JOIN companies c ON c.company_id = ar.company_id
+            WHERE ar.organization_id = %s
+              AND ar.company_id = %s
+              AND ar.source = %s
+              AND ar.run_id <> %s
+              AND ar.status = 'completed'
+              AND ar.run_id < %s
+            ORDER BY ar.created_at DESC NULLS LAST, ar.run_id DESC
+            LIMIT 1;
+            """,
+            params,
+        )
+        return serialize_run(cursor.fetchone())
+
+
+def build_trend_metric(metric, label, current_value, previous_value, unit=None, positive_is_good=True):
+    delta = rounded_delta(current_value, previous_value, digits=1)
+    return {
+        "metric": metric,
+        "label": label,
+        "previous_value": as_float(previous_value),
+        "current_value": as_float(current_value),
+        "delta": delta,
+        "direction": change_direction(delta, positive_is_good=positive_is_good),
+        "unit": unit,
+    }
+
+
+def build_trend_summary(metrics, sentiment_changes, rising_topics, falling_topics, new_topics):
+    negative_change = next(
+        (row for row in sentiment_changes if normalize_label(row["label"]) == normalize_label("Négatif")),
+        None,
+    )
+    rating_metric = next((metric for metric in metrics if metric["metric"] == "average_rating"), None)
+
+    parts = []
+    if rating_metric and rating_metric["delta"] is not None:
+        verb = "progresse" if rating_metric["delta"] > 0 else "recule"
+        if abs(rating_metric["delta"]) < 0.05:
+            parts.append("La note moyenne est stable.")
+        else:
+            parts.append(
+                f"La note moyenne {verb} de {abs(rating_metric['delta']):.1f} point."
+            )
+
+    if negative_change:
+        delta_rate = negative_change["delta_rate"]
+        if abs(delta_rate) < 0.05:
+            parts.append("La part d'avis negatifs reste stable.")
+        elif delta_rate > 0:
+            parts.append(f"La part d'avis negatifs augmente de {abs(delta_rate):.1f} points.")
+        else:
+            parts.append(f"La part d'avis negatifs baisse de {abs(delta_rate):.1f} points.")
+
+    if rising_topics:
+        parts.append(f"Irritant en hausse: {rising_topics[0]['topic']}.")
+    elif new_topics:
+        parts.append(f"Nouvel irritant detecte: {new_topics[0]['topic']}.")
+    elif falling_topics:
+        parts.append(f"Irritant en baisse: {falling_topics[0]['topic']}.")
+
+    return " ".join(parts) or "Evolution stable par rapport a l'analyse precedente."
+
+
+def get_run_trend(run_id, organization_id):
+    current_summary = get_run_summary(run_id, organization_id=organization_id)
+    if current_summary is None:
+        return None
+
+    current_run = current_summary["run"]
+    if current_run["status"] != "completed":
+        raise ValueError("La tendance est disponible uniquement pour une analyse terminee.")
+
+    previous_run = get_previous_completed_run(current_run, organization_id)
+    if previous_run is None:
+        return {
+            "current_run": current_run,
+            "previous_run": None,
+            "has_previous": False,
+            "executive_summary": (
+                "Aucune analyse precedente terminee pour cette entreprise et cette source."
+            ),
+            "metrics": [],
+            "sentiment": [],
+            "rising_topics": [],
+            "falling_topics": [],
+            "new_topics": [],
+            "resolved_topics": [],
+        }
+
+    previous_summary = get_run_summary(
+        previous_run["run_id"],
+        organization_id=organization_id,
+    )
+
+    current_kpis = current_summary["kpis"]
+    previous_kpis = previous_summary["kpis"]
+    current_review_count = int(current_kpis.get("review_count") or 0)
+    previous_review_count = int(previous_kpis.get("review_count") or 0)
+
+    metrics = [
+        build_trend_metric(
+            "review_count",
+            "Avis analyses",
+            current_review_count,
+            previous_review_count,
+            unit="avis",
+            positive_is_good=True,
+        ),
+        build_trend_metric(
+            "average_rating",
+            "Note moyenne",
+            current_kpis.get("average_rating"),
+            previous_kpis.get("average_rating"),
+            unit="/5",
+            positive_is_good=True,
+        ),
+        build_trend_metric(
+            "average_confidence",
+            "Confiance IA",
+            current_kpis.get("average_confidence"),
+            previous_kpis.get("average_confidence"),
+            unit="score",
+            positive_is_good=True,
+        ),
+        build_trend_metric(
+            "health_score",
+            "Score sante",
+            current_summary["business_insights"].get("health_score"),
+            previous_summary["business_insights"].get("health_score"),
+            unit="/100",
+            positive_is_good=True,
+        ),
+    ]
+
+    labels = ["Négatif", "Neutre", "Positif"]
+    sentiment_changes = []
+    for label in labels:
+        current_count = get_distribution_count(
+            current_summary["sentiment_distribution"],
+            label,
+        )
+        previous_count = get_distribution_count(
+            previous_summary["sentiment_distribution"],
+            label,
+        )
+        current_rate = percentage(current_count, current_review_count)
+        previous_rate = percentage(previous_count, previous_review_count)
+        delta_rate = rounded_delta(current_rate, previous_rate, digits=1) or 0.0
+        sentiment_changes.append(
+            {
+                "label": label,
+                "previous_count": previous_count,
+                "current_count": current_count,
+                "previous_rate": previous_rate,
+                "current_rate": current_rate,
+                "delta_count": current_count - previous_count,
+                "delta_rate": delta_rate,
+                "direction": sentiment_direction(delta_rate),
+            }
+        )
+
+    topic_trends = build_topic_trends(
+        current_summary["top_topics"],
+        previous_summary["top_topics"],
+    )
+    rising_topics = sorted(
+        [topic for topic in topic_trends if topic["direction"] == "up"],
+        key=lambda item: (-item["delta_count"], item["topic"]),
+    )[:5]
+    falling_topics = sorted(
+        [topic for topic in topic_trends if topic["direction"] == "down"],
+        key=lambda item: (item["delta_count"], item["topic"]),
+    )[:5]
+    new_topics = sorted(
+        [topic for topic in topic_trends if topic["direction"] == "new"],
+        key=lambda item: (-item["current_count"], item["topic"]),
+    )[:5]
+    resolved_topics = sorted(
+        [topic for topic in topic_trends if topic["direction"] == "resolved"],
+        key=lambda item: (-item["previous_count"], item["topic"]),
+    )[:5]
+
+    return {
+        "current_run": current_run,
+        "previous_run": previous_run,
+        "has_previous": True,
+        "executive_summary": build_trend_summary(
+            metrics,
+            sentiment_changes,
+            rising_topics,
+            falling_topics,
+            new_topics,
+        ),
+        "metrics": metrics,
+        "sentiment": sentiment_changes,
+        "rising_topics": rising_topics,
+        "falling_topics": falling_topics,
+        "new_topics": new_topics,
+        "resolved_topics": resolved_topics,
+    }
+
+
 def build_benchmark_company(summary):
     run = summary["run"]
     kpis = summary["kpis"]

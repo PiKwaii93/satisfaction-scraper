@@ -135,6 +135,7 @@ GET    /analysis-runs
 GET    /analysis-runs/{run_id}
 POST   /analysis-runs/{run_id}/execute
 GET    /analysis-runs/{run_id}/summary
+GET    /analysis-runs/{run_id}/trend
 GET    /analysis-runs/{run_id}/reviews
 POST   /analysis-runs/{run_id}/reviews/{review_id}/feedback
 DELETE /analysis-runs/{run_id}/reviews/{review_id}/feedback
@@ -255,6 +256,7 @@ Elle permet de :
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
+- comparer une analyse avec le run precedent de la meme entreprise pour suivre les tendances ;
 - piloter la qualite IA avec les corrections humaines disponibles pour le prochain entrainement ;
 - suivre le journal d'execution d'une analyse en cours ;
 - filtrer les avis par sentiment ;
@@ -284,7 +286,7 @@ npm run build
 ## Tests et CI
 
 Le projet contient une base de tests automatises pour securiser l'API produit,
-l'import CSV et les regles de securite par API key.
+l'import CSV et les regles de securite JWT.
 
 Installer les dependances de test en local :
 

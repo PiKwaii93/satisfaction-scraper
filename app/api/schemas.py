@@ -348,5 +348,47 @@ class AnalysisRunsComparisonResponse(BaseModel):
     highlights: BenchmarkHighlights
 
 
+class TrendMetricChange(BaseModel):
+    metric: str
+    label: str
+    previous_value: float | None = None
+    current_value: float | None = None
+    delta: float | None = None
+    direction: Literal["up", "down", "flat", "unknown"]
+    unit: str | None = None
+
+
+class TrendSentimentChange(BaseModel):
+    label: str
+    previous_count: int
+    current_count: int
+    previous_rate: float
+    current_rate: float
+    delta_count: int
+    delta_rate: float
+    direction: Literal["up", "down", "flat"]
+
+
+class TrendTopicChange(BaseModel):
+    topic: str
+    previous_count: int
+    current_count: int
+    delta_count: int
+    direction: Literal["up", "down", "flat", "new", "resolved"]
+
+
+class AnalysisRunTrendResponse(BaseModel):
+    current_run: AnalysisRunResponse
+    previous_run: AnalysisRunResponse | None = None
+    has_previous: bool
+    executive_summary: str
+    metrics: list[TrendMetricChange] = Field(default_factory=list)
+    sentiment: list[TrendSentimentChange] = Field(default_factory=list)
+    rising_topics: list[TrendTopicChange] = Field(default_factory=list)
+    falling_topics: list[TrendTopicChange] = Field(default_factory=list)
+    new_topics: list[TrendTopicChange] = Field(default_factory=list)
+    resolved_topics: list[TrendTopicChange] = Field(default_factory=list)
+
+
 class ErrorResponse(BaseModel):
     detail: str
