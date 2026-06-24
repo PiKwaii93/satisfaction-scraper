@@ -1,0 +1,112 @@
+ACTIVE_SOURCE_STATUS = "active"
+PLANNED_SOURCE_STATUS = "planned"
+
+
+CSV_COLUMN_ALIASES = {
+    "verbatim": [
+        "avis",
+        "review",
+        "text",
+        "texte",
+        "comment",
+        "commentaire",
+        "body",
+        "message",
+    ],
+    "rating": ["note", "stars", "etoiles", "score"],
+    "author": ["author_name", "auteur", "nom", "name", "user", "client"],
+    "date": ["raw_date", "review_date", "created_at", "published_at"],
+    "company_responded": ["responded", "response", "reponse", "has_response"],
+}
+
+
+SOURCE_CATALOG = [
+    {
+        "source_id": "trustpilot",
+        "label": "Trustpilot",
+        "status": ACTIVE_SOURCE_STATUS,
+        "category": "web public",
+        "description": "Collecte des avis publics Trustpilot par entreprise et par note.",
+        "primary_action": "Coller une URL ou un domaine Trustpilot",
+        "setup_hint": "Aucune configuration requise pour le MVP.",
+        "supports_analysis": True,
+        "is_configured": True,
+        "required_fields": ["URL ou domaine Trustpilot"],
+        "optional_fields": ["Pages par note", "Notes ciblees"],
+        "column_aliases": {},
+    },
+    {
+        "source_id": "csv",
+        "label": "CSV",
+        "status": ACTIVE_SOURCE_STATUS,
+        "category": "import fichier",
+        "description": "Import d'un fichier d'avis client fourni par une entreprise.",
+        "primary_action": "Importer un fichier CSV",
+        "setup_hint": "Format flexible avec mapping manuel des colonnes.",
+        "supports_analysis": True,
+        "is_configured": True,
+        "required_fields": ["verbatim"],
+        "optional_fields": ["rating", "author", "date", "company_responded"],
+        "column_aliases": CSV_COLUMN_ALIASES,
+    },
+    {
+        "source_id": "google_reviews",
+        "label": "Google Reviews",
+        "status": PLANNED_SOURCE_STATUS,
+        "category": "connecteur API",
+        "description": "Preparation d'un connecteur Google Business Profile pour les avis etablissements.",
+        "primary_action": None,
+        "setup_hint": "Necessitera OAuth, droits Business Profile et respect des quotas API.",
+        "supports_analysis": False,
+        "is_configured": False,
+        "required_fields": ["Compte Google Business Profile"],
+        "optional_fields": ["Etablissements", "Periode"],
+        "column_aliases": {},
+    },
+    {
+        "source_id": "zendesk",
+        "label": "Zendesk",
+        "status": PLANNED_SOURCE_STATUS,
+        "category": "support client",
+        "description": "Preparation d'une source SAV pour analyser tickets, motifs et verbatims clients.",
+        "primary_action": None,
+        "setup_hint": "Necessitera une cle API Zendesk et un mapping des champs tickets.",
+        "supports_analysis": False,
+        "is_configured": False,
+        "required_fields": ["Sous-domaine Zendesk", "Token API"],
+        "optional_fields": ["Tags", "Periode", "Statuts"],
+        "column_aliases": {},
+    },
+    {
+        "source_id": "shopify",
+        "label": "Shopify",
+        "status": PLANNED_SOURCE_STATUS,
+        "category": "e-commerce",
+        "description": "Preparation d'une source e-commerce pour rapprocher avis, commandes et produits.",
+        "primary_action": None,
+        "setup_hint": "Necessitera une app Shopify et une strategie de donnees produits.",
+        "supports_analysis": False,
+        "is_configured": False,
+        "required_fields": ["Boutique Shopify", "App token"],
+        "optional_fields": ["Produits", "Commandes", "Periode"],
+        "column_aliases": {},
+    },
+    {
+        "source_id": "internal_support",
+        "label": "SAV interne",
+        "status": PLANNED_SOURCE_STATUS,
+        "category": "donnees internes",
+        "description": "Preparation d'une source generique pour exports CRM, SAV ou enquete post-achat.",
+        "primary_action": None,
+        "setup_hint": "Le CSV couvre deja une partie de ce besoin dans le MVP.",
+        "supports_analysis": False,
+        "is_configured": False,
+        "required_fields": ["Export client"],
+        "optional_fields": ["Canal", "Motif", "Date", "Agent"],
+        "column_aliases": {},
+    },
+]
+
+
+def list_review_sources():
+    return SOURCE_CATALOG

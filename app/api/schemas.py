@@ -44,6 +44,21 @@ class OrganizationUserCreate(BaseModel):
     role: Literal["admin", "member"] = "member"
 
 
+class ReviewSourceResponse(BaseModel):
+    source_id: str
+    label: str
+    status: Literal["active", "planned"]
+    category: str
+    description: str
+    primary_action: str | None = None
+    setup_hint: str | None = None
+    supports_analysis: bool
+    is_configured: bool
+    required_fields: list[str] = Field(default_factory=list)
+    optional_fields: list[str] = Field(default_factory=list)
+    column_aliases: dict[str, list[str]] = Field(default_factory=dict)
+
+
 class AnalysisRunCreate(BaseModel):
     company: str = Field(
         ...,

@@ -6,6 +6,7 @@ from app.api.auth import AuthenticatedUser, require_current_user
 from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.model_training import router as model_training_router
+from app.api.routes.review_sources import router as review_sources_router
 
 
 TEST_USER = AuthenticatedUser(
@@ -27,6 +28,7 @@ def configure_test_auth(monkeypatch):
 def test_app():
     app = FastAPI()
     app.include_router(auth_router)
+    app.include_router(review_sources_router)
     app.include_router(analysis_runs_router)
     app.include_router(model_training_router)
 
