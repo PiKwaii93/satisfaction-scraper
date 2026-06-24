@@ -14,6 +14,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 
+from app.api.auth import AuthenticatedUser, require_current_user
 from app.api.schemas import (
     AnalysisRunCreate,
     AnalysisRunEventResponse,
@@ -26,7 +27,6 @@ from app.api.schemas import (
     ReviewFeedbackResponse,
     ReviewListResponse,
 )
-from app.api.security import require_api_key
 from app.api.services.analysis_service import (
     ActiveAnalysisRunError,
     build_csv_import_preview,
@@ -50,10 +50,9 @@ from app.api.services.analysis_service import (
 router = APIRouter(
     prefix="/analysis-runs",
     tags=["analysis-runs"],
-    dependencies=[Depends(require_api_key)],
     responses={
-        401: {"model": ErrorResponse, "description": "API key manquante"},
-        403: {"model": ErrorResponse, "description": "API key invalide"},
+        401: {"model": ErrorResponse, "description": "Authentification requise"},
+        403: {"model": ErrorResponse, "description": "Token invalide"},
     },
 )
 
@@ -89,9 +88,12 @@ def parse_csv_column_mapping(column_mapping: str | None):
         409: {"model": ErrorResponse, "description": "Analyse identique deja active"},
     },
 )
-def create_run(payload: AnalysisRunCreate):
+def create_run(
+    payload: AnalysisRunCreate,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
     try:
-        run = create_analysis_run(payload)
+        run = create_analysis_run(payload, organization_id=current_user.organization_id)
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
@@ -115,7 +117,9 @@ def create_run(payload: AnalysisRunCreate):
 async def preview_csv_run(
     file: UploadFile = File(...),
     column_mapping: str | None = Form(default=None),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
+    _ = current_user
     try:
         content = await file.read()
         if not content:
@@ -148,6 +152,7 @@ async def import_csv_run(
     company: str = Form(..., min_length=2),
     file: UploadFile = File(...),
     column_mapping: str | None = Form(default=None),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
     try:
         content = await file.read()
@@ -156,6 +161,7 @@ async def import_csv_run(
         run = create_csv_analysis_run(
             company_input=company,
             file_bytes=content,
+            organization_id=current_user.organization_id,
             original_filename=file.filename,
             column_mapping=parse_csv_column_mapping(column_mapping),
         )
@@ -178,8 +184,13 @@ async def import_csv_run(
 def list_runs(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
-    return list_analysis_runs(limit=limit, offset=offset)
+    return list_analysis_runs(
+        organization_id=current_user.organization_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(
@@ -194,6 +205,7 @@ def compare_runs(
         ...,
         description="Identifiants de runs separes par des virgules, ex: 1,2,3",
     ),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
     try:
         parsed_run_ids = [
@@ -201,7 +213,10 @@ def compare_runs(
             for run_id in run_ids.split(",")
             if run_id.strip()
         ]
-        return get_runs_comparison(parsed_run_ids)
+        return get_runs_comparison(
+            parsed_run_ids,
+            organization_id=current_user.organization_id,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -212,8 +227,14 @@ def compare_runs(
     summary="Consulter la qualité IA",
     description="Agrège les corrections humaines pour piloter le prochain réentraînement.",
 )
-def get_feedback_quality(recent_limit: int = Query(default=8, ge=1, le=50)):
-    return get_feedback_quality_summary(recent_limit=recent_limit)
+def get_feedback_quality(
+    recent_limit: int = Query(default=8, ge=1, le=50),
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    return get_feedback_quality_summary(
+        recent_limit=recent_limit,
+        organization_id=current_user.organization_id,
+    )
 
 
 @router.get(
@@ -222,8 +243,11 @@ def get_feedback_quality(recent_limit: int = Query(default=8, ge=1, le=50)):
     summary="Consulter une analyse",
     responses={404: {"model": ErrorResponse}},
 )
-def get_run(run_id: int):
-    run = get_analysis_run(run_id)
+def get_run(
+    run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    run = get_analysis_run(run_id, organization_id=current_user.organization_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     return run
@@ -236,8 +260,12 @@ def get_run(run_id: int):
     description="Replace un run existant dans la file Celery.",
     responses={404: {"model": ErrorResponse}},
 )
-def execute_run(run_id: int, skip_scrape: bool = False):
-    if get_analysis_run(run_id) is None:
+def execute_run(
+    run_id: int,
+    skip_scrape: bool = False,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
     try:
@@ -245,7 +273,7 @@ def execute_run(run_id: int, skip_scrape: bool = False):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    return get_analysis_run(run_id)
+    return get_analysis_run(run_id, organization_id=current_user.organization_id)
 
 
 @router.get(
@@ -260,14 +288,16 @@ def list_reviews(
     sentiment: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
-    if get_analysis_run(run_id) is None:
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     return get_run_reviews(
         run_id=run_id,
         sentiment=sentiment,
         limit=limit,
         offset=offset,
+        organization_id=current_user.organization_id,
     )
 
 
@@ -278,12 +308,22 @@ def list_reviews(
     description="Enregistre ou remplace une correction humaine pour alimenter le futur dataset d'entrainement.",
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
 )
-def save_feedback(run_id: int, review_id: int, payload: ReviewFeedbackCreate):
-    if get_analysis_run(run_id) is None:
+def save_feedback(
+    run_id: int,
+    review_id: int,
+    payload: ReviewFeedbackCreate,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
     try:
-        feedback = save_review_feedback(run_id, review_id, payload)
+        feedback = save_review_feedback(
+            run_id,
+            review_id,
+            payload,
+            organization_id=current_user.organization_id,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -298,10 +338,18 @@ def save_feedback(run_id: int, review_id: int, payload: ReviewFeedbackCreate):
     summary="Supprimer une correction",
     responses={404: {"model": ErrorResponse}},
 )
-def delete_feedback(run_id: int, review_id: int):
-    if get_analysis_run(run_id) is None:
+def delete_feedback(
+    run_id: int,
+    review_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
-    if not delete_review_feedback(run_id, review_id):
+    if not delete_review_feedback(
+        run_id,
+        review_id,
+        organization_id=current_user.organization_id,
+    ):
         raise HTTPException(status_code=404, detail="Correction introuvable")
     return Response(status_code=204)
 
@@ -316,8 +364,9 @@ def delete_feedback(run_id: int, review_id: int):
 def list_events(
     run_id: int,
     limit: int = Query(default=100, ge=1, le=500),
+    current_user: AuthenticatedUser = Depends(require_current_user),
 ):
-    if get_analysis_run(run_id) is None:
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     return get_run_events(run_id, limit=limit)
 
@@ -327,8 +376,11 @@ def list_events(
     summary="Consulter le rapport synthétique",
     responses={404: {"model": ErrorResponse}},
 )
-def get_summary(run_id: int):
-    summary = get_run_summary(run_id)
+def get_summary(
+    run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    summary = get_run_summary(run_id, organization_id=current_user.organization_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     return summary
@@ -339,11 +391,17 @@ def get_summary(run_id: int):
     summary="Exporter les corrections humaines en CSV",
     responses={404: {"model": ErrorResponse}},
 )
-def export_feedback(run_id: int):
-    if get_analysis_run(run_id) is None:
+def export_feedback(
+    run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
-    rows = get_feedback_export_rows(run_id)
+    rows = get_feedback_export_rows(
+        run_id,
+        organization_id=current_user.organization_id,
+    )
     buffer = StringIO()
     writer = csv.DictWriter(
         buffer,
@@ -387,11 +445,14 @@ def export_feedback(run_id: int):
     summary="Exporter les avis en CSV",
     responses={404: {"model": ErrorResponse}},
 )
-def export_reviews(run_id: int):
-    if get_analysis_run(run_id) is None:
+def export_reviews(
+    run_id: int,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    if get_analysis_run(run_id, organization_id=current_user.organization_id) is None:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
-    rows = get_export_rows(run_id)
+    rows = get_export_rows(run_id, organization_id=current_user.organization_id)
     buffer = StringIO()
     writer = csv.DictWriter(
         buffer,

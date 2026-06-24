@@ -43,10 +43,31 @@ def get_cursor(commit=False):
 def ensure_product_schema(max_attempts=1, delay_seconds=1):
     """Create the product tables used by the FastAPI app if they do not exist."""
     schema_sql = """
+    CREATE TABLE IF NOT EXISTS organizations (
+        organization_id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        slug VARCHAR(255) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+        user_id SERIAL PRIMARY KEY,
+        organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        full_name VARCHAR(255),
+        password_hash TEXT NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'member',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS companies (
         company_id SERIAL PRIMARY KEY,
+        organization_id INT REFERENCES organizations(organization_id) ON DELETE CASCADE,
         company_name VARCHAR(255) NOT NULL,
-        trustpilot_slug VARCHAR(255) UNIQUE NOT NULL,
+        trustpilot_slug VARCHAR(255) NOT NULL,
         source_url TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
@@ -55,6 +76,7 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
     CREATE TABLE IF NOT EXISTS analysis_runs (
         run_id SERIAL PRIMARY KEY,
         company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+        organization_id INT REFERENCES organizations(organization_id) ON DELETE CASCADE,
         source VARCHAR(50) NOT NULL DEFAULT 'trustpilot',
         status VARCHAR(30) NOT NULL DEFAULT 'pending',
         stars_requested TEXT,
@@ -124,6 +146,7 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
 
     CREATE TABLE IF NOT EXISTS model_training_runs (
         training_run_id SERIAL PRIMARY KEY,
+        organization_id INT REFERENCES organizations(organization_id) ON DELETE CASCADE,
         status VARCHAR(30) NOT NULL DEFAULT 'pending',
         celery_task_id TEXT,
         trigger_source VARCHAR(50) NOT NULL DEFAULT 'api',
@@ -145,8 +168,57 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         updated_at TIMESTAMP DEFAULT NOW()
     );
 
+    ALTER TABLE companies
+        ADD COLUMN IF NOT EXISTS organization_id INT;
+    ALTER TABLE analysis_runs
+        ADD COLUMN IF NOT EXISTS organization_id INT;
+    ALTER TABLE model_training_runs
+        ADD COLUMN IF NOT EXISTS organization_id INT;
+
+    INSERT INTO organizations (name, slug, updated_at)
+    VALUES ('Demo Satisfaction Client', 'demo', NOW())
+    ON CONFLICT (slug) DO UPDATE
+    SET updated_at = NOW();
+
+    UPDATE companies
+    SET organization_id = (SELECT organization_id FROM organizations WHERE slug = 'demo')
+    WHERE organization_id IS NULL;
+    UPDATE analysis_runs ar
+    SET organization_id = c.organization_id
+    FROM companies c
+    WHERE ar.company_id = c.company_id
+      AND ar.organization_id IS NULL;
+    UPDATE model_training_runs
+    SET organization_id = (SELECT organization_id FROM organizations WHERE slug = 'demo')
+    WHERE organization_id IS NULL;
+
+    ALTER TABLE companies
+        ALTER COLUMN organization_id SET NOT NULL;
+    ALTER TABLE analysis_runs
+        ALTER COLUMN organization_id SET NOT NULL;
+    ALTER TABLE model_training_runs
+        ALTER COLUMN organization_id SET NOT NULL;
+
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'companies_trustpilot_slug_key'
+        ) THEN
+            ALTER TABLE companies DROP CONSTRAINT companies_trustpilot_slug_key;
+        END IF;
+    END
+    $$;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_org_slug
+        ON companies(organization_id, trustpilot_slug);
+    CREATE INDEX IF NOT EXISTS idx_users_org
+        ON users(organization_id);
     CREATE INDEX IF NOT EXISTS idx_analysis_runs_company
         ON analysis_runs(company_id);
+    CREATE INDEX IF NOT EXISTS idx_analysis_runs_org
+        ON analysis_runs(organization_id);
     CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run
         ON analysis_run_events(run_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_run
@@ -161,6 +233,8 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         ON review_feedback(corrected_label);
     CREATE INDEX IF NOT EXISTS idx_model_training_runs_status
         ON model_training_runs(status);
+    CREATE INDEX IF NOT EXISTS idx_model_training_runs_org
+        ON model_training_runs(organization_id);
 
     ALTER TABLE analysis_runs
         ADD COLUMN IF NOT EXISTS celery_task_id TEXT;
@@ -171,6 +245,9 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         try:
             with get_cursor(commit=True) as cursor:
                 cursor.execute(schema_sql)
+            from app.api.auth import seed_demo_identity
+
+            seed_demo_identity()
             return
         except OperationalError as exc:
             last_error = exc

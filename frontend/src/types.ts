@@ -2,6 +2,25 @@ export type SentimentLabel = "Positif" | "Neutre" | "Négatif";
 
 export type AnalysisSource = "trustpilot" | "csv";
 
+export type Organization = {
+  organization_id: number;
+  name: string;
+};
+
+export type CurrentUser = {
+  user_id: number;
+  email: string;
+  full_name: string | null;
+  role: string;
+  organization: Organization;
+};
+
+export type AuthToken = {
+  access_token: string;
+  token_type: "bearer" | string;
+  user: CurrentUser;
+};
+
 export type AnalysisRun = {
   run_id: number;
   company_id: number;

@@ -22,3 +22,6 @@ fastapi
 python-multipart
 uvicorn[standard]
 celery[redis]
+PyJWT
+passlib[bcrypt]
+bcrypt<5

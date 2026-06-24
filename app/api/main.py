@@ -5,23 +5,32 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.database import ensure_product_schema
 from app.api.routes.analysis_runs import router as analysis_runs_router
+from app.api.routes.auth import router as auth_router
 from app.api.routes.model_training import router as model_training_router
 
 API_DESCRIPTION = """
 API produit pour lancer, suivre et consulter des analyses d'avis clients depuis Trustpilot ou CSV.
 
-Les endpoints métier sont protégés par une clé API à transmettre dans le header
-`X-API-Key`. L'endpoint `/health` reste public pour les sondes de disponibilité.
+Les endpoints metier sont proteges par un token JWT transmis dans le header
+`Authorization: Bearer <token>`. L'endpoint `/health` reste public pour les sondes de disponibilite.
 """
 
 OPENAPI_TAGS = [
     {
         "name": "system",
-        "description": "Endpoints techniques publics, utiles pour vérifier la disponibilité.",
+        "description": "Endpoints techniques publics, utiles pour verifier la disponibilite.",
+    },
+    {
+        "name": "auth",
+        "description": "Connexion JWT et consultation de l'utilisateur courant.",
     },
     {
         "name": "analysis-runs",
-        "description": "Création, suivi, consultation et export des analyses client.",
+        "description": "Creation, suivi, consultation et export des analyses client.",
+    },
+    {
+        "name": "model-training",
+        "description": "Pilotage du reentrainement du modele de sentiment.",
     },
 ]
 
@@ -55,6 +64,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(analysis_runs_router)
 app.include_router(model_training_router)
 
@@ -62,7 +72,7 @@ app.include_router(model_training_router)
 @app.get(
     "/health",
     tags=["system"],
-    summary="Vérifier la disponibilité de l'API",
+    summary="Verifier la disponibilite de l'API",
 )
 def health_check():
     return {"status": "ok"}
