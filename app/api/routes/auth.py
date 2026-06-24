@@ -4,9 +4,18 @@ from app.api.auth import (
     AuthenticatedUser,
     authenticate_user,
     create_access_token,
+    create_organization_user,
+    list_organization_users,
+    require_org_admin,
     require_current_user,
 )
-from app.api.schemas import AuthLoginRequest, AuthMeResponse, AuthTokenResponse
+from app.api.schemas import (
+    AuthLoginRequest,
+    AuthMeResponse,
+    AuthTokenResponse,
+    OrganizationUserCreate,
+    OrganizationUserResponse,
+)
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -52,3 +61,26 @@ def login(payload: AuthLoginRequest):
 )
 def me(user: AuthenticatedUser = Depends(require_current_user)):
     return serialize_me(user)
+
+
+@router.get(
+    "/organization/users",
+    response_model=list[OrganizationUserResponse],
+    summary="Lister les utilisateurs de l'organisation",
+)
+def organization_users(user: AuthenticatedUser = Depends(require_current_user)):
+    return list_organization_users(user.organization_id)
+
+
+@router.post(
+    "/organization/users",
+    response_model=OrganizationUserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ajouter un utilisateur a l'organisation",
+)
+def add_organization_user(
+    payload: OrganizationUserCreate,
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(user)
+    return create_organization_user(user.organization_id, payload)

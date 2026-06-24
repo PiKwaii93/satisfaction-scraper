@@ -11,8 +11,26 @@ export type CurrentUser = {
   user_id: number;
   email: string;
   full_name: string | null;
-  role: string;
+  role: UserRole;
   organization: Organization;
+};
+
+export type UserRole = "admin" | "member";
+
+export type OrganizationUser = {
+  user_id: number;
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string | null;
+};
+
+export type OrganizationUserCreate = {
+  email: string;
+  password: string;
+  full_name?: string | null;
+  role: UserRole;
 };
 
 export type AuthToken = {

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
+  Building2,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -14,10 +15,13 @@ import {
   Play,
   RefreshCw,
   Search,
-  TableProperties
+  TableProperties,
+  Users,
+  UserPlus
 } from "lucide-react";
 import {
   compareRuns,
+  createOrganizationUser,
   createModelTrainingRun,
   createRun,
   clearAuthToken,
@@ -32,6 +36,7 @@ import {
   getRunEvents,
   getSummary,
   hasAuthToken,
+  listOrganizationUsers,
   listRuns,
   login,
   previewCsvFile,
@@ -53,11 +58,13 @@ import type {
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
+  OrganizationUser,
   Review,
   RunsComparison,
   RunSummary,
   SentimentLabel,
-  SummaryReview
+  SummaryReview,
+  UserRole
 } from "./types";
 
 const SENTIMENTS: Array<SentimentLabel | "Tous"> = [
@@ -917,6 +924,19 @@ export default function App() {
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
   const [loginEmail, setLoginEmail] = useState("demo@satisfaction.local");
   const [loginPassword, setLoginPassword] = useState("demo-password");
+  const [organizationUsers, setOrganizationUsers] = useState<OrganizationUser[]>([]);
+  const [isOrganizationUsersLoading, setIsOrganizationUsersLoading] = useState(false);
+  const [isCreatingOrganizationUser, setIsCreatingOrganizationUser] = useState(false);
+  const [organizationUserEmail, setOrganizationUserEmail] = useState("");
+  const [organizationUserFullName, setOrganizationUserFullName] = useState("");
+  const [organizationUserPassword, setOrganizationUserPassword] = useState("");
+  const [organizationUserRole, setOrganizationUserRole] =
+    useState<UserRole>("member");
+  const [organizationUserError, setOrganizationUserError] = useState<string | null>(
+    null
+  );
+  const [organizationUserMessage, setOrganizationUserMessage] =
+    useState<string | null>(null);
   const [runs, setRuns] = useState<AnalysisRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
@@ -987,6 +1007,16 @@ export default function App() {
     }
   }
 
+  async function refreshOrganizationUsers() {
+    setIsOrganizationUsersLoading(true);
+    try {
+      const users = await listOrganizationUsers();
+      setOrganizationUsers(users);
+    } finally {
+      setIsOrganizationUsersLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!hasAuthToken()) {
       setIsAuthLoading(false);
@@ -1014,6 +1044,7 @@ export default function App() {
       .finally(() => setIsLoading(false));
     refreshFeedbackQuality().catch((err: Error) => setError(err.message));
     refreshTrainingOverview().catch((err: Error) => setError(err.message));
+    refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
   }, [currentUser?.user_id]);
 
   useEffect(() => {
@@ -1090,7 +1121,38 @@ export default function App() {
     setComparison(null);
     setFeedbackQuality(null);
     setTrainingOverview(null);
+    setOrganizationUsers([]);
+    setOrganizationUserError(null);
+    setOrganizationUserMessage(null);
     setError(null);
+  }
+
+  async function handleCreateOrganizationUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setOrganizationUserError(null);
+    setOrganizationUserMessage(null);
+    setIsCreatingOrganizationUser(true);
+
+    try {
+      const createdUser = await createOrganizationUser({
+        email: organizationUserEmail.trim(),
+        password: organizationUserPassword,
+        full_name: organizationUserFullName.trim() || null,
+        role: organizationUserRole
+      });
+      setOrganizationUserEmail("");
+      setOrganizationUserFullName("");
+      setOrganizationUserPassword("");
+      setOrganizationUserRole("member");
+      setOrganizationUserMessage(`${createdUser.email} a ete ajoute a l'espace client.`);
+      await refreshOrganizationUsers();
+    } catch (err) {
+      setOrganizationUserError(
+        err instanceof Error ? err.message : "Creation utilisateur impossible"
+      );
+    } finally {
+      setIsCreatingOrganizationUser(false);
+    }
   }
 
   function toggleComparisonRun(runId: number) {
@@ -1881,6 +1943,29 @@ export default function App() {
           />
         )}
 
+        <ClientSpacePanel
+          currentUser={currentUser}
+          isCreatingUser={isCreatingOrganizationUser}
+          isLoadingUsers={isOrganizationUsersLoading}
+          message={organizationUserMessage}
+          newUserEmail={organizationUserEmail}
+          newUserFullName={organizationUserFullName}
+          newUserPassword={organizationUserPassword}
+          newUserRole={organizationUserRole}
+          onCreateUser={handleCreateOrganizationUser}
+          onRefreshUsers={() =>
+            refreshOrganizationUsers().catch((err: Error) =>
+              setOrganizationUserError(err.message)
+            )
+          }
+          onUpdateNewUserEmail={setOrganizationUserEmail}
+          onUpdateNewUserFullName={setOrganizationUserFullName}
+          onUpdateNewUserPassword={setOrganizationUserPassword}
+          onUpdateNewUserRole={setOrganizationUserRole}
+          users={organizationUsers}
+          usersError={organizationUserError}
+        />
+
         <AIQualityPanel
           isLoading={isFeedbackQualityLoading}
           onRefresh={() =>
@@ -2220,6 +2305,181 @@ function FailedRunState({
       </div>
     </section>
   );
+}
+
+function ClientSpacePanel({
+  currentUser,
+  isCreatingUser,
+  isLoadingUsers,
+  message,
+  newUserEmail,
+  newUserFullName,
+  newUserPassword,
+  newUserRole,
+  onCreateUser,
+  onRefreshUsers,
+  onUpdateNewUserEmail,
+  onUpdateNewUserFullName,
+  onUpdateNewUserPassword,
+  onUpdateNewUserRole,
+  users,
+  usersError
+}: {
+  currentUser: CurrentUser;
+  isCreatingUser: boolean;
+  isLoadingUsers: boolean;
+  message: string | null;
+  newUserEmail: string;
+  newUserFullName: string;
+  newUserPassword: string;
+  newUserRole: UserRole;
+  onCreateUser: (event: FormEvent<HTMLFormElement>) => void;
+  onRefreshUsers: () => void;
+  onUpdateNewUserEmail: (value: string) => void;
+  onUpdateNewUserFullName: (value: string) => void;
+  onUpdateNewUserPassword: (value: string) => void;
+  onUpdateNewUserRole: (value: UserRole) => void;
+  users: OrganizationUser[];
+  usersError: string | null;
+}) {
+  const isAdmin = currentUser.role === "admin";
+
+  return (
+    <section className="client-space-panel insight-section wide">
+      <div className="section-heading client-space-heading">
+        <div>
+          <span className="eyebrow">Espace client</span>
+          <h3>{currentUser.organization.name}</h3>
+          <p>
+            Gestion minimale des membres rattaches a cette organisation. Les
+            invitations email arriveront dans une prochaine etape.
+          </p>
+        </div>
+        <button
+          className="secondary-action"
+          disabled={isLoadingUsers}
+          onClick={onRefreshUsers}
+          type="button"
+        >
+          {isLoadingUsers ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+          Actualiser
+        </button>
+      </div>
+
+      <div className="client-space-grid">
+        <div className="client-card">
+          <Building2 size={20} />
+          <div>
+            <span>Organisation</span>
+            <strong>{currentUser.organization.name}</strong>
+            <small>ID #{currentUser.organization.organization_id}</small>
+          </div>
+        </div>
+        <div className="client-card">
+          <Users size={20} />
+          <div>
+            <span>Membres</span>
+            <strong>{users.length}</strong>
+            <small>{users.filter((user) => user.is_active).length} actif(s)</small>
+          </div>
+        </div>
+        <div className="client-card">
+          <CheckCircle2 size={20} />
+          <div>
+            <span>Session</span>
+            <strong>{formatRole(currentUser.role)}</strong>
+            <small>{currentUser.email}</small>
+          </div>
+        </div>
+      </div>
+
+      {usersError ? <p className="form-error">{usersError}</p> : null}
+      {message ? <p className="form-success">{message}</p> : null}
+
+      <div className="client-members-layout">
+        <div className="client-members-list">
+          <div className="mini-heading">
+            <strong>Utilisateurs de l'organisation</strong>
+            <span>{isLoadingUsers ? "Chargement..." : `${users.length} compte(s)`}</span>
+          </div>
+          {users.length === 0 && !isLoadingUsers ? (
+            <p className="muted">Aucun utilisateur rattache pour le moment.</p>
+          ) : (
+            <div className="member-table">
+              {users.map((user) => (
+                <div className="member-row" key={user.user_id}>
+                  <div>
+                    <strong>{user.full_name || user.email}</strong>
+                    <small>{user.email}</small>
+                  </div>
+                  <RolePill role={user.role} />
+                  <span className={user.is_active ? "status-dot active" : "status-dot"}>
+                    {user.is_active ? "Actif" : "Inactif"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <form className="client-user-form" onSubmit={onCreateUser}>
+          <div className="mini-heading">
+            <strong>Ajouter un utilisateur</strong>
+            <span>{isAdmin ? "Admin" : "Lecture seule"}</span>
+          </div>
+          <input
+            disabled={!isAdmin || isCreatingUser}
+            onChange={(event) => onUpdateNewUserEmail(event.target.value)}
+            placeholder="email@entreprise.fr"
+            type="email"
+            value={newUserEmail}
+          />
+          <input
+            disabled={!isAdmin || isCreatingUser}
+            onChange={(event) => onUpdateNewUserFullName(event.target.value)}
+            placeholder="Nom complet"
+            type="text"
+            value={newUserFullName}
+          />
+          <select
+            disabled={!isAdmin || isCreatingUser}
+            onChange={(event) => onUpdateNewUserRole(event.target.value as UserRole)}
+            value={newUserRole}
+          >
+            <option value="member">Membre</option>
+            <option value="admin">Admin</option>
+          </select>
+          <input
+            disabled={!isAdmin || isCreatingUser}
+            minLength={8}
+            onChange={(event) => onUpdateNewUserPassword(event.target.value)}
+            placeholder="Mot de passe temporaire"
+            type="password"
+            value={newUserPassword}
+          />
+          <button
+            className="primary-action compact-action"
+            disabled={!isAdmin || isCreatingUser}
+            type="submit"
+          >
+            {isCreatingUser ? <Loader2 className="spin" size={16} /> : <UserPlus size={16} />}
+            Ajouter
+          </button>
+          {!isAdmin ? (
+            <p className="muted">Seuls les administrateurs peuvent ajouter un membre.</p>
+          ) : null}
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function RolePill({ role }: { role: UserRole }) {
+  return <span className={`role-pill ${role}`}>{formatRole(role)}</span>;
+}
+
+function formatRole(role: string) {
+  return role === "admin" ? "Admin" : "Membre";
 }
 
 function AIQualityPanel({

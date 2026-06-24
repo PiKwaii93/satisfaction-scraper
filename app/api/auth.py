@@ -142,6 +142,81 @@ def authenticate_user(email: str, password: str):
     return serialize_authenticated_user(user)
 
 
+def serialize_organization_user(row):
+    return {
+        "user_id": int(row["user_id"]),
+        "email": row["email"],
+        "full_name": row.get("full_name"),
+        "role": row.get("role") or "member",
+        "is_active": bool(row.get("is_active", True)),
+        "created_at": row.get("created_at"),
+    }
+
+
+def list_organization_users(organization_id: int):
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT user_id, email, full_name, role, is_active, created_at
+            FROM users
+            WHERE organization_id = %s
+            ORDER BY
+                CASE role WHEN 'admin' THEN 0 ELSE 1 END,
+                LOWER(email);
+            """,
+            (organization_id,),
+        )
+        return [serialize_organization_user(row) for row in cursor.fetchall()]
+
+
+def create_organization_user(organization_id: int, payload):
+    normalized_email = payload.email.strip().lower()
+    full_name = payload.full_name.strip() if payload.full_name else None
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE LOWER(email) = LOWER(%s);",
+            (normalized_email,),
+        )
+        if cursor.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Un utilisateur existe deja avec cet email.",
+            )
+
+        cursor.execute(
+            """
+            INSERT INTO users (
+                organization_id,
+                email,
+                full_name,
+                password_hash,
+                role,
+                updated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, NOW())
+            RETURNING user_id, email, full_name, role, is_active, created_at;
+            """,
+            (
+                organization_id,
+                normalized_email,
+                full_name,
+                hash_password(payload.password),
+                payload.role,
+            ),
+        )
+        return serialize_organization_user(cursor.fetchone())
+
+
+def require_org_admin(user: AuthenticatedUser):
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Action reservee aux administrateurs de l'organisation.",
+        )
+    return user
+
+
 def decode_access_token(token: str):
     try:
         payload = jwt.decode(
