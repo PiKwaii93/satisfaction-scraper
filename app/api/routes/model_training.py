@@ -14,6 +14,7 @@ from app.api.services.training_service import (
     get_model_training_run,
     list_model_training_runs,
 )
+from app.api.services.organization_service import record_audit_event
 
 
 router = APIRouter(
@@ -72,10 +73,23 @@ def create_training_run(
 ):
     require_org_admin(current_user)
     try:
-        return create_model_training_run(
+        run = create_model_training_run(
             payload,
             organization_id=current_user.organization_id,
         )
+        record_audit_event(
+            organization_id=current_user.organization_id,
+            actor_user=current_user,
+            event_type="model_training.created",
+            summary=f"Reentrainement IA #{run['training_run_id']} lance.",
+            entity_type="model_training_run",
+            entity_id=run["training_run_id"],
+            metadata={
+                "feedback_sample_weight": run.get("feedback_sample_weight"),
+                "execute_immediately": payload.execute_immediately,
+            },
+        )
+        return run
     except ActiveModelTrainingRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:

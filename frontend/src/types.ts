@@ -24,6 +24,33 @@ export type Organization = {
   name: string;
 };
 
+export type OrganizationSettings = {
+  organization_id: number;
+  name: string;
+  slug: string;
+  default_source: AnalysisSource;
+  default_pages_per_star: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type OrganizationSettingsUpdate = {
+  name?: string | null;
+  default_source?: AnalysisSource | null;
+  default_pages_per_star?: number | null;
+};
+
+export type OrganizationAuditEvent = {
+  audit_event_id: number;
+  event_type: string;
+  actor_email: string | null;
+  summary: string;
+  entity_type: string | null;
+  entity_id: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string | null;
+};
+
 export type CurrentUser = {
   user_id: number;
   email: string;

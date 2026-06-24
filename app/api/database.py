@@ -47,9 +47,16 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         organization_id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         slug VARCHAR(255) UNIQUE NOT NULL,
+        default_source VARCHAR(50) NOT NULL DEFAULT 'trustpilot',
+        default_pages_per_star INT NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
     );
+
+    ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS default_source VARCHAR(50) NOT NULL DEFAULT 'trustpilot';
+    ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS default_pages_per_star INT NOT NULL DEFAULT 1;
 
     CREATE TABLE IF NOT EXISTS users (
         user_id SERIAL PRIMARY KEY,
@@ -168,6 +175,19 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         updated_at TIMESTAMP DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS audit_events (
+        audit_event_id SERIAL PRIMARY KEY,
+        organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
+        user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+        actor_email VARCHAR(255),
+        event_type VARCHAR(80) NOT NULL,
+        entity_type VARCHAR(80),
+        entity_id INT,
+        summary TEXT NOT NULL,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS model_training_runs (
         training_run_id SERIAL PRIMARY KEY,
         organization_id INT REFERENCES organizations(organization_id) ON DELETE CASCADE,
@@ -258,6 +278,10 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
         ON review_topics(topic);
     CREATE INDEX IF NOT EXISTS idx_review_feedback_label
         ON review_feedback(corrected_label);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_org
+        ON audit_events(organization_id, audit_event_id DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_type
+        ON audit_events(event_type);
     CREATE INDEX IF NOT EXISTS idx_model_training_runs_status
         ON model_training_runs(status);
     CREATE INDEX IF NOT EXISTS idx_model_training_runs_org

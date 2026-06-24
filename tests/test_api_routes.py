@@ -105,6 +105,139 @@ def test_list_organization_users(authenticated_client, monkeypatch):
     assert captured == {"organization_id": 123, "include_invitation_links": True}
 
 
+def test_get_organization_settings(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_get_organization_settings(organization_id):
+        captured["organization_id"] = organization_id
+        return {
+            "organization_id": organization_id,
+            "name": "Demo Org",
+            "slug": "demo-org",
+            "default_source": "trustpilot",
+            "default_pages_per_star": 3,
+            "created_at": None,
+            "updated_at": None,
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_organization_settings",
+        fake_get_organization_settings,
+    )
+
+    response = authenticated_client.get("/auth/organization/settings")
+
+    assert response.status_code == 200
+    assert response.json()["default_pages_per_star"] == 3
+    assert captured == {"organization_id": 123}
+
+
+def test_admin_can_update_organization_settings(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_update_organization_settings(organization_id, payload):
+        captured["organization_id"] = organization_id
+        captured["name"] = payload.name
+        captured["default_source"] = payload.default_source
+        captured["default_pages_per_star"] = payload.default_pages_per_star
+        return {
+            "organization_id": organization_id,
+            "name": payload.name,
+            "slug": "demo-org",
+            "default_source": payload.default_source,
+            "default_pages_per_star": payload.default_pages_per_star,
+            "created_at": None,
+            "updated_at": None,
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_organization_settings",
+        lambda organization_id: {
+            "organization_id": organization_id,
+            "name": "Demo Org",
+            "slug": "demo-org",
+            "default_source": "trustpilot",
+            "default_pages_per_star": 1,
+            "created_at": None,
+            "updated_at": None,
+        },
+    )
+    monkeypatch.setattr(
+        "app.api.routes.auth.update_organization_settings",
+        fake_update_organization_settings,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.auth.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event_type", kwargs["event_type"]),
+    )
+
+    response = authenticated_client.patch(
+        "/auth/organization/settings",
+        json={
+            "name": "Demo Satisfaction",
+            "default_source": "csv",
+            "default_pages_per_star": 5,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["default_source"] == "csv"
+    assert captured == {
+        "organization_id": 123,
+        "name": "Demo Satisfaction",
+        "default_source": "csv",
+        "default_pages_per_star": 5,
+        "audit_event_type": "organization.settings_updated",
+    }
+
+
+def test_member_cannot_update_organization_settings(member_client):
+    response = member_client.patch(
+        "/auth/organization/settings",
+        json={"default_source": "csv"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_can_list_organization_audit_events(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_list_audit_events(organization_id, limit=30, offset=0):
+        captured["organization_id"] = organization_id
+        captured["limit"] = limit
+        captured["offset"] = offset
+        return [
+            {
+                "audit_event_id": 10,
+                "event_type": "analysis.created",
+                "actor_email": "demo@satisfaction.local",
+                "summary": "Analyse creee.",
+                "entity_type": "analysis_run",
+                "entity_id": 42,
+                "metadata": {"source": "csv"},
+                "created_at": None,
+            }
+        ]
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.list_audit_events",
+        fake_list_audit_events,
+    )
+
+    response = authenticated_client.get("/auth/organization/audit-events?limit=5&offset=2")
+
+    assert response.status_code == 200
+    assert response.json()[0]["event_type"] == "analysis.created"
+    assert captured == {"organization_id": 123, "limit": 5, "offset": 2}
+
+
+def test_member_cannot_list_organization_audit_events(member_client):
+    response = member_client.get("/auth/organization/audit-events")
+
+    assert response.status_code == 403
+
+
 def test_admin_can_create_organization_user(authenticated_client, monkeypatch):
     captured = {}
 

@@ -9,6 +9,33 @@ class OrganizationResponse(BaseModel):
     name: str
 
 
+class OrganizationSettingsResponse(BaseModel):
+    organization_id: int
+    name: str
+    slug: str
+    default_source: Literal["trustpilot", "csv"] = "trustpilot"
+    default_pages_per_star: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class OrganizationSettingsUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    default_source: Literal["trustpilot", "csv"] | None = None
+    default_pages_per_star: int | None = Field(default=None, ge=1, le=20)
+
+
+class OrganizationAuditEventResponse(BaseModel):
+    audit_event_id: int
+    event_type: str
+    actor_email: str | None = None
+    summary: str
+    entity_type: str | None = None
+    entity_id: int | None = None
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+
+
 class AuthMeResponse(BaseModel):
     user_id: int
     email: str

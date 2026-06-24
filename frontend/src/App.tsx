@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Database,
   Download,
   FileText,
   Hourglass,
@@ -32,18 +33,21 @@ import {
   getCurrentUser,
   getFeedbackQuality,
   getModelTrainingOverview,
+  getOrganizationSettings,
   getReviews,
   getRunEvents,
   getRunTrend,
   getSummary,
   hasAuthToken,
   inviteOrganizationUser,
+  listOrganizationAuditEvents,
   listOrganizationUsers,
   listReviewSources,
   listRuns,
   login,
   previewCsvFile,
   saveReviewFeedback,
+  updateOrganizationSettings,
   uploadCsvRun
 } from "./api";
 import type {
@@ -63,6 +67,8 @@ import type {
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
+  OrganizationAuditEvent,
+  OrganizationSettings,
   OrganizationUser,
   Review,
   ReviewSource,
@@ -1037,6 +1043,27 @@ export default function App() {
   );
   const [organizationUserMessage, setOrganizationUserMessage] =
     useState<string | null>(null);
+  const [organizationSettings, setOrganizationSettings] =
+    useState<OrganizationSettings | null>(null);
+  const [organizationSettingsName, setOrganizationSettingsName] = useState("");
+  const [organizationDefaultSource, setOrganizationDefaultSource] =
+    useState<AnalysisSource>("trustpilot");
+  const [organizationDefaultPages, setOrganizationDefaultPages] = useState(1);
+  const [organizationSettingsError, setOrganizationSettingsError] =
+    useState<string | null>(null);
+  const [organizationSettingsMessage, setOrganizationSettingsMessage] =
+    useState<string | null>(null);
+  const [isOrganizationSettingsLoading, setIsOrganizationSettingsLoading] =
+    useState(false);
+  const [isOrganizationSettingsSaving, setIsOrganizationSettingsSaving] =
+    useState(false);
+  const [organizationAuditEvents, setOrganizationAuditEvents] = useState<
+    OrganizationAuditEvent[]
+  >([]);
+  const [isOrganizationAuditLoading, setIsOrganizationAuditLoading] =
+    useState(false);
+  const [organizationAuditError, setOrganizationAuditError] =
+    useState<string | null>(null);
   const [reviewSources, setReviewSources] =
     useState<ReviewSource[]>(DEFAULT_REVIEW_SOURCES);
   const [isReviewSourcesLoading, setIsReviewSourcesLoading] = useState(false);
@@ -1125,6 +1152,47 @@ export default function App() {
     }
   }
 
+  async function refreshOrganizationSettings() {
+    setIsOrganizationSettingsLoading(true);
+    setOrganizationSettingsError(null);
+    try {
+      const settings = await getOrganizationSettings();
+      setOrganizationSettings(settings);
+      setOrganizationSettingsName(settings.name);
+      setOrganizationDefaultSource(settings.default_source);
+      setOrganizationDefaultPages(settings.default_pages_per_star);
+      setSourceMode(settings.default_source);
+      setPagesPerStar(settings.default_pages_per_star);
+    } finally {
+      setIsOrganizationSettingsLoading(false);
+    }
+  }
+
+  async function refreshOrganizationAuditEvents() {
+    setIsOrganizationAuditLoading(true);
+    setOrganizationAuditError(null);
+    try {
+      const events = await listOrganizationAuditEvents();
+      setOrganizationAuditEvents(events);
+    } finally {
+      setIsOrganizationAuditLoading(false);
+    }
+  }
+
+  async function refreshAdminAuditEvents() {
+    if (currentUser?.role !== "admin") {
+      return;
+    }
+
+    try {
+      await refreshOrganizationAuditEvents();
+    } catch (err) {
+      setOrganizationAuditError(
+        err instanceof Error ? err.message : "Journal d'activite indisponible"
+      );
+    }
+  }
+
   async function refreshReviewSources() {
     setIsReviewSourcesLoading(true);
     setReviewSourcesError(null);
@@ -1173,6 +1241,17 @@ export default function App() {
     refreshFeedbackQuality().catch((err: Error) => setError(err.message));
     refreshTrainingOverview().catch((err: Error) => setError(err.message));
     refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
+    refreshOrganizationSettings().catch((err: Error) =>
+      setOrganizationSettingsError(err.message)
+    );
+    if (currentUser.role === "admin") {
+      refreshOrganizationAuditEvents().catch((err: Error) =>
+        setOrganizationAuditError(err.message)
+      );
+    } else {
+      setOrganizationAuditEvents([]);
+      setOrganizationAuditError(null);
+    }
     refreshReviewSources().catch((err: Error) => setReviewSourcesError(err.message));
   }, [currentUser?.user_id]);
 
@@ -1278,6 +1357,14 @@ export default function App() {
     setOrganizationUsers([]);
     setOrganizationUserError(null);
     setOrganizationUserMessage(null);
+    setOrganizationSettings(null);
+    setOrganizationSettingsName("");
+    setOrganizationDefaultSource("trustpilot");
+    setOrganizationDefaultPages(1);
+    setOrganizationSettingsError(null);
+    setOrganizationSettingsMessage(null);
+    setOrganizationAuditEvents([]);
+    setOrganizationAuditError(null);
     setReviewSources(DEFAULT_REVIEW_SOURCES);
     setReviewSourcesError(null);
     setError(null);
@@ -1311,12 +1398,60 @@ export default function App() {
           : `Invitation creee pour ${invitedUser.email}.`
       );
       await refreshOrganizationUsers();
+      await refreshAdminAuditEvents();
     } catch (err) {
       setOrganizationUserError(
         err instanceof Error ? err.message : "Invitation utilisateur impossible"
       );
     } finally {
       setIsCreatingOrganizationUser(false);
+    }
+  }
+
+  async function handleUpdateOrganizationSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canManageWorkspace) {
+      setOrganizationSettingsError(
+        "Seul un administrateur peut modifier les parametres de l'organisation."
+      );
+      return;
+    }
+
+    setIsOrganizationSettingsSaving(true);
+    setOrganizationSettingsError(null);
+    setOrganizationSettingsMessage(null);
+
+    try {
+      const settings = await updateOrganizationSettings({
+        name: organizationSettingsName.trim(),
+        default_source: organizationDefaultSource,
+        default_pages_per_star: organizationDefaultPages
+      });
+      setOrganizationSettings(settings);
+      setOrganizationSettingsName(settings.name);
+      setOrganizationDefaultSource(settings.default_source);
+      setOrganizationDefaultPages(settings.default_pages_per_star);
+      setSourceMode(settings.default_source);
+      setPagesPerStar(settings.default_pages_per_star);
+      setCurrentUser((current) =>
+        current
+          ? {
+              ...current,
+              organization: {
+                ...current.organization,
+                name: settings.name
+              }
+            }
+          : current
+      );
+      setOrganizationSettingsMessage("Parametres sauvegardes.");
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setOrganizationSettingsError(
+        err instanceof Error ? err.message : "Parametres impossibles a sauvegarder"
+      );
+    } finally {
+      setIsOrganizationSettingsSaving(false);
     }
   }
 
@@ -1382,6 +1517,7 @@ export default function App() {
     try {
       await createModelTrainingRun();
       await Promise.all([refreshTrainingOverview(), refreshFeedbackQuality()]);
+      await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1620,6 +1756,7 @@ export default function App() {
             });
       setSelectedRunId(run.run_id);
       await refreshRuns();
+      await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1644,6 +1781,7 @@ export default function App() {
       setTrendError(null);
       setReviews([]);
       await refreshRuns();
+      await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1662,6 +1800,7 @@ export default function App() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     }
@@ -1742,6 +1881,7 @@ export default function App() {
       );
       await refreshSummaryAfterFeedback(selectedRun.run_id);
       await refreshFeedbackQuality();
+      await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1778,6 +1918,7 @@ export default function App() {
       );
       await refreshSummaryAfterFeedback(selectedRun.run_id);
       await refreshFeedbackQuality();
+      await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -2262,22 +2403,43 @@ export default function App() {
         )}
 
         <ClientSpacePanel
+          auditError={organizationAuditError}
+          auditEvents={organizationAuditEvents}
           currentUser={currentUser}
+          defaultPagesPerStar={organizationDefaultPages}
+          defaultSource={organizationDefaultSource}
+          isLoadingAudit={isOrganizationAuditLoading}
+          isLoadingSettings={isOrganizationSettingsLoading}
           isCreatingUser={isCreatingOrganizationUser}
           isLoadingUsers={isOrganizationUsersLoading}
+          isSavingSettings={isOrganizationSettingsSaving}
           message={organizationUserMessage}
           newUserEmail={organizationUserEmail}
           newUserFullName={organizationUserFullName}
           newUserRole={organizationUserRole}
           onCreateUser={handleCreateOrganizationUser}
+          onRefreshAudit={() => refreshAdminAuditEvents()}
+          onRefreshSettings={() =>
+            refreshOrganizationSettings().catch((err: Error) =>
+              setOrganizationSettingsError(err.message)
+            )
+          }
           onRefreshUsers={() =>
             refreshOrganizationUsers().catch((err: Error) =>
               setOrganizationUserError(err.message)
             )
           }
+          onSaveSettings={handleUpdateOrganizationSettings}
+          onUpdateDefaultPagesPerStar={setOrganizationDefaultPages}
+          onUpdateDefaultSource={setOrganizationDefaultSource}
+          onUpdateOrganizationName={setOrganizationSettingsName}
           onUpdateNewUserEmail={setOrganizationUserEmail}
           onUpdateNewUserFullName={setOrganizationUserFullName}
           onUpdateNewUserRole={setOrganizationUserRole}
+          settings={organizationSettings}
+          settingsError={organizationSettingsError}
+          settingsMessage={organizationSettingsMessage}
+          settingsName={organizationSettingsName}
           users={organizationUsers}
           usersError={organizationUserError}
         />
@@ -2746,39 +2908,75 @@ function ReviewSourcesPanel({
 }
 
 function ClientSpacePanel({
+  auditError,
+  auditEvents,
   currentUser,
+  defaultPagesPerStar,
+  defaultSource,
+  isLoadingAudit,
+  isLoadingSettings,
   isCreatingUser,
   isLoadingUsers,
+  isSavingSettings,
   message,
   newUserEmail,
   newUserFullName,
   newUserRole,
   onCreateUser,
+  onRefreshAudit,
+  onRefreshSettings,
   onRefreshUsers,
+  onSaveSettings,
+  onUpdateDefaultPagesPerStar,
+  onUpdateDefaultSource,
+  onUpdateOrganizationName,
   onUpdateNewUserEmail,
   onUpdateNewUserFullName,
   onUpdateNewUserRole,
+  settings,
+  settingsError,
+  settingsMessage,
+  settingsName,
   users,
   usersError
 }: {
+  auditError: string | null;
+  auditEvents: OrganizationAuditEvent[];
   currentUser: CurrentUser;
+  defaultPagesPerStar: number;
+  defaultSource: AnalysisSource;
+  isLoadingAudit: boolean;
+  isLoadingSettings: boolean;
   isCreatingUser: boolean;
   isLoadingUsers: boolean;
+  isSavingSettings: boolean;
   message: string | null;
   newUserEmail: string;
   newUserFullName: string;
   newUserRole: UserRole;
   onCreateUser: (event: FormEvent<HTMLFormElement>) => void;
+  onRefreshAudit: () => void;
+  onRefreshSettings: () => void;
   onRefreshUsers: () => void;
+  onSaveSettings: (event: FormEvent<HTMLFormElement>) => void;
+  onUpdateDefaultPagesPerStar: (value: number) => void;
+  onUpdateDefaultSource: (value: AnalysisSource) => void;
+  onUpdateOrganizationName: (value: string) => void;
   onUpdateNewUserEmail: (value: string) => void;
   onUpdateNewUserFullName: (value: string) => void;
   onUpdateNewUserRole: (value: UserRole) => void;
+  settings: OrganizationSettings | null;
+  settingsError: string | null;
+  settingsMessage: string | null;
+  settingsName: string;
   users: OrganizationUser[];
   usersError: string | null;
 }) {
   const isAdmin = currentUser.role === "admin";
   const activeUsers = users.filter((user) => user.account_status === "active");
   const pendingUsers = users.filter((user) => user.account_status === "pending");
+  const isRefreshingClientSpace =
+    isLoadingUsers || isLoadingSettings || isLoadingAudit;
 
   return (
     <section className="client-space-panel insight-section wide">
@@ -2787,17 +2985,27 @@ function ClientSpacePanel({
           <span className="eyebrow">Espace client</span>
           <h3>{currentUser.organization.name}</h3>
           <p>
-            Gestion des membres rattaches a cette organisation. Les invitations
-            creent un compte en attente a activer par lien.
+            Gestion des membres, des preferences et du journal d'activite de
+            cette organisation.
           </p>
         </div>
         <button
           className="secondary-action"
-          disabled={isLoadingUsers}
-          onClick={onRefreshUsers}
+          disabled={isRefreshingClientSpace}
+          onClick={() => {
+            onRefreshUsers();
+            onRefreshSettings();
+            if (isAdmin) {
+              onRefreshAudit();
+            }
+          }}
           type="button"
         >
-          {isLoadingUsers ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+          {isRefreshingClientSpace ? (
+            <Loader2 className="spin" size={16} />
+          ) : (
+            <RefreshCw size={16} />
+          )}
           Actualiser
         </button>
       </div>
@@ -2807,8 +3015,16 @@ function ClientSpacePanel({
           <Building2 size={20} />
           <div>
             <span>Organisation</span>
-            <strong>{currentUser.organization.name}</strong>
-            <small>ID #{currentUser.organization.organization_id}</small>
+            <strong>{settings?.name ?? currentUser.organization.name}</strong>
+            <small>{settings?.slug ?? `ID #${currentUser.organization.organization_id}`}</small>
+          </div>
+        </div>
+        <div className="client-card">
+          <Database size={20} />
+          <div>
+            <span>Source par defaut</span>
+            <strong>{SOURCE_LABELS[settings?.default_source ?? defaultSource]}</strong>
+            <small>{settings?.default_pages_per_star ?? defaultPagesPerStar} page(s) par note</small>
           </div>
         </div>
         <div className="client-card">
@@ -2832,7 +3048,104 @@ function ClientSpacePanel({
       </div>
 
       {usersError ? <p className="form-error">{usersError}</p> : null}
+      {settingsError ? <p className="form-error">{settingsError}</p> : null}
       {message ? <p className="form-success">{message}</p> : null}
+      {settingsMessage ? <p className="form-success">{settingsMessage}</p> : null}
+
+      <div className="client-ops-layout">
+        <form className="organization-settings-form" onSubmit={onSaveSettings}>
+          <div className="mini-heading">
+            <strong>Parametres organisation</strong>
+            <span>{isAdmin ? "Admin" : "Lecture seule"}</span>
+          </div>
+          <label htmlFor="organization-name">Nom de l'organisation</label>
+          <input
+            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            id="organization-name"
+            onChange={(event) => onUpdateOrganizationName(event.target.value)}
+            type="text"
+            value={settingsName}
+          />
+          <label htmlFor="organization-default-source">Source par defaut</label>
+          <select
+            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            id="organization-default-source"
+            onChange={(event) =>
+              onUpdateDefaultSource(event.target.value as AnalysisSource)
+            }
+            value={defaultSource}
+          >
+            <option value="trustpilot">Trustpilot</option>
+            <option value="csv">CSV</option>
+          </select>
+          <label htmlFor="organization-pages">Pages par note par defaut</label>
+          <input
+            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            id="organization-pages"
+            max={20}
+            min={1}
+            onChange={(event) =>
+              onUpdateDefaultPagesPerStar(Number(event.target.value) || 1)
+            }
+            type="number"
+            value={defaultPagesPerStar}
+          />
+          <button
+            className="primary-action compact-action"
+            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            type="submit"
+          >
+            {isSavingSettings ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
+            Sauvegarder
+          </button>
+          {!isAdmin ? (
+            <p className="muted">Seuls les administrateurs modifient ces preferences.</p>
+          ) : (
+            <p className="muted">
+              Ces preferences pre-remplissent les prochaines analyses de l'espace client.
+            </p>
+          )}
+        </form>
+
+        <div className="audit-events-card">
+          <div className="mini-heading">
+            <strong>Journal d'activite</strong>
+            <button
+              className="icon-button"
+              disabled={!isAdmin || isLoadingAudit}
+              onClick={onRefreshAudit}
+              type="button"
+            >
+              {isLoadingAudit ? (
+                <Loader2 className="spin" size={14} />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+            </button>
+          </div>
+          {auditError ? <p className="form-error">{auditError}</p> : null}
+          {!isAdmin ? (
+            <p className="muted">Le journal d'activite est reserve aux administrateurs.</p>
+          ) : auditEvents.length === 0 && !isLoadingAudit ? (
+            <p className="muted">Aucune activite admin enregistree pour le moment.</p>
+          ) : (
+            <div className="audit-event-list">
+              {auditEvents.map((event) => (
+                <div className="audit-event-row" key={event.audit_event_id}>
+                  <div>
+                    <strong>{event.summary}</strong>
+                    <small>
+                      {formatAuditEventType(event.event_type)}
+                      {event.actor_email ? ` par ${event.actor_email}` : ""}
+                    </small>
+                  </div>
+                  <span>{formatDate(event.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="client-members-layout">
         <div className="client-members-list">
@@ -2913,6 +3226,13 @@ function ClientSpacePanel({
 
 function RolePill({ role }: { role: UserRole }) {
   return <span className={`role-pill ${role}`}>{formatRole(role)}</span>;
+}
+
+function formatAuditEventType(eventType: string) {
+  return eventType
+    .split(".")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" / ");
 }
 
 function formatRole(role: string) {
