@@ -314,6 +314,7 @@ Le dossier `frontend/` contient la premiere interface client React + Vite + Type
 
 Elle permet de :
 
+- naviguer par espaces produit : accueil, analyses, benchmark, qualite IA et administration ;
 - choisir une source d'avis active depuis le catalogue de connecteurs ;
 - suivre un parcours de demarrage client pour configurer sources, premiere analyse, rapport, corrections et equipe ;
 - lancer une nouvelle analyse Trustpilot ;
