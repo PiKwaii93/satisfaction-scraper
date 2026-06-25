@@ -239,6 +239,76 @@ a {
   white-space: nowrap;
 }
 
+.product-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.product-nav-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  text-align: left;
+}
+
+.product-nav-item.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.product-nav-item svg {
+  color: currentColor;
+}
+
+.product-nav-item span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.product-nav-item strong,
+.product-nav-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-nav-item strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.product-nav-item small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.product-nav-item em {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.product-nav-item.active em {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 .analysis-form,
 .run-panel,
 .benchmark-panel,
@@ -1625,6 +1695,54 @@ a {
   padding: 28px;
 }
 
+.workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.workspace-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workspace-title-icon {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.workspace-title h2,
+.workspace-title p {
+  margin: 0;
+}
+
+.workspace-title h2 {
+  color: var(--text);
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.workspace-title p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .onboarding-panel {
   margin-bottom: 18px;
 }
@@ -2757,6 +2875,19 @@ tbody tr:last-child td {
     border-bottom: 1px solid var(--border);
   }
 
+  .product-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .product-nav-item {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .product-nav-item em {
+    grid-column: 2;
+    width: max-content;
+  }
+
   .run-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2806,6 +2937,8 @@ tbody tr:last-child td {
 
   .report-header,
   .header-actions,
+  .workspace-header,
+  .workspace-title,
   .onboarding-heading,
   .client-space-heading,
   .ai-quality-heading,
@@ -2823,6 +2956,7 @@ tbody tr:last-child td {
 
   .report-grid,
   .kpi-strip,
+  .product-nav,
   .client-space-grid,
   .action-center-kpis,
   .ai-quality-kpis,

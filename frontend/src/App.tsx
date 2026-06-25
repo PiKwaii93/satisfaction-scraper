@@ -20,6 +20,7 @@ import {
   Users,
   UserPlus
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   compareRuns,
   acceptOrganizationInvitation,
@@ -111,6 +112,48 @@ type OnboardingStep = {
   runId?: number;
   requiresAdmin?: boolean;
 };
+
+type WorkspaceView = "home" | "analyses" | "benchmark" | "ai" | "admin";
+
+type WorkspaceNavItem = {
+  id: WorkspaceView;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+};
+
+const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
+  {
+    id: "home",
+    label: "Accueil",
+    description: "Priorites et alertes",
+    icon: ListChecks
+  },
+  {
+    id: "analyses",
+    label: "Analyses",
+    description: "Runs, rapports et avis",
+    icon: FileText
+  },
+  {
+    id: "benchmark",
+    label: "Benchmark",
+    description: "Comparaison multi-runs",
+    icon: BarChart3
+  },
+  {
+    id: "ai",
+    label: "Qualite IA",
+    description: "Corrections et modele",
+    icon: Database
+  },
+  {
+    id: "admin",
+    label: "Administration",
+    description: "Equipe et espace client",
+    icon: Users
+  }
+];
 
 const SOURCE_LABELS: Record<AnalysisSource, string> = {
   trustpilot: "Trustpilot",
@@ -1063,6 +1106,7 @@ function formatSeverity(value: string) {
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [activeView, setActiveView] = useState<WorkspaceView>("home");
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
   const [isAcceptingInvitation, setIsAcceptingInvitation] = useState(false);
@@ -1469,6 +1513,25 @@ export default function App() {
   const onboardingCompletedCount = onboardingSteps.filter(
     (step) => step.completed
   ).length;
+  const activeWorkspaceItem =
+    WORKSPACE_NAV_ITEMS.find((item) => item.id === activeView) ??
+    WORKSPACE_NAV_ITEMS[0];
+  const workspaceNavStats = useMemo<Record<WorkspaceView, string>>(
+    () => ({
+      home: `${actionCenter?.counts.open_alerts ?? 0} action(s)`,
+      analyses: `${runs.length} run(s)`,
+      benchmark: `${comparisonRunIds.length}/4`,
+      ai: `${feedbackQuality?.training_ready_count ?? 0} correction(s)`,
+      admin: `${organizationUsers.length} membre(s)`
+    }),
+    [
+      actionCenter?.counts.open_alerts,
+      comparisonRunIds.length,
+      feedbackQuality?.training_ready_count,
+      organizationUsers.length,
+      runs.length
+    ]
+  );
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1697,6 +1760,7 @@ export default function App() {
     try {
       const nextComparison = await compareRuns(comparisonRunIds);
       setComparison(nextComparison);
+      setActiveView("benchmark");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -1792,8 +1856,38 @@ export default function App() {
 
     const section = item.action_target.section;
     if (typeof section === "string") {
-      scrollToWorkspaceSection(section);
+      setActiveView(viewForWorkspaceSection(section));
+      scrollToWorkspaceSection(section, 120);
+    } else if (Number.isFinite(runId) && runId > 0) {
+      setActiveView("analyses");
     }
+  }
+
+  function viewForWorkspaceSection(sectionId: string): WorkspaceView {
+    if (
+      [
+        "new_analysis",
+        "run_history",
+        "report_overview",
+        "reviews_feedback"
+      ].includes(sectionId)
+    ) {
+      return "analyses";
+    }
+
+    if (["ai_quality", "model_training"].includes(sectionId)) {
+      return "ai";
+    }
+
+    if (sectionId === "client_space") {
+      return "admin";
+    }
+
+    if (sectionId === "review_sources") {
+      return "analyses";
+    }
+
+    return "home";
   }
 
   function scrollToWorkspaceSection(sectionId: string, delay = 50, attempts = 5) {
@@ -1817,6 +1911,7 @@ export default function App() {
     if (step.runId) {
       setSelectedRunId(step.runId);
     }
+    setActiveView(viewForWorkspaceSection(step.targetId));
     scrollToWorkspaceSection(step.targetId, step.runId ? 120 : 50);
   }
 
@@ -2410,27 +2505,52 @@ export default function App() {
           </button>
         </section>
 
-        <ReviewSourcesPanel
-          currentSource={sourceMode}
-          error={reviewSourcesError}
-          isReadOnly={!canManageWorkspace}
-          isLoading={isReviewSourcesLoading}
-          onRefresh={() =>
-            refreshReviewSources().catch((err: Error) =>
-              setReviewSourcesError(err.message)
-            )
-          }
-          onSelectSource={handleReviewSourceSelect}
-          onToggleSource={handleReviewSourceToggle}
-          sources={reviewSources}
-          updatingSourceId={updatingReviewSourceId}
-        />
+        <nav className="product-nav" aria-label="Espaces produit">
+          {WORKSPACE_NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                className={`product-nav-item ${
+                  activeView === item.id ? "active" : ""
+                }`}
+                key={item.id}
+                onClick={() => setActiveView(item.id)}
+                type="button"
+              >
+                <Icon size={18} />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </span>
+                <em>{workspaceNavStats[item.id]}</em>
+              </button>
+            );
+          })}
+        </nav>
 
-        <form
-          id="new_analysis"
-          className={`analysis-form ${!canManageWorkspace ? "read-only-panel" : ""}`}
-          onSubmit={handleSubmit}
-        >
+        {activeView === "analyses" && (
+          <>
+            <ReviewSourcesPanel
+              currentSource={sourceMode}
+              error={reviewSourcesError}
+              isReadOnly={!canManageWorkspace}
+              isLoading={isReviewSourcesLoading}
+              onRefresh={() =>
+                refreshReviewSources().catch((err: Error) =>
+                  setReviewSourcesError(err.message)
+                )
+              }
+              onSelectSource={handleReviewSourceSelect}
+              onToggleSource={handleReviewSourceToggle}
+              sources={reviewSources}
+              updatingSourceId={updatingReviewSourceId}
+            />
+
+            <form
+              id="new_analysis"
+              className={`analysis-form ${!canManageWorkspace ? "read-only-panel" : ""}`}
+              onSubmit={handleSubmit}
+            >
           <div className="analysis-form-heading">
             <span>Nouvelle analyse</span>
             <strong>{SOURCE_LABELS[sourceMode]}</strong>
@@ -2612,7 +2732,10 @@ export default function App() {
                   run.run_id === selectedRunId ? "selected" : ""
                 }`}
                 key={run.run_id}
-                onClick={() => setSelectedRunId(run.run_id)}
+                onClick={() => {
+                  setSelectedRunId(run.run_id);
+                  setActiveView("analyses");
+                }}
                 type="button"
               >
                 <span>
@@ -2625,7 +2748,11 @@ export default function App() {
           </div>
         </div>
 
-        <div className="benchmark-panel">
+          </>
+        )}
+
+        {activeView === "benchmark" && (
+          <div className="benchmark-panel">
           <div className="panel-heading">
             <h2>Benchmark</h2>
             <small>{comparisonRunIds.length}/4</small>
@@ -2681,7 +2808,8 @@ export default function App() {
               Reset
             </button>
           </div>
-        </div>
+          </div>
+        )}
       </aside>
 
       <section className="workspace">
@@ -2692,114 +2820,139 @@ export default function App() {
           </div>
         )}
 
-        {comparison && (
-          <BenchmarkPanel
-            comparison={comparison}
-            onClose={() => setComparison(null)}
-            onExportReport={() => handleBenchmarkReportExport(comparison)}
+        <WorkspaceHeader item={activeWorkspaceItem} />
+
+        {activeView === "home" && (
+          <>
+            <OnboardingPanel
+              canManage={canManageWorkspace}
+              completedCount={onboardingCompletedCount}
+              onStepAction={handleOnboardingStepAction}
+              steps={onboardingSteps}
+            />
+
+            <ActionCenterPanel
+              actionCenter={actionCenter}
+              canManage={canManageWorkspace}
+              error={actionCenterError}
+              isLoading={isActionCenterLoading}
+              onItemAction={handleActionCenterItem}
+              onRefresh={() =>
+                refreshActionCenter().catch((err: Error) =>
+                  setActionCenterError(err.message)
+                )
+              }
+            />
+
+            <BusinessAlertsPanel
+              alerts={businessAlerts}
+              canManage={canManageWorkspace}
+              error={businessAlertsError}
+              isLoading={isBusinessAlertsLoading}
+              isRefreshingRunAlerts={isRefreshingRunAlerts}
+              onRefresh={() =>
+                refreshBusinessAlerts().catch((err: Error) =>
+                  setBusinessAlertsError(err.message)
+                )
+              }
+              onRefreshRunAlerts={handleRefreshRunBusinessAlerts}
+              onUpdateStatus={handleUpdateBusinessAlertStatus}
+              selectedRun={selectedRun}
+              updatingAlertId={updatingAlertId}
+            />
+          </>
+        )}
+
+        {activeView === "benchmark" && (
+          <>
+            {comparison ? (
+              <BenchmarkPanel
+                comparison={comparison}
+                onClose={() => setComparison(null)}
+                onExportReport={() => handleBenchmarkReportExport(comparison)}
+              />
+            ) : (
+              <div className="empty-state">
+                <BarChart3 size={32} />
+                <h2>Selectionne des analyses a comparer</h2>
+                <p>
+                  Utilise le panneau Benchmark dans la barre laterale pour choisir
+                  2 a 4 runs termines.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeView === "ai" && (
+          <>
+            <AIQualityPanel
+              isLoading={isFeedbackQualityLoading}
+              onRefresh={() =>
+                refreshFeedbackQuality().catch((err: Error) => setError(err.message))
+              }
+              quality={feedbackQuality}
+            />
+
+            <ModelTrainingPanel
+              canManage={canManageWorkspace}
+              feedbackQuality={feedbackQuality}
+              isLoading={isTrainingOverviewLoading}
+              isSubmitting={isTrainingSubmitting}
+              onRefresh={() =>
+                refreshTrainingOverview().catch((err: Error) => setError(err.message))
+              }
+              onStartTraining={handleStartModelTraining}
+              overview={trainingOverview}
+            />
+          </>
+        )}
+
+        {activeView === "admin" && (
+          <ClientSpacePanel
+            auditError={organizationAuditError}
+            auditEvents={organizationAuditEvents}
+            currentUser={currentUser}
+            defaultPagesPerStar={organizationDefaultPages}
+            defaultSource={organizationDefaultSource}
+            isLoadingAudit={isOrganizationAuditLoading}
+            isLoadingSettings={isOrganizationSettingsLoading}
+            isCreatingUser={isCreatingOrganizationUser}
+            isLoadingUsers={isOrganizationUsersLoading}
+            isSavingSettings={isOrganizationSettingsSaving}
+            message={organizationUserMessage}
+            newUserEmail={organizationUserEmail}
+            newUserFullName={organizationUserFullName}
+            newUserRole={organizationUserRole}
+            onCreateUser={handleCreateOrganizationUser}
+            onRefreshAudit={() => refreshAdminAuditEvents()}
+            onRefreshSettings={() =>
+              refreshOrganizationSettings().catch((err: Error) =>
+                setOrganizationSettingsError(err.message)
+              )
+            }
+            onRefreshUsers={() =>
+              refreshOrganizationUsers().catch((err: Error) =>
+                setOrganizationUserError(err.message)
+              )
+            }
+            onSaveSettings={handleUpdateOrganizationSettings}
+            onUpdateDefaultPagesPerStar={setOrganizationDefaultPages}
+            onUpdateDefaultSource={setOrganizationDefaultSource}
+            onUpdateOrganizationName={setOrganizationSettingsName}
+            onUpdateNewUserEmail={setOrganizationUserEmail}
+            onUpdateNewUserFullName={setOrganizationUserFullName}
+            onUpdateNewUserRole={setOrganizationUserRole}
+            settings={organizationSettings}
+            settingsError={organizationSettingsError}
+            settingsMessage={organizationSettingsMessage}
+            settingsName={organizationSettingsName}
+            users={organizationUsers}
+            usersError={organizationUserError}
           />
         )}
 
-        <OnboardingPanel
-          canManage={canManageWorkspace}
-          completedCount={onboardingCompletedCount}
-          onStepAction={handleOnboardingStepAction}
-          steps={onboardingSteps}
-        />
-
-        <ClientSpacePanel
-          auditError={organizationAuditError}
-          auditEvents={organizationAuditEvents}
-          currentUser={currentUser}
-          defaultPagesPerStar={organizationDefaultPages}
-          defaultSource={organizationDefaultSource}
-          isLoadingAudit={isOrganizationAuditLoading}
-          isLoadingSettings={isOrganizationSettingsLoading}
-          isCreatingUser={isCreatingOrganizationUser}
-          isLoadingUsers={isOrganizationUsersLoading}
-          isSavingSettings={isOrganizationSettingsSaving}
-          message={organizationUserMessage}
-          newUserEmail={organizationUserEmail}
-          newUserFullName={organizationUserFullName}
-          newUserRole={organizationUserRole}
-          onCreateUser={handleCreateOrganizationUser}
-          onRefreshAudit={() => refreshAdminAuditEvents()}
-          onRefreshSettings={() =>
-            refreshOrganizationSettings().catch((err: Error) =>
-              setOrganizationSettingsError(err.message)
-            )
-          }
-          onRefreshUsers={() =>
-            refreshOrganizationUsers().catch((err: Error) =>
-              setOrganizationUserError(err.message)
-            )
-          }
-          onSaveSettings={handleUpdateOrganizationSettings}
-          onUpdateDefaultPagesPerStar={setOrganizationDefaultPages}
-          onUpdateDefaultSource={setOrganizationDefaultSource}
-          onUpdateOrganizationName={setOrganizationSettingsName}
-          onUpdateNewUserEmail={setOrganizationUserEmail}
-          onUpdateNewUserFullName={setOrganizationUserFullName}
-          onUpdateNewUserRole={setOrganizationUserRole}
-          settings={organizationSettings}
-          settingsError={organizationSettingsError}
-          settingsMessage={organizationSettingsMessage}
-          settingsName={organizationSettingsName}
-          users={organizationUsers}
-          usersError={organizationUserError}
-        />
-
-        <ActionCenterPanel
-          actionCenter={actionCenter}
-          canManage={canManageWorkspace}
-          error={actionCenterError}
-          isLoading={isActionCenterLoading}
-          onItemAction={handleActionCenterItem}
-          onRefresh={() =>
-            refreshActionCenter().catch((err: Error) =>
-              setActionCenterError(err.message)
-            )
-          }
-        />
-
-        <BusinessAlertsPanel
-          alerts={businessAlerts}
-          canManage={canManageWorkspace}
-          error={businessAlertsError}
-          isLoading={isBusinessAlertsLoading}
-          isRefreshingRunAlerts={isRefreshingRunAlerts}
-          onRefresh={() =>
-            refreshBusinessAlerts().catch((err: Error) =>
-              setBusinessAlertsError(err.message)
-            )
-          }
-          onRefreshRunAlerts={handleRefreshRunBusinessAlerts}
-          onUpdateStatus={handleUpdateBusinessAlertStatus}
-          selectedRun={selectedRun}
-          updatingAlertId={updatingAlertId}
-        />
-
-        <AIQualityPanel
-          isLoading={isFeedbackQualityLoading}
-          onRefresh={() =>
-            refreshFeedbackQuality().catch((err: Error) => setError(err.message))
-          }
-          quality={feedbackQuality}
-        />
-
-        <ModelTrainingPanel
-          canManage={canManageWorkspace}
-          feedbackQuality={feedbackQuality}
-          isLoading={isTrainingOverviewLoading}
-          isSubmitting={isTrainingSubmitting}
-          onRefresh={() =>
-            refreshTrainingOverview().catch((err: Error) => setError(err.message))
-          }
-          onStartTraining={handleStartModelTraining}
-          overview={trainingOverview}
-        />
-
-        {!selectedRun && !isLoading && (
+        {activeView === "analyses" && !selectedRun && !isLoading && (
           <div className="empty-state">
             <BarChart3 size={32} />
             <h2>Choisis ou lance une analyse</h2>
@@ -2810,7 +2963,7 @@ export default function App() {
           </div>
         )}
 
-        {selectedRun && (
+        {activeView === "analyses" && selectedRun && (
           <>
             <header className="report-header" id="report_overview">
               <div>
@@ -3141,6 +3294,25 @@ function FailedRunState({
         </button>
       </div>
     </section>
+  );
+}
+
+function WorkspaceHeader({ item }: { item: WorkspaceNavItem }) {
+  const Icon = item.icon;
+
+  return (
+    <header className="workspace-header">
+      <div className="workspace-title">
+        <span className="workspace-title-icon">
+          <Icon size={20} />
+        </span>
+        <div>
+          <span className="eyebrow">Espace produit</span>
+          <h2>{item.label}</h2>
+          <p>{item.description}</p>
+        </div>
+      </div>
+    </header>
   );
 }
 
