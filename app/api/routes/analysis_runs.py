@@ -55,6 +55,7 @@ from app.api.services.analysis_service import (
     save_review_feedback,
 )
 from app.api.services.organization_service import record_audit_event
+from app.api.services.review_sources import is_source_available
 
 
 router = APIRouter(
@@ -87,6 +88,17 @@ def parse_csv_column_mapping(column_mapping: str | None):
     }
 
 
+def require_source_available(organization_id: int, source_id: str):
+    if not is_source_available(organization_id, source_id):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cette source d'avis n'est pas active pour l'organisation. "
+                "Active-la depuis les sources d'avis avant de lancer une analyse."
+            ),
+        )
+
+
 @router.post(
     "",
     response_model=AnalysisRunResponse,
@@ -103,6 +115,7 @@ def create_run(
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
     require_org_admin(current_user)
+    require_source_available(current_user.organization_id, payload.source)
     try:
         run = create_analysis_run(payload, organization_id=current_user.organization_id)
         record_audit_event(
@@ -143,6 +156,7 @@ async def preview_csv_run(
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
     require_org_admin(current_user)
+    require_source_available(current_user.organization_id, "csv")
     try:
         content = await file.read()
         if not content:
@@ -178,6 +192,7 @@ async def import_csv_run(
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
     require_org_admin(current_user)
+    require_source_available(current_user.organization_id, "csv")
     try:
         content = await file.read()
         if not content:

@@ -41,6 +41,19 @@ CREATE TABLE IF NOT EXISTS organizations (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS organization_review_sources (
+    organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
+    source_id VARCHAR(80) NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    is_configured BOOLEAN NOT NULL DEFAULT FALSE,
+    status VARCHAR(30) NOT NULL DEFAULT 'not_configured',
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    last_error TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (organization_id, source_id)
+);
+
 CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
@@ -62,6 +75,46 @@ INSERT INTO organizations (name, slug, updated_at)
 VALUES ('Demo Satisfaction Client', 'demo', NOW())
 ON CONFLICT (slug) DO UPDATE
 SET updated_at = NOW();
+
+INSERT INTO organization_review_sources (
+    organization_id,
+    source_id,
+    is_enabled,
+    is_configured,
+    status
+)
+SELECT organization_id, 'trustpilot', TRUE, TRUE, 'active'
+FROM organizations
+ON CONFLICT (organization_id, source_id) DO NOTHING;
+
+INSERT INTO organization_review_sources (
+    organization_id,
+    source_id,
+    is_enabled,
+    is_configured,
+    status
+)
+SELECT organization_id, 'csv', TRUE, TRUE, 'active'
+FROM organizations
+ON CONFLICT (organization_id, source_id) DO NOTHING;
+
+INSERT INTO organization_review_sources (
+    organization_id,
+    source_id,
+    is_enabled,
+    is_configured,
+    status
+)
+SELECT organization_id, source_id, FALSE, FALSE, 'planned'
+FROM organizations
+CROSS JOIN (
+    VALUES
+        ('google_reviews'),
+        ('zendesk'),
+        ('shopify'),
+        ('internal_support')
+) AS planned_sources(source_id)
+ON CONFLICT (organization_id, source_id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS companies (
     company_id SERIAL PRIMARY KEY,
@@ -208,6 +261,8 @@ CREATE INDEX IF NOT EXISTS idx_analysis_run_events_run ON analysis_run_events(ru
 CREATE INDEX IF NOT EXISTS idx_users_org ON users(organization_id);
 CREATE INDEX IF NOT EXISTS idx_users_invitation_token ON users(invitation_token)
     WHERE invitation_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_org_review_sources_status
+    ON organization_review_sources(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_reviews_run ON reviews(run_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_company ON reviews(company_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_label ON sentiment_predictions(label);

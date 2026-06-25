@@ -118,16 +118,25 @@ class OrganizationInvitationAccept(BaseModel):
 class ReviewSourceResponse(BaseModel):
     source_id: str
     label: str
-    status: Literal["active", "planned"]
+    status: Literal["active", "not_configured", "error", "planned"]
     category: str
     description: str
     primary_action: str | None = None
     setup_hint: str | None = None
     supports_analysis: bool
     is_configured: bool
+    is_enabled: bool = False
+    can_configure: bool = False
+    last_error: str | None = None
+    config: dict = Field(default_factory=dict)
+    updated_at: datetime | None = None
     required_fields: list[str] = Field(default_factory=list)
     optional_fields: list[str] = Field(default_factory=list)
     column_aliases: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class ReviewSourceUpdate(BaseModel):
+    enabled: bool | None = None
 
 
 class AnalysisRunCreate(BaseModel):

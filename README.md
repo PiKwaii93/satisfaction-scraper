@@ -134,6 +134,7 @@ GET    /auth/organization/users
 POST   /auth/organization/users
 POST   /auth/organization/invitations
 GET    /review-sources
+PATCH  /review-sources/{source_id}
 POST   /analysis-runs
 POST   /analysis-runs/preview-csv
 POST   /analysis-runs/import-csv
@@ -291,7 +292,7 @@ Les runs importes en CSV alimentent le meme rapport entreprise, le meme benchmar
 
 ### Sources d'avis et connecteurs
 
-Le frontend consomme le endpoint `GET /review-sources` pour afficher le catalogue des sources d'avis disponibles dans l'espace client.
+Le frontend consomme `GET /review-sources` pour afficher le catalogue des sources d'avis disponibles dans l'espace client. Les administrateurs peuvent activer ou desactiver une source configurable avec `PATCH /review-sources/{source_id}`.
 
 Sources actives dans le MVP :
 
@@ -305,7 +306,7 @@ Connecteurs prepares pour la suite :
 - `Shopify` pour les donnees e-commerce ;
 - `SAV interne` pour des exports CRM ou support generiques.
 
-Cette couche permet de presenter l'application comme un produit B2B configure autour des canaux d'avis client, tout en gardant Trustpilot et CSV comme sources reellement exploitables aujourd'hui.
+Cette couche permet de presenter l'application comme un produit B2B configure autour des canaux d'avis client, tout en gardant Trustpilot et CSV comme sources reellement exploitables aujourd'hui. Une source desactivee pour une organisation ne peut pas lancer de nouvelle analyse.
 
 ## Frontend React
 
