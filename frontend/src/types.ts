@@ -51,6 +51,35 @@ export type OrganizationAuditEvent = {
   created_at: string | null;
 };
 
+export type ActionCenterSeverity = "critical" | "warning" | "info" | "success";
+
+export type ActionCenterCounts = {
+  open_alerts: number;
+  critical_alerts: number;
+  failed_runs: number;
+  active_runs: number;
+  pending_invitations: number;
+  training_ready_corrections: number;
+  recent_completed_runs: number;
+};
+
+export type ActionCenterItem = {
+  item_id: string;
+  item_type: string;
+  severity: ActionCenterSeverity;
+  title: string;
+  message: string;
+  action_label: string | null;
+  action_target: Record<string, unknown>;
+  requires_admin: boolean;
+  created_at: string | null;
+};
+
+export type ActionCenter = {
+  counts: ActionCenterCounts;
+  items: ActionCenterItem[];
+};
+
 export type CurrentUser = {
   user_id: number;
   email: string;

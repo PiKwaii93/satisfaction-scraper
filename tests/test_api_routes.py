@@ -261,6 +261,83 @@ def test_member_cannot_list_organization_audit_events(member_client):
     assert response.status_code == 403
 
 
+def test_admin_can_get_organization_action_center(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_get_action_center(organization_id, role="member", limit=8):
+        captured["organization_id"] = organization_id
+        captured["role"] = role
+        captured["limit"] = limit
+        return {
+            "counts": {
+                "open_alerts": 2,
+                "critical_alerts": 1,
+                "failed_runs": 1,
+                "active_runs": 0,
+                "pending_invitations": 1,
+                "training_ready_corrections": 5,
+                "recent_completed_runs": 3,
+            },
+            "items": [
+                {
+                    "item_id": "alert-1",
+                    "item_type": "business_alert",
+                    "severity": "critical",
+                    "title": "Part d'avis negatifs elevee",
+                    "message": "55% des avis sont negatifs.",
+                    "action_label": "Ouvrir le run",
+                    "action_target": {"run_id": 42},
+                    "requires_admin": False,
+                    "created_at": None,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_action_center",
+        fake_get_action_center,
+    )
+
+    response = authenticated_client.get("/auth/organization/action-center?limit=5")
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["open_alerts"] == 2
+    assert response.json()["items"][0]["item_type"] == "business_alert"
+    assert captured == {"organization_id": 123, "role": "admin", "limit": 5}
+
+
+def test_member_can_get_limited_organization_action_center(member_client, monkeypatch):
+    captured = {}
+
+    def fake_get_action_center(organization_id, role="member", limit=8):
+        captured["organization_id"] = organization_id
+        captured["role"] = role
+        captured["limit"] = limit
+        return {
+            "counts": {
+                "open_alerts": 0,
+                "critical_alerts": 0,
+                "failed_runs": 0,
+                "active_runs": 1,
+                "pending_invitations": 0,
+                "training_ready_corrections": 0,
+                "recent_completed_runs": 2,
+            },
+            "items": [],
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_action_center",
+        fake_get_action_center,
+    )
+
+    response = member_client.get("/auth/organization/action-center")
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["active_runs"] == 1
+    assert captured == {"organization_id": 123, "role": "member", "limit": 8}
+
+
 def test_admin_can_create_organization_user(authenticated_client, monkeypatch):
     captured = {}
 

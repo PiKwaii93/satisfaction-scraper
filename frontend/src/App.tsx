@@ -33,6 +33,7 @@ import {
   getCurrentUser,
   getFeedbackQuality,
   getModelTrainingOverview,
+  getOrganizationActionCenter,
   getOrganizationSettings,
   getReviews,
   getRunEvents,
@@ -54,6 +55,8 @@ import {
   uploadCsvRun
 } from "./api";
 import type {
+  ActionCenter,
+  ActionCenterItem,
   AnalysisRunEvent,
   AnalysisRun,
   AnalysisRunTrend,
@@ -1069,6 +1072,9 @@ export default function App() {
     useState(false);
   const [organizationAuditError, setOrganizationAuditError] =
     useState<string | null>(null);
+  const [actionCenter, setActionCenter] = useState<ActionCenter | null>(null);
+  const [isActionCenterLoading, setIsActionCenterLoading] = useState(false);
+  const [actionCenterError, setActionCenterError] = useState<string | null>(null);
   const [reviewSources, setReviewSources] =
     useState<ReviewSource[]>(DEFAULT_REVIEW_SOURCES);
   const [isReviewSourcesLoading, setIsReviewSourcesLoading] = useState(false);
@@ -1202,6 +1208,17 @@ export default function App() {
     }
   }
 
+  async function refreshActionCenter() {
+    setIsActionCenterLoading(true);
+    setActionCenterError(null);
+    try {
+      const nextActionCenter = await getOrganizationActionCenter();
+      setActionCenter(nextActionCenter);
+    } finally {
+      setIsActionCenterLoading(false);
+    }
+  }
+
   async function refreshAdminAuditEvents() {
     if (currentUser?.role !== "admin") {
       return;
@@ -1266,6 +1283,7 @@ export default function App() {
     refreshBusinessAlerts().catch((err: Error) =>
       setBusinessAlertsError(err.message)
     );
+    refreshActionCenter().catch((err: Error) => setActionCenterError(err.message));
     refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
     refreshOrganizationSettings().catch((err: Error) =>
       setOrganizationSettingsError(err.message)
@@ -1292,7 +1310,7 @@ export default function App() {
 
     const timer = window.setInterval(() => {
       refreshRuns()
-        .then(() => refreshBusinessAlerts())
+        .then(() => Promise.all([refreshBusinessAlerts(), refreshActionCenter()]))
         .catch((err: Error) => setError(err.message));
     }, 3000);
 
@@ -1382,6 +1400,8 @@ export default function App() {
     setComparison(null);
     setFeedbackQuality(null);
     setTrainingOverview(null);
+    setActionCenter(null);
+    setActionCenterError(null);
     setBusinessAlerts([]);
     setBusinessAlertsError(null);
     setUpdatingAlertId(null);
@@ -1430,6 +1450,7 @@ export default function App() {
           : `Invitation creee pour ${invitedUser.email}.`
       );
       await refreshOrganizationUsers();
+      await refreshActionCenter();
       await refreshAdminAuditEvents();
     } catch (err) {
       setOrganizationUserError(
@@ -1548,7 +1569,11 @@ export default function App() {
 
     try {
       await createModelTrainingRun();
-      await Promise.all([refreshTrainingOverview(), refreshFeedbackQuality()]);
+      await Promise.all([
+        refreshTrainingOverview(),
+        refreshFeedbackQuality(),
+        refreshActionCenter()
+      ]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -1571,7 +1596,7 @@ export default function App() {
 
     try {
       await updateBusinessAlertStatus(alertId, status);
-      await refreshBusinessAlerts();
+      await Promise.all([refreshBusinessAlerts(), refreshActionCenter()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setBusinessAlertsError(
@@ -1602,7 +1627,7 @@ export default function App() {
 
     try {
       await refreshRunBusinessAlerts(selectedRun.run_id);
-      await refreshBusinessAlerts();
+      await Promise.all([refreshBusinessAlerts(), refreshActionCenter()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setBusinessAlertsError(
@@ -1610,6 +1635,23 @@ export default function App() {
       );
     } finally {
       setIsRefreshingRunAlerts(false);
+    }
+  }
+
+  function handleActionCenterItem(item: ActionCenterItem) {
+    const runId = Number(item.action_target.run_id);
+    if (Number.isFinite(runId) && runId > 0) {
+      setSelectedRunId(runId);
+    }
+
+    const section = item.action_target.section;
+    if (typeof section === "string") {
+      window.setTimeout(() => {
+        document.getElementById(section)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }, 50);
     }
   }
 
@@ -1843,7 +1885,7 @@ export default function App() {
               execute_immediately: true
             });
       setSelectedRunId(run.run_id);
-      await refreshRuns();
+      await Promise.all([refreshRuns(), refreshActionCenter()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -1868,7 +1910,7 @@ export default function App() {
       setTrend(null);
       setTrendError(null);
       setReviews([]);
-      await refreshRuns();
+      await Promise.all([refreshRuns(), refreshActionCenter()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -1968,7 +2010,7 @@ export default function App() {
         )
       );
       await refreshSummaryAfterFeedback(selectedRun.run_id);
-      await refreshFeedbackQuality();
+      await Promise.all([refreshFeedbackQuality(), refreshActionCenter()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -2005,7 +2047,7 @@ export default function App() {
         )
       );
       await refreshSummaryAfterFeedback(selectedRun.run_id);
-      await refreshFeedbackQuality();
+      await Promise.all([refreshFeedbackQuality(), refreshActionCenter()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -2530,6 +2572,19 @@ export default function App() {
           settingsName={organizationSettingsName}
           users={organizationUsers}
           usersError={organizationUserError}
+        />
+
+        <ActionCenterPanel
+          actionCenter={actionCenter}
+          canManage={canManageWorkspace}
+          error={actionCenterError}
+          isLoading={isActionCenterLoading}
+          onItemAction={handleActionCenterItem}
+          onRefresh={() =>
+            refreshActionCenter().catch((err: Error) =>
+              setActionCenterError(err.message)
+            )
+          }
         />
 
         <BusinessAlertsPanel
@@ -3084,7 +3139,7 @@ function ClientSpacePanel({
     isLoadingUsers || isLoadingSettings || isLoadingAudit;
 
   return (
-    <section className="client-space-panel insight-section wide">
+    <section className="client-space-panel insight-section wide" id="client_space">
       <div className="section-heading client-space-heading">
         <div>
           <span className="eyebrow">Espace client</span>
@@ -3329,6 +3384,141 @@ function ClientSpacePanel({
   );
 }
 
+function ActionCenterPanel({
+  actionCenter,
+  canManage,
+  error,
+  isLoading,
+  onItemAction,
+  onRefresh
+}: {
+  actionCenter: ActionCenter | null;
+  canManage: boolean;
+  error: string | null;
+  isLoading: boolean;
+  onItemAction: (item: ActionCenterItem) => void;
+  onRefresh: () => void;
+}) {
+  const counts = actionCenter?.counts ?? {
+    open_alerts: 0,
+    critical_alerts: 0,
+    failed_runs: 0,
+    active_runs: 0,
+    pending_invitations: 0,
+    training_ready_corrections: 0,
+    recent_completed_runs: 0
+  };
+  const items = actionCenter?.items ?? [];
+  const adminQueue =
+    counts.pending_invitations + counts.training_ready_corrections;
+  const urgentCount = counts.critical_alerts + counts.failed_runs;
+
+  return (
+    <section className="action-center-panel insight-section wide" id="action_center">
+      <div className="section-heading action-center-heading">
+        <div>
+          <span className="eyebrow">A traiter</span>
+          <h3>Centre d'action client</h3>
+          <p>
+            Les signaux les plus utiles pour savoir quoi verifier, corriger ou
+            relancer dans cet espace client.
+          </p>
+        </div>
+        <button
+          className="secondary-action"
+          disabled={isLoading}
+          onClick={onRefresh}
+          type="button"
+        >
+          {isLoading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+          Actualiser
+        </button>
+      </div>
+
+      {error ? <p className="form-error">{error}</p> : null}
+
+      <div className="action-center-kpis">
+        <Kpi
+          label="Actions ouvertes"
+          value={String(items.length)}
+          helper={`${urgentCount} critique(s)`}
+        />
+        <Kpi
+          label="Alertes metier"
+          value={String(counts.open_alerts)}
+          helper={`${counts.critical_alerts} critique(s)`}
+        />
+        <Kpi
+          label="Analyses actives"
+          value={String(counts.active_runs)}
+          helper={`${counts.failed_runs} echouee(s)`}
+        />
+        <Kpi
+          label={canManage ? "File admin" : "Infos recentes"}
+          value={String(canManage ? adminQueue : counts.recent_completed_runs)}
+          helper={
+            canManage
+              ? `${counts.training_ready_corrections} correction(s) IA`
+              : "analyse(s) terminee(s)"
+          }
+        />
+      </div>
+
+      {items.length === 0 && !isLoading ? (
+        <div className="action-center-empty">
+          <CheckCircle2 size={22} />
+          <div>
+            <strong>Aucune action prioritaire.</strong>
+            <span>Les nouvelles analyses et corrections alimenteront ce bloc.</span>
+          </div>
+        </div>
+      ) : (
+        <div className="action-item-list">
+          {items.map((item) => {
+            const hasRunnableAction =
+              Boolean(item.action_label) &&
+              (!item.requires_admin || canManage);
+
+            return (
+              <article
+                className={`action-item-row ${item.severity}`}
+                key={item.item_id}
+              >
+                <span className="action-item-icon">
+                  {actionItemIcon(item.severity)}
+                </span>
+                <div className="action-item-body">
+                  <div className="action-item-topline">
+                    <strong>{item.title}</strong>
+                    <span className={`alert-severity ${item.severity}`}>
+                      {formatActionSeverity(item.severity)}
+                    </span>
+                    {item.requires_admin && !canManage ? (
+                      <span className="readonly-pill">Admin requis</span>
+                    ) : null}
+                  </div>
+                  <p>{item.message}</p>
+                  <small>{formatDate(item.created_at)}</small>
+                </div>
+                {item.action_label ? (
+                  <button
+                    className="secondary-action"
+                    disabled={!hasRunnableAction}
+                    onClick={() => onItemAction(item)}
+                    type="button"
+                  >
+                    {item.action_label}
+                  </button>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function BusinessAlertsPanel({
   alerts,
   canManage,
@@ -3357,7 +3547,7 @@ function BusinessAlertsPanel({
   const canRefreshSelectedRun = canManage && selectedRun?.status === "completed";
 
   return (
-    <section className="business-alerts-panel insight-section wide">
+    <section className="business-alerts-panel insight-section wide" id="business_alerts">
       <div className="section-heading alert-heading">
         <div>
           <span className="eyebrow">Alertes metier</span>
@@ -3489,9 +3679,27 @@ function formatAlertSeverity(severity: string) {
   const labels: Record<string, string> = {
     critical: "Critique",
     warning: "A surveiller",
-    info: "Info"
+    info: "Info",
+    success: "Termine"
   };
   return labels[severity] ?? severity;
+}
+
+function formatActionSeverity(severity: string) {
+  return formatAlertSeverity(severity);
+}
+
+function actionItemIcon(severity: string) {
+  if (severity === "critical") {
+    return <AlertTriangle size={18} />;
+  }
+  if (severity === "warning") {
+    return <Hourglass size={18} />;
+  }
+  if (severity === "success") {
+    return <CheckCircle2 size={18} />;
+  }
+  return <ListChecks size={18} />;
 }
 
 function formatAuditEventType(eventType: string) {
@@ -3526,7 +3734,7 @@ function AIQualityPanel({
   const hasCorrections = Boolean(quality && quality.total_corrections > 0);
 
   return (
-    <section className="ai-quality-panel insight-section wide">
+    <section className="ai-quality-panel insight-section wide" id="ai_quality">
       <div className="section-heading ai-quality-heading">
         <div>
           <span className="eyebrow">Qualité IA</span>
@@ -3684,7 +3892,7 @@ function ModelTrainingPanel({
   const latestDuration = formatDuration(latestRun?.execution_duration_seconds);
 
   return (
-    <section className="model-training-panel insight-section wide">
+    <section className="model-training-panel insight-section wide" id="model_training">
       <div className="section-heading model-training-heading">
         <div>
           <span className="eyebrow">Entrainement IA</span>
