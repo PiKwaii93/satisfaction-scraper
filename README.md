@@ -128,6 +128,7 @@ POST   /auth/invitations/accept
 GET    /auth/me
 GET    /auth/organization/settings
 PATCH  /auth/organization/settings
+GET    /auth/organization/action-center
 GET    /auth/organization/audit-events
 GET    /auth/organization/users
 POST   /auth/organization/users
@@ -211,6 +212,7 @@ Matrice simplifiee des permissions :
 | Consulter les analyses et rapports | Oui | Oui |
 | Exporter les avis analyses | Oui | Oui |
 | Comparer plusieurs runs | Oui | Oui |
+| Consulter le centre d'action client | Oui | Oui |
 | Consulter les alertes metier | Oui | Oui |
 | Lancer une analyse Trustpilot ou CSV | Oui | Non |
 | Relancer une analyse echouee | Oui | Non |
@@ -231,6 +233,18 @@ http://localhost:5173/?invitation_token=...
 L'utilisateur invite choisit ensuite son mot de passe depuis l'ecran de connexion. Dans le MVP, le lien est affiche a l'administrateur au lieu d'etre envoye par email.
 
 Les preferences d'organisation permettent de pre-remplir les analyses avec une source par defaut (`trustpilot` ou `csv`) et un nombre de pages par note par defaut. Le journal d'activite conserve les actions administrateur importantes : creation d'analyse, import CSV, relance, correction, export de corrections, invitation utilisateur et reentrainement.
+
+### Centre d'action client
+
+Le bloc **Centre d'action client** consolide les signaux utiles a traiter dans l'espace client :
+
+- alertes metier ouvertes ;
+- analyses echouees ou en cours ;
+- invitations en attente ;
+- corrections humaines pretes pour un prochain reentrainement ;
+- analyses terminees recemment.
+
+Les membres peuvent consulter les actions et ouvrir les rapports associes. Les actions d'administration, comme traiter les invitations ou piloter le reentrainement, restent reservees aux administrateurs.
 
 ### Alertes metier
 
@@ -304,6 +318,7 @@ Elle permet de :
 - previsualiser puis importer un CSV d'avis clients ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
+- consulter un centre d'action client qui regroupe alertes, runs actifs, echecs, invitations et corrections pretes ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
 - comparer une analyse avec le run precedent de la meme entreprise pour suivre les tendances ;
 - suivre les alertes metier ouvertes et les traiter cote administrateur ;

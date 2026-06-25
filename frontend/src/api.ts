@@ -1,4 +1,5 @@
 import type {
+  ActionCenter,
   AnalysisRunEvent,
   AnalysisRun,
   AnalysisRunTrend,
@@ -157,6 +158,13 @@ export function listOrganizationAuditEvents(limit = 30, offset = 0) {
   });
   return request<OrganizationAuditEvent[]>(
     `/auth/organization/audit-events?${params.toString()}`
+  );
+}
+
+export function getOrganizationActionCenter(limit = 8) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<ActionCenter>(
+    `/auth/organization/action-center?${params.toString()}`
   );
 }
 

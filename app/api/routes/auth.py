@@ -12,6 +12,7 @@ from app.api.auth import (
     require_current_user,
 )
 from app.api.schemas import (
+    ActionCenterResponse,
     OrganizationInvitationAccept,
     OrganizationInvitationCreate,
     OrganizationAuditEventResponse,
@@ -23,6 +24,7 @@ from app.api.schemas import (
     OrganizationUserCreate,
     OrganizationUserResponse,
 )
+from app.api.services.action_center_service import get_action_center
 from app.api.services.organization_service import (
     get_organization_settings,
     list_audit_events,
@@ -131,6 +133,22 @@ def organization_settings(user: AuthenticatedUser = Depends(require_current_user
             detail="Organisation introuvable.",
         )
     return settings
+
+
+@router.get(
+    "/organization/action-center",
+    response_model=ActionCenterResponse,
+    summary="Consulter le centre d'action de l'organisation",
+)
+def organization_action_center(
+    limit: int = Query(default=8, ge=1, le=20),
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    return get_action_center(
+        user.organization_id,
+        role=user.role,
+        limit=limit,
+    )
 
 
 @router.patch(

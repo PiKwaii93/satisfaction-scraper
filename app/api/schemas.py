@@ -36,6 +36,33 @@ class OrganizationAuditEventResponse(BaseModel):
     created_at: datetime | None = None
 
 
+class ActionCenterCounts(BaseModel):
+    open_alerts: int = 0
+    critical_alerts: int = 0
+    failed_runs: int = 0
+    active_runs: int = 0
+    pending_invitations: int = 0
+    training_ready_corrections: int = 0
+    recent_completed_runs: int = 0
+
+
+class ActionCenterItem(BaseModel):
+    item_id: str
+    item_type: str
+    severity: Literal["critical", "warning", "info", "success"]
+    title: str
+    message: str
+    action_label: str | None = None
+    action_target: dict = Field(default_factory=dict)
+    requires_admin: bool = False
+    created_at: datetime | None = None
+
+
+class ActionCenterResponse(BaseModel):
+    counts: ActionCenterCounts
+    items: list[ActionCenterItem] = Field(default_factory=list)
+
+
 class AuthMeResponse(BaseModel):
     user_id: int
     email: str
