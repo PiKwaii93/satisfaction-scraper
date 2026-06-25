@@ -100,6 +100,18 @@ const FEEDBACK_SENTIMENTS = SENTIMENTS.filter(
 );
 
 const REVIEW_PAGE_SIZES = [30, 60, 120, 500];
+
+type OnboardingStep = {
+  key: string;
+  title: string;
+  description: string;
+  completed: boolean;
+  actionLabel: string;
+  targetId: string;
+  runId?: number;
+  requiresAdmin?: boolean;
+};
+
 const SOURCE_LABELS: Record<AnalysisSource, string> = {
   trustpilot: "Trustpilot",
   csv: "CSV"
@@ -1367,11 +1379,96 @@ export default function App() {
     () => runs.filter((run) => run.status === "completed"),
     [runs]
   );
+  const latestCompletedRun = completedRuns[0] ?? null;
   const reviewsPage = Math.floor(reviewsOffset / reviewsLimit) + 1;
   const reviewsPageCount = Math.max(1, Math.ceil(reviewsTotal / reviewsLimit));
   const canGoToPreviousReviews = reviewsOffset > 0;
   const canGoToNextReviews = reviewsOffset + reviews.length < reviewsTotal;
   const canManageWorkspace = currentUser?.role === "admin";
+  const onboardingSteps = useMemo<OnboardingStep[]>(() => {
+    const hasActiveAnalysisSource = reviewSources.some(
+      (source) =>
+        source.status === "active" &&
+        source.supports_analysis &&
+        isAnalysisSource(source.source_id)
+    );
+    const hasAnyRun = runs.length > 0;
+    const hasCompletedRun = completedRuns.length > 0;
+    const hasFeedback = (feedbackQuality?.total_corrections ?? 0) > 0;
+    const hasTeamMate = organizationUsers.some(
+      (user) => user.user_id !== currentUser?.user_id
+    );
+
+    return [
+      {
+        key: "sources",
+        title: "Configurer une source",
+        description: hasActiveAnalysisSource
+          ? "Au moins une source d'avis est active pour cet espace client."
+          : "Active Trustpilot ou CSV avant de lancer une analyse.",
+        completed: hasActiveAnalysisSource,
+        actionLabel: "Voir les sources",
+        targetId: "review_sources",
+        requiresAdmin: true
+      },
+      {
+        key: "first-run",
+        title: "Lancer une analyse",
+        description: hasAnyRun
+          ? "Une analyse existe deja dans l'historique client."
+          : "Demarre par un CSV client ou une URL Trustpilot.",
+        completed: hasAnyRun,
+        actionLabel: "Nouvelle analyse",
+        targetId: "new_analysis",
+        requiresAdmin: true
+      },
+      {
+        key: "report",
+        title: "Lire le rapport",
+        description: hasCompletedRun
+          ? "Un rapport entreprise est disponible pour exploitation."
+          : "Attends la fin d'une analyse pour consulter les KPI et irritants.",
+        completed: hasCompletedRun,
+        actionLabel: hasCompletedRun ? "Ouvrir le rapport" : "Voir l'historique",
+        targetId: hasCompletedRun ? "report_overview" : "run_history",
+        runId: latestCompletedRun?.run_id
+      },
+      {
+        key: "feedback",
+        title: "Corriger des avis",
+        description: hasFeedback
+          ? "Des corrections humaines alimentent deja la qualite IA."
+          : "Corrige quelques avis pour preparer le prochain reentrainement.",
+        completed: hasFeedback,
+        actionLabel: "Voir les avis",
+        targetId: hasCompletedRun ? "reviews_feedback" : "ai_quality",
+        runId: latestCompletedRun?.run_id,
+        requiresAdmin: true
+      },
+      {
+        key: "team",
+        title: "Inviter l'equipe",
+        description: hasTeamMate
+          ? "L'espace client n'est plus limite a un seul utilisateur."
+          : "Ajoute un membre pour valider le parcours multi-utilisateur.",
+        completed: hasTeamMate,
+        actionLabel: "Gerer les membres",
+        targetId: "client_space",
+        requiresAdmin: true
+      }
+    ];
+  }, [
+    completedRuns,
+    currentUser?.user_id,
+    feedbackQuality?.total_corrections,
+    latestCompletedRun?.run_id,
+    organizationUsers,
+    reviewSources,
+    runs.length
+  ]);
+  const onboardingCompletedCount = onboardingSteps.filter(
+    (step) => step.completed
+  ).length;
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1695,13 +1792,32 @@ export default function App() {
 
     const section = item.action_target.section;
     if (typeof section === "string") {
-      window.setTimeout(() => {
-        document.getElementById(section)?.scrollIntoView({
+      scrollToWorkspaceSection(section);
+    }
+  }
+
+  function scrollToWorkspaceSection(sectionId: string, delay = 50, attempts = 5) {
+    window.setTimeout(() => {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({
           behavior: "smooth",
           block: "start"
         });
-      }, 50);
+        return;
+      }
+
+      if (attempts > 1) {
+        scrollToWorkspaceSection(sectionId, 160, attempts - 1);
+      }
+    }, delay);
+  }
+
+  function handleOnboardingStepAction(step: OnboardingStep) {
+    if (step.runId) {
+      setSelectedRunId(step.runId);
     }
+    scrollToWorkspaceSection(step.targetId, step.runId ? 120 : 50);
   }
 
   function buildDetectedColumnMapping(preview: CsvImportPreview): CsvColumnMapping {
@@ -2311,6 +2427,7 @@ export default function App() {
         />
 
         <form
+          id="new_analysis"
           className={`analysis-form ${!canManageWorkspace ? "read-only-panel" : ""}`}
           onSubmit={handleSubmit}
         >
@@ -2471,7 +2588,7 @@ export default function App() {
           </button>
         </form>
 
-        <div className="run-panel">
+        <div className="run-panel" id="run_history">
           <div className="panel-heading">
             <h2>Historique</h2>
             <button
@@ -2583,6 +2700,13 @@ export default function App() {
           />
         )}
 
+        <OnboardingPanel
+          canManage={canManageWorkspace}
+          completedCount={onboardingCompletedCount}
+          onStepAction={handleOnboardingStepAction}
+          steps={onboardingSteps}
+        />
+
         <ClientSpacePanel
           auditError={organizationAuditError}
           auditEvents={organizationAuditEvents}
@@ -2688,7 +2812,7 @@ export default function App() {
 
         {selectedRun && (
           <>
-            <header className="report-header">
+            <header className="report-header" id="report_overview">
               <div>
                 <span className="eyebrow">Rapport entreprise</span>
                 <h2>{selectedRun.company_name}</h2>
@@ -2854,7 +2978,7 @@ export default function App() {
                   <RatingBars rows={summary.rating_distribution} />
                 </section>
 
-                <section className="insight-section wide">
+                <section className="insight-section wide" id="reviews_feedback">
                   <div className="section-heading">
                     <h3>Irritants détectés</h3>
                     <AlertTriangle size={18} />
@@ -3020,6 +3144,83 @@ function FailedRunState({
   );
 }
 
+function OnboardingPanel({
+  canManage,
+  completedCount,
+  onStepAction,
+  steps
+}: {
+  canManage: boolean;
+  completedCount: number;
+  onStepAction: (step: OnboardingStep) => void;
+  steps: OnboardingStep[];
+}) {
+  const totalSteps = steps.length;
+  const progress = Math.round((completedCount / Math.max(totalSteps, 1)) * 100);
+  const nextStep = steps.find((step) => !step.completed);
+
+  return (
+    <section className="onboarding-panel insight-section wide">
+      <div className="section-heading onboarding-heading">
+        <div>
+          <span className="eyebrow">Demarrage client</span>
+          <h3>Parcours de configuration</h3>
+          <p>
+            {nextStep
+              ? `Prochaine action recommandee: ${nextStep.title}.`
+              : "L'espace client est pret pour un usage recurrent."}
+          </p>
+        </div>
+        <div className="onboarding-score">
+          <strong>{completedCount}/{totalSteps}</strong>
+          <span>{progress}% pret</span>
+        </div>
+      </div>
+
+      <div className="onboarding-progress" aria-label={`Progression ${progress}%`}>
+        <span style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="onboarding-step-list">
+        {steps.map((step, index) => {
+          const isLocked = step.requiresAdmin && !canManage && !step.completed;
+          return (
+            <article
+              className={`onboarding-step ${step.completed ? "completed" : ""}`}
+              key={step.key}
+            >
+              <span className="onboarding-step-index">
+                {step.completed ? <CheckCircle2 size={18} /> : index + 1}
+              </span>
+              <div className="onboarding-step-body">
+                <div>
+                  <strong>{step.title}</strong>
+                  {step.requiresAdmin ? <small>Admin</small> : null}
+                </div>
+                <p>{step.description}</p>
+              </div>
+              <button
+                className={step.completed ? "secondary-action" : "primary-action"}
+                disabled={isLocked}
+                onClick={() => onStepAction(step)}
+                title={
+                  isLocked
+                    ? "Reserve aux administrateurs de l'espace client"
+                    : step.actionLabel
+                }
+                type="button"
+              >
+                {step.completed ? <CheckCircle2 size={16} /> : <Play size={16} />}
+                {step.actionLabel}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ReviewSourcesPanel({
   currentSource,
   error,
@@ -3050,7 +3251,7 @@ function ReviewSourcesPanel({
   const plannedSources = sources.filter((source) => source.status === "planned");
 
   return (
-    <section className="sources-panel">
+    <section className="sources-panel" id="review_sources">
       <div className="panel-heading compact-heading">
         <div>
           <span>Sources d'avis</span>
