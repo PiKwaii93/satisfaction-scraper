@@ -2,7 +2,7 @@ export type SentimentLabel = "Positif" | "Neutre" | "Négatif";
 
 export type AnalysisSource = "trustpilot" | "csv";
 
-export type ReviewSourceStatus = "active" | "planned";
+export type ReviewSourceStatus = "active" | "not_configured" | "error" | "planned";
 
 export type ReviewSource = {
   source_id: string;
@@ -14,9 +14,18 @@ export type ReviewSource = {
   setup_hint: string | null;
   supports_analysis: boolean;
   is_configured: boolean;
+  is_enabled: boolean;
+  can_configure: boolean;
+  last_error: string | null;
+  config: Record<string, unknown>;
+  updated_at: string | null;
   required_fields: string[];
   optional_fields: string[];
   column_aliases: Record<string, string[]>;
+};
+
+export type ReviewSourceUpdate = {
+  enabled?: boolean | null;
 };
 
 export type Organization = {

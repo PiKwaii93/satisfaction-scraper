@@ -531,6 +531,65 @@ def test_list_review_sources(authenticated_client):
     assert payload[1]["column_aliases"]["verbatim"]
 
 
+def test_admin_can_update_review_source(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_update_review_source(organization_id, source_id, payload):
+        captured["organization_id"] = organization_id
+        captured["source_id"] = source_id
+        captured["enabled"] = payload.enabled
+        return {
+            "source_id": source_id,
+            "label": "CSV",
+            "category": "Fichier",
+            "status": "not_configured",
+            "supports_analysis": False,
+            "is_configured": False,
+            "is_enabled": False,
+            "can_configure": True,
+            "last_error": None,
+            "config": {},
+            "updated_at": None,
+            "description": "Import CSV",
+            "setup_hint": "Importer un fichier CSV",
+            "required_fields": [],
+            "optional_fields": [],
+            "column_aliases": {},
+            "primary_action": "Importer un CSV",
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.review_sources.update_review_source",
+        fake_update_review_source,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.review_sources.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event", kwargs),
+    )
+
+    response = authenticated_client.patch(
+        "/review-sources/csv",
+        json={"enabled": False},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "not_configured"
+    assert captured["organization_id"] == 123
+    assert captured["source_id"] == "csv"
+    assert captured["enabled"] is False
+    assert captured["audit_event"]["organization_id"] == 123
+
+
+def test_member_cannot_update_review_source(member_client):
+    response = member_client.patch(
+        "/review-sources/csv",
+        json={"enabled": False},
+    )
+
+    assert response.status_code == 403
+    assert "administrateurs" in response.json()["detail"]
+
+
 def test_protected_endpoint_requires_authentication(client):
     response = client.get("/analysis-runs")
 
@@ -597,6 +656,25 @@ def test_create_trustpilot_run_uses_service(authenticated_client, monkeypatch):
         "execute_immediately": False,
         "organization_id": 123,
     }
+
+
+def test_create_trustpilot_run_requires_active_source(authenticated_client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.is_source_available",
+        lambda organization_id, source_id: False,
+    )
+
+    response = authenticated_client.post(
+        "/analysis-runs",
+        json={
+            "company": "https://fr.trustpilot.com/review/www.darty.com",
+            "pages_per_star": 1,
+            "execute_immediately": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "source d'avis n'est pas active" in response.json()["detail"]
 
 
 def test_member_cannot_create_trustpilot_run(member_client):

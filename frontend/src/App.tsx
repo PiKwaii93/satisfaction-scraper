@@ -52,6 +52,7 @@ import {
   saveReviewFeedback,
   updateBusinessAlertStatus,
   updateOrganizationSettings,
+  updateReviewSource,
   uploadCsvRun
 } from "./api";
 import type {
@@ -115,6 +116,11 @@ const DEFAULT_REVIEW_SOURCES: ReviewSource[] = [
     setup_hint: "Disponible sans configuration.",
     supports_analysis: true,
     is_configured: true,
+    is_enabled: true,
+    can_configure: true,
+    last_error: null,
+    config: {},
+    updated_at: null,
     required_fields: ["URL ou domaine Trustpilot"],
     optional_fields: ["Pages par note"],
     column_aliases: {}
@@ -129,6 +135,11 @@ const DEFAULT_REVIEW_SOURCES: ReviewSource[] = [
     setup_hint: "Mapping des colonnes avant import.",
     supports_analysis: true,
     is_configured: true,
+    is_enabled: true,
+    can_configure: true,
+    last_error: null,
+    config: {},
+    updated_at: null,
     required_fields: ["verbatim"],
     optional_fields: ["rating", "author", "date", "company_responded"],
     column_aliases: {}
@@ -222,6 +233,17 @@ function sourceIcon(sourceId: string) {
   }
 
   return <ListChecks aria-hidden="true" size={18} />;
+}
+
+function formatSourceStatus(status: ReviewSource["status"]) {
+  const labels: Record<ReviewSource["status"], string> = {
+    active: "Actif",
+    error: "Erreur",
+    not_configured: "A configurer",
+    planned: "Bientot"
+  };
+
+  return labels[status];
 }
 
 function formatDuration(seconds: number | null | undefined) {
@@ -1078,6 +1100,9 @@ export default function App() {
   const [reviewSources, setReviewSources] =
     useState<ReviewSource[]>(DEFAULT_REVIEW_SOURCES);
   const [isReviewSourcesLoading, setIsReviewSourcesLoading] = useState(false);
+  const [updatingReviewSourceId, setUpdatingReviewSourceId] = useState<string | null>(
+    null
+  );
   const [reviewSourcesError, setReviewSourcesError] = useState<string | null>(
     null
   );
@@ -1419,6 +1444,7 @@ export default function App() {
     setOrganizationAuditError(null);
     setReviewSources(DEFAULT_REVIEW_SOURCES);
     setReviewSourcesError(null);
+    setUpdatingReviewSourceId(null);
     setError(null);
   }
 
@@ -1519,6 +1545,29 @@ export default function App() {
 
     setSourceMode(sourceId);
     setError(null);
+  }
+
+  async function handleReviewSourceToggle(source: ReviewSource) {
+    if (!canManageWorkspace || !source.can_configure) {
+      return;
+    }
+
+    setUpdatingReviewSourceId(source.source_id);
+    setReviewSourcesError(null);
+
+    try {
+      await updateReviewSource(source.source_id, {
+        enabled: source.status !== "active"
+      });
+      await refreshReviewSources();
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setReviewSourcesError(
+        err instanceof Error ? err.message : "Source impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingReviewSourceId(null);
+    }
   }
 
   function toggleComparisonRun(runId: number) {
@@ -2256,7 +2305,9 @@ export default function App() {
             )
           }
           onSelectSource={handleReviewSourceSelect}
+          onToggleSource={handleReviewSourceToggle}
           sources={reviewSources}
+          updatingSourceId={updatingReviewSourceId}
         />
 
         <form
@@ -2976,7 +3027,9 @@ function ReviewSourcesPanel({
   isLoading,
   onRefresh,
   onSelectSource,
-  sources
+  onToggleSource,
+  sources,
+  updatingSourceId
 }: {
   currentSource: AnalysisSource;
   error: string | null;
@@ -2984,10 +3037,15 @@ function ReviewSourcesPanel({
   isLoading: boolean;
   onRefresh: () => void;
   onSelectSource: (sourceId: string) => void;
+  onToggleSource: (source: ReviewSource) => void;
   sources: ReviewSource[];
+  updatingSourceId: string | null;
 }) {
   const activeSources = sources.filter(
     (source) => source.status === "active" && source.supports_analysis
+  );
+  const configurableSources = sources.filter(
+    (source) => source.status !== "planned"
   );
   const plannedSources = sources.filter((source) => source.status === "planned");
 
@@ -3017,38 +3075,54 @@ function ReviewSourcesPanel({
       ) : null}
 
       <div className="source-card-list">
-        {activeSources.map((source) => {
+        {configurableSources.map((source) => {
           const canSelect =
             !isReadOnly &&
             source.status === "active" &&
             source.supports_analysis &&
             isAnalysisSource(source.source_id);
           const isSelected = source.source_id === currentSource;
+          const isUpdating = updatingSourceId === source.source_id;
 
           return (
-            <button
-              className={`source-card ${isSelected ? "selected" : ""}`}
-              disabled={!canSelect}
+            <div
+              className={`source-card ${isSelected ? "selected" : ""} ${source.status}`}
               key={source.source_id}
-              onClick={() => onSelectSource(source.source_id)}
-              type="button"
             >
-              <span className="source-card-icon">{sourceIcon(source.source_id)}</span>
-              <span className="source-card-body">
-                <strong>{source.label}</strong>
-                <small>{source.category}</small>
-                <span>{source.primary_action ?? "Connecteur a configurer"}</span>
-              </span>
-              <span
-                className={
-                  source.status === "active"
-                    ? "source-status active"
-                    : "source-status planned"
-                }
+              <button
+                className="source-select-button"
+                disabled={!canSelect}
+                onClick={() => onSelectSource(source.source_id)}
+                type="button"
               >
-                {source.status === "active" ? "Actif" : "Bientot"}
-              </span>
-            </button>
+                <span className="source-card-icon">{sourceIcon(source.source_id)}</span>
+                <span className="source-card-body">
+                  <strong>{source.label}</strong>
+                  <small>{source.category}</small>
+                  <span>{source.primary_action ?? source.setup_hint ?? "Connecteur a configurer"}</span>
+                  {source.last_error ? <em>{source.last_error}</em> : null}
+                </span>
+                <span className={`source-status ${source.status}`}>
+                  {formatSourceStatus(source.status)}
+                </span>
+              </button>
+              {source.can_configure && !isReadOnly ? (
+                <button
+                  className="source-config-action"
+                  disabled={isUpdating}
+                  onClick={() => onToggleSource(source)}
+                  type="button"
+                >
+                  {isUpdating ? (
+                    <Loader2 className="spin" size={14} />
+                  ) : source.status === "active" ? (
+                    "Desactiver"
+                  ) : (
+                    "Activer"
+                  )}
+                </button>
+              ) : null}
+            </div>
           );
         })}
       </div>

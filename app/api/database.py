@@ -58,6 +58,19 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
     ALTER TABLE organizations
         ADD COLUMN IF NOT EXISTS default_pages_per_star INT NOT NULL DEFAULT 1;
 
+    CREATE TABLE IF NOT EXISTS organization_review_sources (
+        organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
+        source_id VARCHAR(80) NOT NULL,
+        is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        is_configured BOOLEAN NOT NULL DEFAULT FALSE,
+        status VARCHAR(30) NOT NULL DEFAULT 'not_configured',
+        config JSONB NOT NULL DEFAULT '{}'::jsonb,
+        last_error TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (organization_id, source_id)
+    );
+
     CREATE TABLE IF NOT EXISTS users (
         user_id SERIAL PRIMARY KEY,
         organization_id INT NOT NULL REFERENCES organizations(organization_id) ON DELETE CASCADE,
@@ -253,6 +266,46 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
     SET organization_id = (SELECT organization_id FROM organizations WHERE slug = 'demo')
     WHERE organization_id IS NULL;
 
+    INSERT INTO organization_review_sources (
+        organization_id,
+        source_id,
+        is_enabled,
+        is_configured,
+        status
+    )
+    SELECT organization_id, 'trustpilot', TRUE, TRUE, 'active'
+    FROM organizations
+    ON CONFLICT (organization_id, source_id) DO NOTHING;
+
+    INSERT INTO organization_review_sources (
+        organization_id,
+        source_id,
+        is_enabled,
+        is_configured,
+        status
+    )
+    SELECT organization_id, 'csv', TRUE, TRUE, 'active'
+    FROM organizations
+    ON CONFLICT (organization_id, source_id) DO NOTHING;
+
+    INSERT INTO organization_review_sources (
+        organization_id,
+        source_id,
+        is_enabled,
+        is_configured,
+        status
+    )
+    SELECT organization_id, source_id, FALSE, FALSE, 'planned'
+    FROM organizations
+    CROSS JOIN (
+        VALUES
+            ('google_reviews'),
+            ('zendesk'),
+            ('shopify'),
+            ('internal_support')
+    ) AS planned_sources(source_id)
+    ON CONFLICT (organization_id, source_id) DO NOTHING;
+
     ALTER TABLE companies
         ALTER COLUMN organization_id SET NOT NULL;
     ALTER TABLE analysis_runs
@@ -279,6 +332,8 @@ def ensure_product_schema(max_attempts=1, delay_seconds=1):
     CREATE INDEX IF NOT EXISTS idx_users_invitation_token
         ON users(invitation_token)
         WHERE invitation_token IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_org_review_sources_status
+        ON organization_review_sources(organization_id, status);
     CREATE INDEX IF NOT EXISTS idx_analysis_runs_company
         ON analysis_runs(company_id);
     CREATE INDEX IF NOT EXISTS idx_analysis_runs_org

@@ -20,6 +20,7 @@ import type {
   OrganizationUser,
   OrganizationUserCreate,
   ReviewSource,
+  ReviewSourceUpdate,
   ReviewFeedback,
   ReviewListResponse,
   RunsComparison,
@@ -184,6 +185,13 @@ export function inviteOrganizationUser(payload: OrganizationInvitationCreate) {
 
 export function listReviewSources() {
   return request<ReviewSource[]>("/review-sources");
+}
+
+export function updateReviewSource(sourceId: string, payload: ReviewSourceUpdate) {
+  return request<ReviewSource>(`/review-sources/${sourceId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function listRuns() {
