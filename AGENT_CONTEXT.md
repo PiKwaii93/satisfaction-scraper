@@ -9,10 +9,11 @@ Le code existant est la source de verite. Si une conversation ancienne contredit
 Avant toute modification :
 
 1. Lire `README.md`.
-2. Lire `CURRENT_TASK.md`.
+2. Lire `PRODUCT_ROADMAP.md`.
 3. Lire `ARCHITECTURE_DECISIONS.md`.
-4. Verifier l'etat Git.
-5. Inspecter le code concerne.
+4. Lire `CURRENT_TASK.md`.
+5. Verifier l'etat Git.
+6. Inspecter le code concerne.
 
 Ne pas lancer de refonte massive sans demande explicite.
 
@@ -34,9 +35,12 @@ Le repo contient encore des elements historiques du projet initial :
 
 Ces elements ne doivent pas etre supprimes sans decision explicite. Ils peuvent servir pour audit, demonstration ou compatibilite.
 
-## Etat Git confirme avant cette documentation
+## Historique Git de reference au moment du handoff initial
 
-Historique recent confirme par `git log --oneline --decorate -20` :
+Cet historique a ete releve lors du handoff initial. Il ne represente pas necessairement l'etat courant du depot.
+Toujours executer `git status`, `git log` et `git diff` avant de travailler.
+
+Historique alors confirme par `git log --oneline --decorate -20` :
 
 ```text
 6d658f7 (HEAD -> codex/platform-organizations, origin/main, origin/HEAD, main) Merge pull request #35 from PiKwaii93/codex/actionable-home
@@ -275,3 +279,12 @@ Variables sensibles ou a traiter comme sensibles :
 - Ajouter une route sans schema Pydantic.
 - Documenter une commande non testee comme si elle etait verifiee.
 - Exposer des valeurs de secrets dans README ou logs.
+
+## Maintenance de la documentation
+
+- Mettre a jour `CURRENT_TASK.md` a chaque nouveau chantier, passation ou changement d'etat important.
+- Mettre a jour `PRODUCT_ROADMAP.md` lorsqu'une priorite change ou que le statut d'un jalon evolue.
+- Mettre a jour `README.md` lorsque les commandes, l'installation, l'architecture visible ou les fonctionnalites publiques changent.
+- Mettre a jour `AGENT_CONTEXT.md` uniquement lorsqu'une regle durable, une convention ou un invariant du projet change.
+- Ajouter ou modifier une ADR dans `ARCHITECTURE_DECISIONS.md` uniquement pour une decision structurante et durable.
+- Ne pas transformer ces fichiers en journal exhaustif des petites modifications : Git et les pull requests conservent cet historique.
