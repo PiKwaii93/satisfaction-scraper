@@ -158,8 +158,9 @@ Streamlit existe encore comme dashboard historique, mais React est l'interface p
 |-- requirements-dev.txt
 |-- README.md
 |-- AGENT_CONTEXT.md
-|-- CURRENT_TASK.md
-`-- ARCHITECTURE_DECISIONS.md
+|-- PRODUCT_ROADMAP.md
+|-- ARCHITECTURE_DECISIONS.md
+`-- CURRENT_TASK.md
 ```
 
 ## Prerequis
@@ -432,9 +433,18 @@ Jobs actuels :
 
 Pour les prochains agents IA, lire dans cet ordre :
 
-1. `AGENT_CONTEXT.md`
-2. `CURRENT_TASK.md`
-3. `ARCHITECTURE_DECISIONS.md`
-4. `README.md`
+1. `README.md`
+2. `AGENT_CONTEXT.md`
+3. `PRODUCT_ROADMAP.md`
+4. `ARCHITECTURE_DECISIONS.md`
+5. `CURRENT_TASK.md`
 
-Ces fichiers decrivent le contexte produit, les choix techniques, l'etat courant, les commandes de validation et les limites a respecter.
+Ces fichiers decrivent respectivement :
+
+- le produit, son architecture et son fonctionnement ;
+- les regles stables de travail pour les agents ;
+- la trajectoire produit et les priorites ;
+- les decisions structurantes ;
+- la tache operationnelle en cours.
+
+Le code, Git et les tests restent les sources de verite.
