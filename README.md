@@ -235,9 +235,9 @@ L'utilisateur invite choisit ensuite son mot de passe depuis l'ecran de connexio
 
 Les preferences d'organisation permettent de pre-remplir les analyses avec une source par defaut (`trustpilot` ou `csv`) et un nombre de pages par note par defaut. Le journal d'activite conserve les actions administrateur importantes : creation d'analyse, import CSV, relance, correction, export de corrections, invitation utilisateur et reentrainement.
 
-### Centre d'action client
+### Cockpit d'accueil
 
-Le bloc **Centre d'action client** consolide les signaux utiles a traiter dans l'espace client :
+Le bloc **Cockpit d'accueil** consolide les signaux utiles a traiter dans l'espace client :
 
 - alertes metier ouvertes ;
 - analyses echouees ou en cours ;
@@ -245,7 +245,7 @@ Le bloc **Centre d'action client** consolide les signaux utiles a traiter dans l
 - corrections humaines pretes pour un prochain reentrainement ;
 - analyses terminees recemment.
 
-Les membres peuvent consulter les actions et ouvrir les rapports associes. Les actions d'administration, comme traiter les invitations ou piloter le reentrainement, restent reservees aux administrateurs.
+Il evite de disperser l'utilisateur entre plusieurs panneaux : l'accueil affiche a la fois les priorites operationnelles, les KPIs d'alerte et les alertes metier ouvertes. Les membres peuvent consulter les actions et ouvrir les rapports associes. Les actions d'administration, comme traiter les invitations, acquitter une alerte ou piloter le reentrainement, restent reservees aux administrateurs.
 
 ### Alertes metier
 
@@ -258,7 +258,7 @@ Chaque analyse terminee peut generer des alertes rattachees a l'organisation. El
 - absence de reponse entreprise sur un lot negatif ;
 - hausse du negatif ou d'un irritant par rapport au run precedent.
 
-Les nouvelles analyses generent automatiquement ces alertes. Pour les anciens runs deja presents en base, l'administrateur peut utiliser le bouton **Regenerer run** dans le bloc **Alertes metier**. Les membres peuvent consulter les alertes ouvertes, mais seuls les administrateurs peuvent les acquitter ou les resoudre.
+Les nouvelles analyses generent automatiquement ces alertes. Pour les anciens runs deja presents en base, l'administrateur peut utiliser le bouton **Regenerer run** depuis le cockpit d'accueil. Les membres peuvent consulter les alertes ouvertes, mais seuls les administrateurs peuvent les acquitter ou les resoudre.
 
 Exemple de lancement d'analyse depuis PowerShell :
 
@@ -317,11 +317,11 @@ Elle permet de :
 - naviguer par espaces produit : accueil, analyses, benchmark, qualite IA et administration ;
 - choisir une source d'avis active depuis le catalogue de connecteurs ;
 - suivre un parcours de demarrage client pour configurer sources, premiere analyse, rapport, corrections et equipe ;
+- consulter un cockpit d'accueil qui regroupe priorites operationnelles, KPIs et alertes metier ;
 - lancer une nouvelle analyse Trustpilot ;
 - previsualiser puis importer un CSV d'avis clients ;
 - consulter l'historique des analyses ;
 - afficher un rapport entreprise avec KPIs, sentiments et irritants ;
-- consulter un centre d'action client qui regroupe alertes, runs actifs, echecs, invitations et corrections pretes ;
 - obtenir une synthese decisionnelle avec priorites, actions recommandees et points de vigilance ;
 - comparer une analyse avec le run precedent de la meme entreprise pour suivre les tendances ;
 - suivre les alertes metier ouvertes et les traiter cote administrateur ;

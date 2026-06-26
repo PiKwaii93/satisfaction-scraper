@@ -826,6 +826,44 @@ a {
   gap: 12px;
 }
 
+.home-cockpit-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.home-cockpit-heading {
+  align-items: flex-start;
+}
+
+.home-cockpit-heading p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.home-cockpit-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-cockpit-column {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.compact-list {
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
 .action-center-empty,
 .action-item-row {
   border: 1px solid var(--border);
@@ -2959,6 +2997,7 @@ tbody tr:last-child td {
   .product-nav,
   .client-space-grid,
   .action-center-kpis,
+  .home-cockpit-layout,
   .ai-quality-kpis,
   .ai-quality-grid,
   .model-training-kpis,
@@ -2983,6 +3022,11 @@ tbody tr:last-child td {
 
   .business-alert-actions {
     justify-content: flex-start;
+  }
+
+  .compact-list {
+    max-height: none;
+    overflow: visible;
   }
 
   .training-active-state {
