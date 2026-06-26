@@ -2831,30 +2831,24 @@ export default function App() {
               steps={onboardingSteps}
             />
 
-            <ActionCenterPanel
+            <HomeCockpitPanel
               actionCenter={actionCenter}
+              businessAlerts={businessAlerts}
               canManage={canManageWorkspace}
-              error={actionCenterError}
-              isLoading={isActionCenterLoading}
-              onItemAction={handleActionCenterItem}
-              onRefresh={() =>
+              actionCenterError={actionCenterError}
+              businessAlertsError={businessAlertsError}
+              isActionCenterLoading={isActionCenterLoading}
+              isBusinessAlertsLoading={isBusinessAlertsLoading}
+              isRefreshingRunAlerts={isRefreshingRunAlerts}
+              onActionItemAction={handleActionCenterItem}
+              onRefreshAll={() => {
                 refreshActionCenter().catch((err: Error) =>
                   setActionCenterError(err.message)
-                )
-              }
-            />
-
-            <BusinessAlertsPanel
-              alerts={businessAlerts}
-              canManage={canManageWorkspace}
-              error={businessAlertsError}
-              isLoading={isBusinessAlertsLoading}
-              isRefreshingRunAlerts={isRefreshingRunAlerts}
-              onRefresh={() =>
+                );
                 refreshBusinessAlerts().catch((err: Error) =>
                   setBusinessAlertsError(err.message)
-                )
-              }
+                );
+              }}
               onRefreshRunAlerts={handleRefreshRunBusinessAlerts}
               onUpdateStatus={handleUpdateBusinessAlertStatus}
               selectedRun={selectedRun}
@@ -3826,6 +3820,282 @@ function ClientSpacePanel({
             </p>
           )}
         </form>
+      </div>
+    </section>
+  );
+}
+
+function HomeCockpitPanel({
+  actionCenter,
+  businessAlerts,
+  canManage,
+  actionCenterError,
+  businessAlertsError,
+  isActionCenterLoading,
+  isBusinessAlertsLoading,
+  isRefreshingRunAlerts,
+  onActionItemAction,
+  onRefreshAll,
+  onRefreshRunAlerts,
+  onUpdateStatus,
+  selectedRun,
+  updatingAlertId
+}: {
+  actionCenter: ActionCenter | null;
+  businessAlerts: BusinessAlert[];
+  canManage: boolean;
+  actionCenterError: string | null;
+  businessAlertsError: string | null;
+  isActionCenterLoading: boolean;
+  isBusinessAlertsLoading: boolean;
+  isRefreshingRunAlerts: boolean;
+  onActionItemAction: (item: ActionCenterItem) => void;
+  onRefreshAll: () => void;
+  onRefreshRunAlerts: () => void;
+  onUpdateStatus: (alertId: number, status: BusinessAlertStatus) => void;
+  selectedRun: AnalysisRun | null;
+  updatingAlertId: number | null;
+}) {
+  const counts = actionCenter?.counts ?? {
+    open_alerts: businessAlerts.length,
+    critical_alerts: businessAlerts.filter((alert) => alert.severity === "critical").length,
+    failed_runs: 0,
+    active_runs: 0,
+    pending_invitations: 0,
+    training_ready_corrections: 0,
+    recent_completed_runs: 0
+  };
+  const actionItems = actionCenter?.items ?? [];
+  const criticalAlerts = businessAlerts.filter(
+    (alert) => alert.severity === "critical"
+  ).length;
+  const warningAlerts = businessAlerts.filter(
+    (alert) => alert.severity === "warning"
+  ).length;
+  const urgentCount = Math.max(counts.critical_alerts, criticalAlerts) + counts.failed_runs;
+  const adminQueue = counts.pending_invitations + counts.training_ready_corrections;
+  const canRefreshSelectedRun = canManage && selectedRun?.status === "completed";
+  const isRefreshing = isActionCenterLoading || isBusinessAlertsLoading;
+
+  return (
+    <section className="home-cockpit-panel insight-section wide" id="action_center">
+      <div className="section-heading home-cockpit-heading">
+        <div>
+          <span className="eyebrow">Cockpit</span>
+          <h3>Priorites operationnelles</h3>
+          <p>
+            Les signaux les plus utiles pour savoir quoi verifier, corriger ou
+            relancer dans cet espace client.
+          </p>
+        </div>
+        <div className="header-actions">
+          <button
+            className="secondary-action compact-action"
+            disabled={isRefreshing}
+            onClick={onRefreshAll}
+            type="button"
+          >
+            {isRefreshing ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+            Actualiser
+          </button>
+          <button
+            className="secondary-action compact-action"
+            disabled={!canRefreshSelectedRun || isRefreshingRunAlerts}
+            onClick={onRefreshRunAlerts}
+            title={
+              canRefreshSelectedRun
+                ? "Recalculer les alertes du run selectionne"
+                : "Selectionne un run termine avec un compte admin"
+            }
+            type="button"
+          >
+            {isRefreshingRunAlerts ? (
+              <Loader2 className="spin" size={16} />
+            ) : (
+              <AlertTriangle size={16} />
+            )}
+            Regenerer run
+          </button>
+        </div>
+      </div>
+
+      {actionCenterError ? <p className="form-error">{actionCenterError}</p> : null}
+      {businessAlertsError ? <p className="form-error">{businessAlertsError}</p> : null}
+
+      <div className="action-center-kpis">
+        <Kpi
+          label="Actions ouvertes"
+          value={String(actionItems.length)}
+          helper={`${urgentCount} critique(s)`}
+        />
+        <Kpi
+          label="Alertes metier"
+          value={String(businessAlerts.length)}
+          helper={`${criticalAlerts} critique(s), ${warningAlerts} a surveiller`}
+        />
+        <Kpi
+          label="Analyses actives"
+          value={String(counts.active_runs)}
+          helper={`${counts.failed_runs} echouee(s)`}
+        />
+        <Kpi
+          label={canManage ? "File admin" : "Infos recentes"}
+          value={String(canManage ? adminQueue : counts.recent_completed_runs)}
+          helper={
+            canManage
+              ? `${counts.training_ready_corrections} correction(s) IA`
+              : "analyse(s) terminee(s)"
+          }
+        />
+      </div>
+
+      {!canManage ? (
+        <p className="permission-hint">
+          Lecture seule: un administrateur peut acquitter ou resoudre les alertes.
+        </p>
+      ) : null}
+
+      <div className="home-cockpit-layout">
+        <div className="home-cockpit-column">
+          <div className="mini-heading">
+            <strong>A faire maintenant</strong>
+            <span>{actionItems.length} signal(aux)</span>
+          </div>
+
+          {actionItems.length === 0 && !isActionCenterLoading ? (
+            <div className="action-center-empty">
+              <CheckCircle2 size={22} />
+              <div>
+                <strong>Aucune action prioritaire.</strong>
+                <span>Les nouvelles analyses et corrections alimenteront ce bloc.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="action-item-list compact-list">
+              {actionItems.map((item) => {
+                const hasRunnableAction =
+                  Boolean(item.action_label) &&
+                  (!item.requires_admin || canManage);
+
+                return (
+                  <article
+                    className={`action-item-row ${item.severity}`}
+                    key={item.item_id}
+                  >
+                    <span className="action-item-icon">
+                      {actionItemIcon(item.severity)}
+                    </span>
+                    <div className="action-item-body">
+                      <div className="action-item-topline">
+                        <strong>{item.title}</strong>
+                        <span className={`alert-severity ${item.severity}`}>
+                          {formatActionSeverity(item.severity)}
+                        </span>
+                        {item.requires_admin && !canManage ? (
+                          <span className="readonly-pill">Admin requis</span>
+                        ) : null}
+                      </div>
+                      <p>{item.message}</p>
+                      <small>{formatDate(item.created_at)}</small>
+                    </div>
+                    {item.action_label ? (
+                      <button
+                        className="secondary-action compact-action"
+                        disabled={!hasRunnableAction}
+                        onClick={() => onActionItemAction(item)}
+                        type="button"
+                      >
+                        {item.action_label}
+                      </button>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="home-cockpit-column" id="business_alerts">
+          <div className="mini-heading">
+            <strong>Alertes metier ouvertes</strong>
+            <span>
+              {businessAlerts.length} ouverte(s), {criticalAlerts} critique(s)
+            </span>
+          </div>
+
+          {isBusinessAlertsLoading && businessAlerts.length === 0 ? (
+            <div className="loading-line compact-loading">
+              <Loader2 className="spin" size={18} />
+              Chargement des alertes...
+            </div>
+          ) : null}
+
+          {!isBusinessAlertsLoading && businessAlerts.length === 0 ? (
+            <div className="empty-inline-state">
+              <strong>Aucune alerte ouverte.</strong>
+              <span>Les prochains runs termines alimenteront ce panneau.</span>
+            </div>
+          ) : (
+            <div className="business-alert-list compact-list">
+              {businessAlerts.map((alert) => {
+                const isUpdating = updatingAlertId === alert.alert_id;
+                return (
+                  <article
+                    className={`business-alert-row ${alert.severity}`}
+                    key={alert.alert_id}
+                  >
+                    <div className="business-alert-marker">
+                      <AlertTriangle size={18} />
+                    </div>
+                    <div className="business-alert-body">
+                      <div className="business-alert-topline">
+                        <strong>{alert.title}</strong>
+                        <span className={`alert-severity ${alert.severity}`}>
+                          {formatAlertSeverity(alert.severity)}
+                        </span>
+                      </div>
+                      <p>{alert.message}</p>
+                      <small>
+                        {alert.company_name ?? "Entreprise"}{" "}
+                        {alert.run_id ? `- Run #${alert.run_id}` : ""}{" "}
+                        {alert.created_at ? `- ${formatDate(alert.created_at)}` : ""}
+                      </small>
+                    </div>
+                    <div className="business-alert-actions">
+                      {canManage && alert.status === "open" ? (
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() =>
+                            onUpdateStatus(alert.alert_id, "acknowledged")
+                          }
+                          type="button"
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="spin" size={14} />
+                          ) : (
+                            <CheckCircle2 size={14} />
+                          )}
+                          Acquitter
+                        </button>
+                      ) : null}
+                      {canManage && alert.status !== "resolved" ? (
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() => onUpdateStatus(alert.alert_id, "resolved")}
+                          type="button"
+                        >
+                          Resoudre
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
