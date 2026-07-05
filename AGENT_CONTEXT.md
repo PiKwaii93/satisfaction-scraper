@@ -210,6 +210,10 @@ npm --prefix frontend run build
 ```
 
 ```powershell
+npm --prefix frontend test
+```
+
+```powershell
 docker-compose run --rm api sh -c "python -m pip install --disable-pip-version-check -q --timeout 120 --retries 5 -r requirements-dev.txt && python -m compileall app/api && pytest -q"
 ```
 
@@ -242,7 +246,13 @@ Les tests backend couvrent deja plusieurs aspects critiques :
 - alertes ;
 - tendances.
 
-Il n'y a pas de tests frontend automatises ni de lint configure.
+Les tests frontend utilisent Vitest, React Testing Library et MSW :
+
+- `frontend/src/App.test.tsx` couvre l'authentification, les roles et le lancement
+  d'une analyse Trustpilot ;
+- `frontend/src/api.test.ts` couvre notamment l'expiration de session `401`.
+
+Il n'y a pas encore de lint frontend configure.
 
 ## Sensible data
 

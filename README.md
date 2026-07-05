@@ -339,6 +339,16 @@ Tables historiques conservees :
 npm --prefix frontend run build
 ```
 
+### Tests frontend
+
+```powershell
+npm --prefix frontend test
+```
+
+La fondation frontend utilise Vitest, React Testing Library et MSW. Les tests
+couvrent actuellement la connexion, la restauration de session, les permissions
+`admin` / `member`, l'expiration `401` et le lancement d'une analyse Trustpilot.
+
 ### Tests backend dans Docker
 
 ```powershell
@@ -355,11 +365,12 @@ git diff --check
 
 - `tests/test_api_routes.py`
 - `tests/test_csv_import.py`
+- `frontend/src/App.test.tsx`
+- `frontend/src/api.test.ts`
 
 ### Non configure actuellement
 
 - Pas de script `lint` frontend.
-- Pas de tests frontend automatises.
 - Pas de migrations Alembic.
 
 ## Scripts historiques
@@ -415,7 +426,7 @@ Le workflow CI est dans :
 Jobs actuels :
 
 - backend tests ;
-- frontend build ;
+- frontend tests et build ;
 - docker build.
 
 ## Limites connues
