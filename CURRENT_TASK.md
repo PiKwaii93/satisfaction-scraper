@@ -2,109 +2,69 @@
 
 ## Statut actuel
 
-Aucune fonctionnalite produit n'est actuellement en cours d'implementation.
-
-La documentation de transmission a ete creee puis fusionnee dans `main`.
-
-Une roadmap produit actualisee est en cours d'ajout dans :
+La fondation de tests frontend automatises est en cours de finalisation sur la
+branche :
 
 ```text
-PRODUCT_ROADMAP.md
+codex/frontend-test-foundation
 ```
 
-Cette modification est exclusivement documentaire.
+Le comportement produit n'a pas ete refactore. Le chantier ajoute uniquement
+l'infrastructure et les premiers scenarios de non-regression.
 
-## Derniere tache terminee
+## Perimetre implemente
 
-Creation et validation de la documentation de passation initiale :
-
-- `README.md`
-- `AGENT_CONTEXT.md`
-- `ARCHITECTURE_DECISIONS.md`
-- `CURRENT_TASK.md`
-
-Validations executees lors de cette tache :
-
-- build frontend : OK ;
-- tests backend : `50 passed`, `1 warning` ;
-- `git diff --check` : OK.
-
-La pull request correspondante a ete fusionnee dans `main`.
-
-## Tache documentaire actuelle
-
-Ajouter et integrer `PRODUCT_ROADMAP.md` afin de distinguer clairement :
-
-- la vision produit ;
-- les jalons deja termines ;
-- les chantiers partiellement implementes ;
-- les priorites recommandees ;
-- le prochain chantier a proposer.
-
-Fichiers concernes :
-
-- `PRODUCT_ROADMAP.md`
-- `README.md`
-- `AGENT_CONTEXT.md`
-- `CURRENT_TASK.md`
-
-Aucun code applicatif ne doit etre modifie dans cette tache.
-
-## Prochain chantier recommande
-
-Apres fusion de la roadmap documentaire, le prochain chantier recommande est :
-
-> Mettre en place une fondation de tests frontend automatises.
-
-Le perimetre exact doit etre valide par l'utilisateur avant toute implementation.
-
-Premiers parcours envisages :
-
+- Vitest avec environnement jsdom ;
+- React Testing Library et user-event ;
+- MSW pour les scenarios HTTP ;
 - affichage de l'ecran de connexion ;
-- comportement d'une session utilisateur authentifiee ;
-- differences entre les roles `admin` et `member` ;
-- gestion d'une erreur API `401` ;
-- au moins un parcours metier critique deja present.
+- connexion reussie ;
+- restauration d'une session existante ;
+- restrictions du role `member` ;
+- lancement Trustpilot par un `admin` ;
+- suppression du JWT local apres une erreur API `401` ;
+- execution des tests frontend dans GitHub Actions.
 
-## Avant de commencer le prochain chantier
+## Fichiers principaux
 
-Le prochain agent doit :
+- `frontend/src/App.test.tsx`
+- `frontend/src/api.test.ts`
+- `frontend/src/test/setup.ts`
+- `frontend/src/test/server.ts`
+- `frontend/vite.config.ts`
+- `frontend/package.json`
+- `.github/workflows/ci.yml`
 
-1. lire `README.md` ;
-2. lire `AGENT_CONTEXT.md` ;
-3. lire `PRODUCT_ROADMAP.md` ;
-4. lire `ARCHITECTURE_DECISIONS.md` ;
-5. lire `CURRENT_TASK.md` ;
-6. verifier `git status`, `git diff` et les derniers commits ;
-7. inspecter le frontend reel ;
-8. presenter sa comprehension, son plan, les risques et les criteres d'acceptation avant de modifier le code.
-
-## Contraintes
-
-- Ne pas lancer de refactoring general de `frontend/src/App.tsx` sans demande explicite.
-- Ne pas commencer l'implementation des tests frontend sans validation du perimetre.
-- Ne pas commit ou push sans autorisation.
-- Ne pas presenter une source preparee comme un connecteur fonctionnel.
-- Respecter l'isolation par `organization_id` et les roles `admin` / `member`.
-- Le code, Git et les tests restent les sources de verite.
-
-## Validations attendues pour la tache documentaire actuelle
+## Validations attendues
 
 ```powershell
+npm --prefix frontend test
+npm --prefix frontend run build
+docker-compose run --rm api sh -c "python -m pip install --disable-pip-version-check -q --timeout 120 --retries 5 -r requirements-dev.txt && python -m compileall app/api && pytest -q"
 git diff --check
 ```
 
-Aucun build applicatif ni test backend n'est obligatoire si seuls les fichiers Markdown sont modifies.
+## Securite des dependances frontend
 
-## Etat Git attendu
+La vulnerabilite critique detectee sur `vitest@3.2.4` a ete corrigee en passant
+a `vitest@3.2.6`. `npm audit` ne signale plus aucune vulnerabilite.
 
-Avant commit :
+## Prochain chantier recommande
 
-- uniquement des modifications documentaires ;
-- aucun fichier applicatif modifie ;
-- aucun secret ajoute.
+Apres fusion de cette branche :
 
-Apres fusion de la pull request :
+> Introduire des migrations de base de donnees versionnees en preservant les
+> donnees PostgreSQL locales existantes.
 
-- branche `main` a jour ;
-- working tree propre.
+Ce chantier doit commencer par un audit de `init_db.sql` et
+`app/api/database.py`. Aucun remplacement du mecanisme idempotent ne doit etre
+fait sans strategie de baseline, migration et rollback.
+
+## Contraintes durables
+
+- Ne pas refactorer globalement `frontend/src/App.tsx` sans demande explicite.
+- Respecter l'isolation par `organization_id` et les roles `admin` / `member`.
+- Ne pas presenter une source preparee comme un connecteur fonctionnel.
+- Ne pas committer `app/models/sentiment_model.pkl` apres un entrainement local
+  sauf demande explicite.
+- Ne pas commit ou push sans autorisation utilisateur.

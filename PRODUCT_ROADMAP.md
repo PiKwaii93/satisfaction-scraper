@@ -171,6 +171,7 @@ Chaque version du modèle doit être mesurée, traçable, comparable et promue s
 * Docker Compose ;
 * CI GitHub Actions ;
 * tests backend ;
+* fondation de tests frontend avec Vitest, React Testing Library et MSW ;
 * build frontend automatisable ;
 * PostgreSQL ;
 * Redis et Celery ;
@@ -178,7 +179,7 @@ Chaque version du modèle doit être mesurée, traçable, comparable et promue s
 
 ### Travail restant prioritaire
 
-* tests frontend automatisés ;
+* étendre les tests frontend aux imports CSV, alertes et corrections ;
 * lint frontend ;
 * découpage progressif du frontend monolithique ;
 * migrations de base de données versionnées ;
@@ -203,6 +204,8 @@ Le produit doit être déployable, observable, sauvegardé, sécurisé et mainte
 
 ## Priorité 1 — Fondation de tests frontend
 
+**Statut : Terminée pour le périmètre initial**
+
 ### Valeur
 
 Réduire le risque de régression sur les parcours de connexion, permissions, imports, alertes et corrections.
@@ -216,6 +219,18 @@ Réduire le risque de régression sur les parcours de connexion, permissions, im
 * tester une erreur API `401` ;
 * tester au moins un parcours métier critique ;
 * ajouter la commande de test à la CI.
+
+### Réalisé
+
+* Vitest et jsdom configurés avec Vite ;
+* React Testing Library et user-event installés ;
+* MSW configuré pour les scénarios HTTP ;
+* écran de connexion testé ;
+* connexion et restauration de session testées ;
+* restrictions `admin` / `member` testées ;
+* expiration `401` testée ;
+* lancement Trustpilot testé ;
+* tests frontend exécutés dans la CI.
 
 ### Risque
 
@@ -305,15 +320,15 @@ Préparer un environnement de démonstration ou de production fiable.
 
 Le prochain chantier recommandé est :
 
-> Mettre en place une fondation de tests frontend automatisés, sans lancer de refactoring général non nécessaire.
+> Mettre en place des migrations de base de données versionnées sans perdre les données locales existantes.
 
-Avant l’implémentation, l’agent doit inspecter le frontend et proposer :
+Avant l’implémentation, l’agent doit auditer le schéma actuel et proposer :
 
-* l’outil de test ;
-* le périmètre initial ;
-* les fichiers concernés ;
-* les critères d’acceptation ;
-* les validations prévues.
+* l’outil de migration ;
+* la stratégie de baseline sur les bases existantes ;
+* la coexistence ou le remplacement de l’évolution idempotente actuelle ;
+* la procédure de migration et de rollback ;
+* les tests garantissant la conservation des données.
 
 ---
 
