@@ -9,6 +9,28 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: satisfaction_client
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d satisfaction_client"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: password123
+      DB_NAME: satisfaction_client
+      DEMO_ADMIN_PASSWORD: migration-test-password
+      JWT_SECRET_KEY: ci-migration-test-secret-key-at-least-32-bytes
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

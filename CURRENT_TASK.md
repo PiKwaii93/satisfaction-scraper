@@ -2,37 +2,36 @@
 
 ## Statut actuel
 
-La fondation de tests frontend automatises est en cours de finalisation sur la
-branche :
+Les migrations de base de donnees versionnees sont en cours de finalisation sur
+la branche :
 
 ```text
-codex/frontend-test-foundation
+codex/versioned-db-migrations
 ```
 
-Le comportement produit n'a pas ete refactore. Le chantier ajoute uniquement
-l'infrastructure et les premiers scenarios de non-regression.
+Le chantier remplace l'evolution SQL idempotente du schema produit par Alembic,
+avec une strategie de baseline qui preserve les bases locales existantes.
 
 ## Perimetre implemente
 
-- Vitest avec environnement jsdom ;
-- React Testing Library et user-event ;
-- MSW pour les scenarios HTTP ;
-- affichage de l'ecran de connexion ;
-- connexion reussie ;
-- restauration d'une session existante ;
-- restrictions du role `member` ;
-- lancement Trustpilot par un `admin` ;
-- suppression du JWT local apres une erreur API `401` ;
-- execution des tests frontend dans GitHub Actions.
+- Alembic et une premiere revision du schema produit ;
+- application automatique des revisions au demarrage ;
+- verrou de migration PostgreSQL ;
+- validation avant baseline d'une base existante ;
+- refus des schemas partiels ;
+- CLI `upgrade`, `current` et `downgrade` ;
+- separation entre tables historiques et tables produit ;
+- tests PostgreSQL temporaires ;
+- service PostgreSQL dans la CI backend.
 
 ## Fichiers principaux
 
-- `frontend/src/App.test.tsx`
-- `frontend/src/api.test.ts`
-- `frontend/src/test/setup.ts`
-- `frontend/src/test/server.ts`
-- `frontend/vite.config.ts`
-- `frontend/package.json`
+- `alembic.ini`
+- `migrations/env.py`
+- `migrations/versions/20260705_0001_product_schema_baseline.py`
+- `app/api/database.py`
+- `app/api/schema_migrations.py`
+- `tests/test_database_migrations.py`
 - `.github/workflows/ci.yml`
 
 ## Validations attendues
@@ -40,25 +39,15 @@ l'infrastructure et les premiers scenarios de non-regression.
 ```powershell
 npm --prefix frontend test
 npm --prefix frontend run build
-docker-compose run --rm api sh -c "python -m pip install --disable-pip-version-check -q --timeout 120 --retries 5 -r requirements-dev.txt && python -m compileall app/api && pytest -q"
+docker-compose run --rm api sh -c "python -m pip install --disable-pip-version-check -q --timeout 120 --retries 5 -r requirements-dev.txt && python -m compileall app/api migrations && pytest -q"
 git diff --check
 ```
-
-## Securite des dependances frontend
-
-La vulnerabilite critique detectee sur `vitest@3.2.4` a ete corrigee en passant
-a `vitest@3.2.6`. `npm audit` ne signale plus aucune vulnerabilite.
 
 ## Prochain chantier recommande
 
 Apres fusion de cette branche :
 
-> Introduire des migrations de base de donnees versionnees en preservant les
-> donnees PostgreSQL locales existantes.
-
-Ce chantier doit commencer par un audit de `init_db.sql` et
-`app/api/database.py`. Aucun remplacement du mecanisme idempotent ne doit etre
-fait sans strategie de baseline, migration et rollback.
+> Durcir l'authentification et la gestion des secrets avant toute mise en ligne.
 
 ## Contraintes durables
 

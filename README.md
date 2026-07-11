@@ -151,6 +151,8 @@ Streamlit existe encore comme dashboard historique, mais React est l'interface p
 |   |-- package.json
 |   `-- vite.config.ts
 |-- tests/
+|-- migrations/
+|-- alembic.ini
 |-- docker-compose.yml
 |-- Dockerfile
 |-- init_db.sql
@@ -296,19 +298,45 @@ Le modele local peut modifier `app/models/sentiment_model.pkl` apres entrainemen
 
 ## Base de donnees et schema
 
-Le schema initial est dans :
+Le schema produit est versionne avec Alembic. Les revisions sont dans :
 
 ```text
-init_db.sql
+migrations/versions/
 ```
 
-Le schema produit est aussi maintenu de maniere idempotente au demarrage de l'API par :
+Au demarrage, l'API et les workers appellent :
 
 ```text
 app/api/database.py
 ```
 
-Il n'y a pas de framework de migration type Alembic pour le moment.
+Ce module applique automatiquement les migrations jusqu'a `head`. Pour une base
+locale existante sans table `alembic_version`, il valide d'abord les tables,
+colonnes et index attendus, puis pose la baseline sans recreer les tables ni
+modifier les donnees. Un schema partiel ou incompatible bloque le demarrage avec
+une erreur explicite.
+
+`init_db.sql` ne contient plus que les tables historiques utilisees par les
+anciens scripts :
+
+- `dim_companies`
+- `fact_reviews`
+
+Commandes de migration :
+
+```powershell
+# Appliquer les migrations ou baseliner une base existante valide
+docker-compose run --rm api python -m app.api.schema_migrations upgrade
+
+# Afficher la revision courante et la revision cible
+docker-compose run --rm api python -m app.api.schema_migrations current
+
+# Revenir d'une revision, uniquement avec confirmation explicite
+docker-compose run --rm api python -m app.api.schema_migrations downgrade --revision -1 --yes
+```
+
+Un downgrade peut supprimer des tables et des donnees produit. Il doit etre
+precede d'une sauvegarde PostgreSQL et ne doit pas etre lance machinalement.
 
 Tables produit principales :
 
@@ -325,11 +353,6 @@ Tables produit principales :
 - `business_alerts`
 - `audit_events`
 - `model_training_runs`
-
-Tables historiques conservees :
-
-- `dim_companies`
-- `fact_reviews`
 
 ## Tests et validation
 
@@ -365,13 +388,13 @@ git diff --check
 
 - `tests/test_api_routes.py`
 - `tests/test_csv_import.py`
+- `tests/test_database_migrations.py`
 - `frontend/src/App.test.tsx`
 - `frontend/src/api.test.ts`
 
 ### Non configure actuellement
 
 - Pas de script `lint` frontend.
-- Pas de migrations Alembic.
 
 ## Scripts historiques
 
@@ -438,7 +461,6 @@ Jobs actuels :
 - Pas de deploiement cloud automatise.
 - Pas de monitoring technique complet.
 - Pas de politique RGPD/retention formalisee.
-- Les migrations sont gerees par SQL idempotent au demarrage, pas par un outil dedie.
 
 ## Documentation agent
 

@@ -115,9 +115,12 @@ Le frontend est encore monolithique dans `App.tsx`. Eviter d'ajouter une complex
 
 ### Base de donnees
 
-- Initialisation SQL : `init_db.sql`.
-- Evolution idempotente : `app/api/database.py`.
-- Pas de migration Alembic.
+- Tables historiques : `init_db.sql`.
+- Migrations produit : `migrations/versions/` avec Alembic.
+- Orchestration et baseline securisee : `app/api/database.py`.
+- CLI de migration : `app/api/schema_migrations.py`.
+- Ne jamais editer une revision deja appliquee ; creer une nouvelle revision.
+- Ne jamais lancer un downgrade sur des donnees utiles sans sauvegarde explicite.
 
 ### Runtime Docker
 

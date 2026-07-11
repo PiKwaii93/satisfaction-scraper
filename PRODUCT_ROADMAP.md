@@ -240,6 +240,8 @@ Moyen, principalement en raison du caractère monolithique de `App.tsx`.
 
 ## Priorité 2 — Migrations de base de données versionnées
 
+**Statut : Terminée pour le périmètre actuel**
+
 ### Valeur
 
 Sécuriser les évolutions de schéma et préparer un déploiement réel.
@@ -251,6 +253,17 @@ Sécuriser les évolutions de schéma et préparer un déploiement réel.
 * créer une base de migration à partir du schéma existant ;
 * préserver les données locales ;
 * documenter les procédures de migration et de rollback.
+
+### Réalisé
+
+* Alembic retenu et intégré au runtime FastAPI/Celery ;
+* baseline initiale du schéma produit ;
+* validation avant adoption des bases existantes non versionnées ;
+* verrou PostgreSQL contre les migrations concurrentes ;
+* CLI explicite pour `upgrade`, `current` et `downgrade` ;
+* tests PostgreSQL sur base neuve, données existantes et schéma partiel ;
+* PostgreSQL de test ajouté à la CI ;
+* tables historiques laissées hors du périmètre Alembic.
 
 ### Risque
 
@@ -320,15 +333,15 @@ Préparer un environnement de démonstration ou de production fiable.
 
 Le prochain chantier recommandé est :
 
-> Mettre en place des migrations de base de données versionnées sans perdre les données locales existantes.
+> Durcir l'authentification et la gestion des secrets avant toute mise en ligne.
 
-Avant l’implémentation, l’agent doit auditer le schéma actuel et proposer :
+Le chantier migrations est terminé pour le périmètre actuel. Le prochain audit doit couvrir :
 
-* l’outil de migration ;
-* la stratégie de baseline sur les bases existantes ;
-* la coexistence ou le remplacement de l’évolution idempotente actuelle ;
-* la procédure de migration et de rollback ;
-* les tests garantissant la conservation des données.
+* le stockage et la révocation des JWT ;
+* la séparation des secrets de développement et de production ;
+* la récupération de compte ;
+* les valeurs de démonstration ;
+* les tests de sécurité et de permissions.
 
 ---
 
