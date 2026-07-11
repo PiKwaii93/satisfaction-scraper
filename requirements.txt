@@ -4,6 +4,8 @@ playwright==1.44.0
 # Data Engineering & Science
 pandas
 psycopg2-binary
+SQLAlchemy>=2.0,<3
+alembic>=1.18,<2
 scikit-learn
 mlflow
 

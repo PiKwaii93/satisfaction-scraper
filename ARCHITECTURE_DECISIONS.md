@@ -63,7 +63,7 @@ Consequences :
 
 ## ADR-005 - Schema idempotent au demarrage, pas Alembic
 
-Statut : accepte pour le MVP local.
+Statut : remplace par ADR-017.
 
 Le schema initial est dans `init_db.sql`, puis `app/api/database.py` applique des creations et evolutions idempotentes au demarrage de l'API.
 
@@ -238,11 +238,30 @@ Consequences :
 - restaurer le fichier si la modification n'est pas intentionnelle ;
 - privilegier MLflow pour tracer les versions modele.
 
+## ADR-017 - Alembic pour le schema produit
+
+Statut : accepte.
+
+Le schema produit est versionne dans `migrations/versions/`. `init_db.sql` reste
+limite aux tables historiques `dim_companies` et `fact_reviews`.
+
+La premiere revision constitue une baseline compatible avec les bases locales
+existantes. Une base non versionnee est inspectee avant d'etre marquee a la
+revision courante. La baseline est refusee si une table, une colonne ou un index
+produit attendu manque.
+
+Consequences :
+
+- l'API et Celery appliquent automatiquement les migrations au demarrage ;
+- un verrou PostgreSQL empeche deux processus de migrer simultanement ;
+- toute evolution du schema produit exige une nouvelle revision Alembic ;
+- les tests couvrent base neuve, baseline sans perte et schema partiel ;
+- un downgrade exige une confirmation explicite et une sauvegarde prealable.
+
 ## Decisions a revisiter
 
 Ces decisions sont correctes pour le MVP, mais devront probablement evoluer avant un vrai deploiement SaaS :
 
-- remplacer le schema idempotent par des migrations versionnees ;
 - durcir l'auth ;
 - externaliser les secrets ;
 - ajouter monitoring et backups ;

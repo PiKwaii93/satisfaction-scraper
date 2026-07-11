@@ -92,6 +92,11 @@ L'application produit utilise un schema PostgreSQL dedie.
 
 Ce modele separe les donnees brutes, les predictions, les corrections et les metadonnees d'execution. Il permet de conserver un historique auditable, de comparer plusieurs entreprises et de reutiliser les corrections pour le reentrainement.
 
+Le schema produit est versionne avec Alembic. Une base existante non versionnee
+est validee puis rattachee a la baseline sans recreation des tables. Les tables
+historiques `dim_companies` et `fact_reviews` restent initialisees par
+`init_db.sql` pour les anciens scripts.
+
 ## 5. Pipeline d'analyse
 
 1. L'utilisateur cree une analyse depuis le frontend.
@@ -230,6 +235,7 @@ Une pipeline GitHub Actions existe pour construire l'image Docker et verifier le
 - build du frontend ;
 - compilation Python de l'API ;
 - verification `git diff --check` ;
+- migrations Alembic sur bases PostgreSQL temporaires ;
 - test de l'endpoint `/health` ;
 - execution d'analyses Trustpilot ;
 - import CSV ;
