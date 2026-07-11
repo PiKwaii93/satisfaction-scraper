@@ -338,6 +338,38 @@ docker-compose run --rm api python -m app.api.schema_migrations downgrade --revi
 Un downgrade peut supprimer des tables et des donnees produit. Il doit etre
 precede d'une sauvegarde PostgreSQL et ne doit pas etre lance machinalement.
 
+### Sauvegarde, restauration et diagnostic
+
+Les donnees produit sont maintenant importantes : organisations, utilisateurs,
+runs, avis, corrections humaines et entrainements. Avant une migration risquee
+ou une manipulation de schema, creer un dump PostgreSQL local.
+
+Les dumps sont generes dans `backups/` et ignores par Git.
+
+```powershell
+# Creer un backup horodate de la base satisfaction_client
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\backup-db.ps1
+
+# Verifier rapidement l'etat de la base
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\db-diagnostics.ps1
+
+# Restaurer un backup, avec confirmation interactive
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\restore-db.ps1 -BackupFile .\backups\satisfaction_client-YYYYMMDD-HHMMSS.dump
+
+# Restaurer sans confirmation interactive
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\restore-db.ps1 -BackupFile .\backups\satisfaction_client-YYYYMMDD-HHMMSS.dump -Yes
+```
+
+Le diagnostic affiche :
+
+- la revision Alembic courante ;
+- les volumes des tables produit principales ;
+- les derniers runs d'analyse.
+
+La restauration remplace les objets existants de la base cible. Elle est faite
+pour un environnement local ou de demonstration, pas pour une production sans
+procedure de sauvegarde externe.
+
 Tables produit principales :
 
 - `organizations`

@@ -122,6 +122,10 @@ data/temp_*
 data/api_runs/
 data/training/
 
+# --- Sauvegardes locales PostgreSQL ---
+backups/*
+!backups/.gitkeep
+
 # --- Frontend ---
 frontend/node_modules/
 frontend/dist/
