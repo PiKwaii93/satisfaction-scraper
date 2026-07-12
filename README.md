@@ -234,6 +234,23 @@ Roles :
 | `admin` | Lancer analyses, importer CSV, configurer sources, inviter utilisateurs, gerer alertes, corriger avis, reentrainer le modele. |
 | `member` | Consulter rapports, runs, benchmark, qualite IA et administration en lecture seule selon les ecrans. |
 
+### Plans et limites d'usage
+
+Chaque organisation possede un plan produit. Les plans controlent les volumes
+mensuels, le nombre de membres et l'acces a certaines fonctionnalites avancees.
+
+Plans disponibles :
+
+| Plan | Usage cible | Limites principales |
+| --- | --- | --- |
+| `free` | Essai local ou petite demo. | 3 analyses/mois, 300 avis/mois, 100 avis par CSV, 1 membre, pas de benchmark ni reentrainement. |
+| `pro` | Petite equipe metier. | 50 analyses/mois, 10 000 avis/mois, 2 000 avis par CSV, 5 membres, benchmark active, reentrainement reserve. |
+| `business` | Espace client complet. | Analyses sans limite mensuelle stricte, 100 000 avis/mois, 10 000 avis par CSV, 25 membres, benchmark et reentrainement actifs. |
+
+L'API refuse les operations qui depassent le plan de l'organisation courante
+avec une erreur `403`. Le frontend affiche l'usage de l'espace client dans
+l'administration.
+
 ## Sources d'avis
 
 Sources actives :

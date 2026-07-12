@@ -37,6 +37,7 @@ export type OrganizationSettings = {
   organization_id: number;
   name: string;
   slug: string;
+  plan: OrganizationPlan;
   default_source: AnalysisSource;
   default_pages_per_star: number;
   created_at: string | null;
@@ -47,6 +48,29 @@ export type OrganizationSettingsUpdate = {
   name?: string | null;
   default_source?: AnalysisSource | null;
   default_pages_per_star?: number | null;
+};
+
+export type OrganizationPlan = "free" | "pro" | "business";
+
+export type OrganizationUsage = {
+  plan: OrganizationPlan;
+  plan_label: string;
+  period_start: string | null;
+  limits: {
+    monthly_runs: number | null;
+    monthly_reviews: number | null;
+    csv_reviews_per_import: number | null;
+    members: number | null;
+  };
+  usage: {
+    monthly_runs: number;
+    monthly_reviews: number;
+    members: number;
+  };
+  features: {
+    benchmark: boolean;
+    model_training: boolean;
+  };
 };
 
 export type OrganizationAuditEvent = {

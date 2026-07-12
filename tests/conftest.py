@@ -31,6 +31,10 @@ TEST_MEMBER_USER = AuthenticatedUser(
 @pytest.fixture(autouse=True)
 def configure_test_auth(monkeypatch):
     monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.is_source_available",
+        lambda organization_id, source_id: True,
+    )
 
 
 @pytest.fixture

@@ -83,8 +83,8 @@ def test_fresh_database_upgrades_and_downgrades_without_touching_legacy_tables(
 
     assert set(PRODUCT_SCHEMA_REQUIREMENTS) <= _table_names()
     assert get_schema_revision() == {
-        "current": "20260705_0001",
-        "head": "20260705_0001",
+        "current": "20260711_0002",
+        "head": "20260711_0002",
     }
 
     with get_connection() as connection:
@@ -152,7 +152,7 @@ def test_complete_unversioned_database_is_stamped_without_data_loss(
             )
             assert cursor.fetchone()[0] == 1
 
-    assert get_schema_revision()["current"] == "20260705_0001"
+    assert get_schema_revision()["current"] == "20260711_0002"
 
 
 def test_partial_unversioned_database_is_rejected(temporary_database):

@@ -13,6 +13,7 @@ import type {
   ModelTrainingOverview,
   ModelTrainingRun,
   OrganizationAuditEvent,
+  OrganizationUsage,
   OrganizationInvitationAccept,
   OrganizationInvitationCreate,
   OrganizationSettings,
@@ -143,6 +144,10 @@ export function listOrganizationUsers() {
 
 export function getOrganizationSettings() {
   return request<OrganizationSettings>("/auth/organization/settings");
+}
+
+export function getOrganizationUsage() {
+  return request<OrganizationUsage>("/auth/organization/usage");
 }
 
 export function updateOrganizationSettings(payload: OrganizationSettingsUpdate) {

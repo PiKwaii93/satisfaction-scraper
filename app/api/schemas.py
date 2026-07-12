@@ -13,6 +13,7 @@ class OrganizationSettingsResponse(BaseModel):
     organization_id: int
     name: str
     slug: str
+    plan: Literal["free", "pro", "business"] = "business"
     default_source: Literal["trustpilot", "csv"] = "trustpilot"
     default_pages_per_star: int = 1
     created_at: datetime | None = None
@@ -23,6 +24,33 @@ class OrganizationSettingsUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=255)
     default_source: Literal["trustpilot", "csv"] | None = None
     default_pages_per_star: int | None = Field(default=None, ge=1, le=20)
+
+
+class OrganizationUsageLimits(BaseModel):
+    monthly_runs: int | None = None
+    monthly_reviews: int | None = None
+    csv_reviews_per_import: int | None = None
+    members: int | None = None
+
+
+class OrganizationUsageMetrics(BaseModel):
+    monthly_runs: int = 0
+    monthly_reviews: int = 0
+    members: int = 0
+
+
+class OrganizationUsageFeatures(BaseModel):
+    benchmark: bool = False
+    model_training: bool = False
+
+
+class OrganizationUsageResponse(BaseModel):
+    plan: Literal["free", "pro", "business"]
+    plan_label: str
+    period_start: datetime | None = None
+    limits: OrganizationUsageLimits
+    usage: OrganizationUsageMetrics
+    features: OrganizationUsageFeatures
 
 
 class OrganizationAuditEventResponse(BaseModel):
