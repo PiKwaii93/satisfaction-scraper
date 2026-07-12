@@ -1,6 +1,7 @@
 from psycopg2.extras import Json
 
 from app.api.database import get_cursor
+from app.api.services.usage_limits import normalize_plan
 
 
 def serialize_organization_settings(row):
@@ -66,6 +67,33 @@ def update_organization_settings(organization_id: int, payload):
                 payload.default_pages_per_star,
                 organization_id,
             ),
+        )
+        row = cursor.fetchone()
+        return serialize_organization_settings(row) if row else None
+
+
+def update_organization_plan(organization_id: int, plan: str):
+    normalized_plan = normalize_plan(plan)
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            UPDATE organizations
+            SET plan = %s,
+                plan_updated_at = NOW(),
+                updated_at = NOW()
+            WHERE organization_id = %s
+            RETURNING
+                organization_id,
+                name,
+                slug,
+                plan,
+                default_source,
+                default_pages_per_star,
+                created_at,
+                updated_at;
+            """,
+            (normalized_plan, organization_id),
         )
         row = cursor.fetchone()
         return serialize_organization_settings(row) if row else None

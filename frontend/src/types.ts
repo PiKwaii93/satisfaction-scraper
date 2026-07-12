@@ -52,6 +52,10 @@ export type OrganizationSettingsUpdate = {
 
 export type OrganizationPlan = "free" | "pro" | "business";
 
+export type OrganizationPlanUpdate = {
+  plan: OrganizationPlan;
+};
+
 export type OrganizationUsage = {
   plan: OrganizationPlan;
   plan_label: string;

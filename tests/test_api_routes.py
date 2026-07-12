@@ -260,6 +260,71 @@ def test_member_cannot_update_organization_settings(member_client):
     assert response.status_code == 403
 
 
+def test_admin_can_update_organization_plan(authenticated_client, monkeypatch):
+    captured = {}
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_organization_settings",
+        lambda organization_id: {
+            "organization_id": organization_id,
+            "name": "Demo Org",
+            "slug": "demo-org",
+            "plan": "free",
+            "default_source": "trustpilot",
+            "default_pages_per_star": 1,
+            "created_at": None,
+            "updated_at": None,
+        },
+    )
+
+    def fake_update_organization_plan(organization_id, plan):
+        captured["organization_id"] = organization_id
+        captured["plan"] = plan
+        return {
+            "organization_id": organization_id,
+            "name": "Demo Org",
+            "slug": "demo-org",
+            "plan": plan,
+            "default_source": "trustpilot",
+            "default_pages_per_star": 1,
+            "created_at": None,
+            "updated_at": None,
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.update_organization_plan",
+        fake_update_organization_plan,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.auth.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event", kwargs),
+    )
+
+    response = authenticated_client.patch(
+        "/auth/organization/plan",
+        json={"plan": "business"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["plan"] == "business"
+    assert captured["organization_id"] == 123
+    assert captured["plan"] == "business"
+    assert captured["audit_event"]["event_type"] == "organization.plan_updated"
+    assert captured["audit_event"]["metadata"] == {
+        "previous_plan": "free",
+        "new_plan": "business",
+    }
+
+
+def test_member_cannot_update_organization_plan(member_client):
+    response = member_client.patch(
+        "/auth/organization/plan",
+        json={"plan": "pro"},
+    )
+
+    assert response.status_code == 403
+
+
 def test_admin_can_list_organization_audit_events(authenticated_client, monkeypatch):
     captured = {}
 
