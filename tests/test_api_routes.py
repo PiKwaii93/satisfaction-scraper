@@ -2,6 +2,7 @@ import json
 
 from app.api.auth import AuthenticatedUser
 from app.api.auth import require_current_user
+from app.api.services.usage_limits import FeatureNotAvailableError, UsageLimitError
 
 
 def sample_run(**overrides):
@@ -152,6 +153,42 @@ def test_get_organization_settings(authenticated_client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["default_pages_per_star"] == 3
+    assert captured == {"organization_id": 123}
+
+
+def test_get_organization_usage(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_get_organization_usage(organization_id):
+        captured["organization_id"] = organization_id
+        return {
+            "plan": "pro",
+            "plan_label": "Pro",
+            "period_start": None,
+            "limits": {
+                "monthly_runs": 50,
+                "monthly_reviews": 10000,
+                "csv_reviews_per_import": 2000,
+                "members": 5,
+            },
+            "usage": {
+                "monthly_runs": 2,
+                "monthly_reviews": 240,
+                "members": 3,
+            },
+            "features": {"benchmark": True, "model_training": False},
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_organization_usage",
+        fake_get_organization_usage,
+    )
+
+    response = authenticated_client.get("/auth/organization/usage")
+
+    assert response.status_code == 200
+    assert response.json()["plan"] == "pro"
+    assert response.json()["usage"]["members"] == 3
     assert captured == {"organization_id": 123}
 
 
@@ -358,6 +395,7 @@ def test_admin_can_create_organization_user(authenticated_client, monkeypatch):
         "app.api.routes.auth.create_organization_user",
         fake_create_organization_user,
     )
+    monkeypatch.setattr("app.api.routes.auth.assert_can_add_member", lambda org_id: None)
 
     response = authenticated_client.post(
         "/auth/organization/users",
@@ -405,6 +443,29 @@ def test_member_cannot_create_organization_user(test_app):
     assert response.status_code == 403
 
 
+def test_create_organization_user_respects_member_limit(authenticated_client, monkeypatch):
+    def fake_assert_can_add_member(organization_id):
+        raise UsageLimitError("Limite du plan atteinte pour les membres: 1/1.")
+
+    monkeypatch.setattr(
+        "app.api.routes.auth.assert_can_add_member",
+        fake_assert_can_add_member,
+    )
+
+    response = authenticated_client.post(
+        "/auth/organization/users",
+        json={
+            "email": "analyste@satisfaction.local",
+            "password": "password-demo",
+            "full_name": "Analyste Demo",
+            "role": "member",
+        },
+    )
+
+    assert response.status_code == 403
+    assert "Limite du plan atteinte" in response.json()["detail"]
+
+
 def test_admin_can_invite_organization_user(authenticated_client, monkeypatch):
     captured = {}
 
@@ -430,6 +491,7 @@ def test_admin_can_invite_organization_user(authenticated_client, monkeypatch):
         "app.api.routes.auth.invite_organization_user",
         fake_invite_organization_user,
     )
+    monkeypatch.setattr("app.api.routes.auth.assert_can_add_member", lambda org_id: None)
 
     response = authenticated_client.post(
         "/auth/organization/invitations",
@@ -639,6 +701,14 @@ def test_create_trustpilot_run_uses_service(authenticated_client, monkeypatch):
         "app.api.routes.analysis_runs.create_analysis_run",
         fake_create_analysis_run,
     )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.is_source_available",
+        lambda organization_id, source_id: True,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.assert_can_create_analysis",
+        lambda organization_id, estimated_reviews=None: None,
+    )
 
     response = authenticated_client.post(
         "/analysis-runs",
@@ -675,6 +745,85 @@ def test_create_trustpilot_run_requires_active_source(authenticated_client, monk
 
     assert response.status_code == 400
     assert "source d'avis n'est pas active" in response.json()["detail"]
+
+
+def test_compare_runs_uses_organization_scope(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_get_runs_comparison(run_ids, organization_id):
+        captured["run_ids"] = run_ids
+        captured["organization_id"] = organization_id
+        return {
+            "run_ids": run_ids,
+            "companies": [],
+            "highlights": {
+                "best_health": None,
+                "highest_negative_rate": None,
+                "most_reviews": None,
+                "shared_priority": None,
+            },
+            "common_topics": [],
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.assert_feature_enabled",
+        lambda organization_id, feature: None,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_runs_comparison",
+        fake_get_runs_comparison,
+    )
+
+    response = authenticated_client.get("/analysis-runs/compare?run_ids=1,2")
+
+    assert response.status_code == 200
+    assert captured == {"run_ids": [1, 2], "organization_id": 123}
+
+
+def test_compare_runs_requires_plan_feature(authenticated_client, monkeypatch):
+    def fake_assert_feature_enabled(organization_id, feature):
+        assert feature == "benchmark"
+        raise FeatureNotAvailableError("Fonctionnalite indisponible avec le plan Free.")
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.assert_feature_enabled",
+        fake_assert_feature_enabled,
+    )
+
+    response = authenticated_client.get("/analysis-runs/compare?run_ids=1,2")
+
+    assert response.status_code == 403
+    assert "plan Free" in response.json()["detail"]
+
+
+def test_create_trustpilot_run_respects_usage_limits(authenticated_client, monkeypatch):
+    def fake_assert_can_create_analysis(organization_id, estimated_reviews=None):
+        assert organization_id == 123
+        assert estimated_reviews == 120
+        raise UsageLimitError(
+            "Limite du plan atteinte pour les analyses mensuelles: 3/3."
+        )
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.assert_can_create_analysis",
+        fake_assert_can_create_analysis,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.is_source_available",
+        lambda organization_id, source_id: True,
+    )
+
+    response = authenticated_client.post(
+        "/analysis-runs",
+        json={
+            "company": "https://fr.trustpilot.com/review/www.darty.com",
+            "pages_per_star": 1,
+            "execute_immediately": False,
+        },
+    )
+
+    assert response.status_code == 403
+    assert "analyses mensuelles" in response.json()["detail"]
 
 
 def test_member_cannot_create_trustpilot_run(member_client):
@@ -765,6 +914,14 @@ def test_import_csv_passes_mapping_to_service(authenticated_client, monkeypatch)
         "app.api.routes.analysis_runs.create_csv_analysis_run",
         fake_create_csv_analysis_run,
     )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.is_source_available",
+        lambda organization_id, source_id: True,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.assert_can_import_csv",
+        lambda organization_id, review_count: None,
+    )
 
     mapping = {"verbatim": "text", "rating": "stars"}
     response = authenticated_client.post(
@@ -783,6 +940,35 @@ def test_import_csv_passes_mapping_to_service(authenticated_client, monkeypatch)
     assert captured["original_filename"] == "client.csv"
     assert captured["column_mapping"] == mapping
     assert captured["file_bytes"] == b"text,stars\nTres bon,5\n"
+
+
+def test_import_csv_respects_usage_limits(authenticated_client, monkeypatch):
+    def fake_assert_can_import_csv(organization_id, review_count):
+        assert organization_id == 123
+        assert review_count == 2
+        raise UsageLimitError(
+            "Limite du plan atteinte pour les avis par import CSV: 0/1."
+        )
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.assert_can_import_csv",
+        fake_assert_can_import_csv,
+    )
+
+    response = authenticated_client.post(
+        "/analysis-runs/import-csv",
+        data={"company": "Client CSV"},
+        files={
+            "file": (
+                "client.csv",
+                b"avis,note\nTres bon,5\nTres mauvais,1\n",
+                "text/csv",
+            )
+        },
+    )
+
+    assert response.status_code == 403
+    assert "avis par import CSV" in response.json()["detail"]
 
 
 def test_member_cannot_import_csv(member_client):
@@ -829,6 +1015,25 @@ def test_member_cannot_start_model_training(member_client):
     )
 
     assert response.status_code == 403
+
+
+def test_model_training_requires_plan_feature(authenticated_client, monkeypatch):
+    def fake_assert_feature_enabled(organization_id, feature):
+        assert feature == "model_training"
+        raise FeatureNotAvailableError("Fonctionnalite indisponible avec le plan Pro.")
+
+    monkeypatch.setattr(
+        "app.api.routes.model_training.assert_feature_enabled",
+        fake_assert_feature_enabled,
+    )
+
+    response = authenticated_client.post(
+        "/model-training/runs",
+        json={"feedback_sample_weight": None, "execute_immediately": False},
+    )
+
+    assert response.status_code == 403
+    assert "plan Pro" in response.json()["detail"]
 
 
 def test_list_business_alerts(authenticated_client, monkeypatch):

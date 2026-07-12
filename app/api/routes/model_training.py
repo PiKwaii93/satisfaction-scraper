@@ -15,6 +15,10 @@ from app.api.services.training_service import (
     list_model_training_runs,
 )
 from app.api.services.organization_service import record_audit_event
+from app.api.services.usage_limits import (
+    FeatureNotAvailableError,
+    assert_feature_enabled,
+)
 
 
 router = APIRouter(
@@ -73,6 +77,7 @@ def create_training_run(
 ):
     require_org_admin(current_user)
     try:
+        assert_feature_enabled(current_user.organization_id, "model_training")
         run = create_model_training_run(
             payload,
             organization_id=current_user.organization_id,
@@ -90,6 +95,8 @@ def create_training_run(
             },
         )
         return run
+    except FeatureNotAvailableError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ActiveModelTrainingRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:

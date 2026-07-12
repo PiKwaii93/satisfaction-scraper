@@ -56,6 +56,14 @@ from app.api.services.analysis_service import (
 )
 from app.api.services.organization_service import record_audit_event
 from app.api.services.review_sources import is_source_available
+from app.api.services.usage_limits import (
+    REVIEWS_PER_TRUSTPILOT_PAGE_ESTIMATE,
+    FeatureNotAvailableError,
+    UsageLimitError,
+    assert_can_create_analysis,
+    assert_can_import_csv,
+    assert_feature_enabled,
+)
 
 
 router = APIRouter(
@@ -117,6 +125,13 @@ def create_run(
     require_org_admin(current_user)
     require_source_available(current_user.organization_id, payload.source)
     try:
+        estimated_reviews = (
+            len(payload.stars) * payload.pages_per_star * REVIEWS_PER_TRUSTPILOT_PAGE_ESTIMATE
+        )
+        assert_can_create_analysis(
+            current_user.organization_id,
+            estimated_reviews=estimated_reviews,
+        )
         run = create_analysis_run(payload, organization_id=current_user.organization_id)
         record_audit_event(
             organization_id=current_user.organization_id,
@@ -132,6 +147,8 @@ def create_run(
         )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UsageLimitError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -197,6 +214,11 @@ async def import_csv_run(
         content = await file.read()
         if not content:
             raise ValueError("Le fichier CSV est vide.")
+        preview = build_csv_import_preview(
+            content,
+            column_mapping=parse_csv_column_mapping(column_mapping),
+        )
+        assert_can_import_csv(current_user.organization_id, preview["review_count"])
         run = create_csv_analysis_run(
             company_input=company,
             file_bytes=content,
@@ -215,6 +237,8 @@ async def import_csv_run(
         )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UsageLimitError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -256,6 +280,7 @@ def compare_runs(
     current_user: AuthenticatedUser = Depends(require_current_user),
 ):
     try:
+        assert_feature_enabled(current_user.organization_id, "benchmark")
         parsed_run_ids = [
             int(run_id.strip())
             for run_id in run_ids.split(",")
@@ -265,6 +290,8 @@ def compare_runs(
             parsed_run_ids,
             organization_id=current_user.organization_id,
         )
+    except FeatureNotAvailableError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

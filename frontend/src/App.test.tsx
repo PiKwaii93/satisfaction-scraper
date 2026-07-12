@@ -108,6 +108,7 @@ const organizationSettings: OrganizationSettings = {
   organization_id: 7,
   name: "Organisation Test",
   slug: "organisation-test",
+  plan: "business",
   default_source: "trustpilot",
   default_pages_per_star: 1,
   created_at: null,

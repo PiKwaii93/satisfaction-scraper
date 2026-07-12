@@ -18,6 +18,7 @@ from app.api.schemas import (
     OrganizationAuditEventResponse,
     OrganizationSettingsResponse,
     OrganizationSettingsUpdate,
+    OrganizationUsageResponse,
     AuthLoginRequest,
     AuthMeResponse,
     AuthTokenResponse,
@@ -30,6 +31,11 @@ from app.api.services.organization_service import (
     list_audit_events,
     record_audit_event,
     update_organization_settings,
+)
+from app.api.services.usage_limits import (
+    UsageLimitError,
+    assert_can_add_member,
+    get_organization_usage,
 )
 
 
@@ -136,6 +142,15 @@ def organization_settings(user: AuthenticatedUser = Depends(require_current_user
 
 
 @router.get(
+    "/organization/usage",
+    response_model=OrganizationUsageResponse,
+    summary="Consulter le plan et l'usage de l'organisation",
+)
+def organization_usage(user: AuthenticatedUser = Depends(require_current_user)):
+    return get_organization_usage(user.organization_id)
+
+
+@router.get(
     "/organization/action-center",
     response_model=ActionCenterResponse,
     summary="Consulter le centre d'action de l'organisation",
@@ -211,6 +226,10 @@ def add_organization_user(
     user: AuthenticatedUser = Depends(require_current_user),
 ):
     require_org_admin(user)
+    try:
+        assert_can_add_member(user.organization_id)
+    except UsageLimitError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     created_user = create_organization_user(user.organization_id, payload)
     record_audit_event(
         organization_id=user.organization_id,
@@ -235,6 +254,10 @@ def invite_user(
     user: AuthenticatedUser = Depends(require_current_user),
 ):
     require_org_admin(user)
+    try:
+        assert_can_add_member(user.organization_id)
+    except UsageLimitError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     invited_user = invite_organization_user(user.organization_id, payload)
     record_audit_event(
         organization_id=user.organization_id,

@@ -24,6 +24,8 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "organization_id",
         "name",
         "slug",
+        "plan",
+        "plan_updated_at",
         "default_source",
         "default_pages_per_star",
         "created_at",

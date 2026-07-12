@@ -36,6 +36,7 @@ import {
   getModelTrainingOverview,
   getOrganizationActionCenter,
   getOrganizationSettings,
+  getOrganizationUsage,
   getReviews,
   getRunEvents,
   getRunTrend,
@@ -79,6 +80,7 @@ import type {
   ModelTrainingRun,
   OrganizationAuditEvent,
   OrganizationSettings,
+  OrganizationUsage,
   OrganizationUser,
   Review,
   ReviewSource,
@@ -1131,6 +1133,8 @@ export default function App() {
     useState<string | null>(null);
   const [organizationSettings, setOrganizationSettings] =
     useState<OrganizationSettings | null>(null);
+  const [organizationUsage, setOrganizationUsage] =
+    useState<OrganizationUsage | null>(null);
   const [organizationSettingsName, setOrganizationSettingsName] = useState("");
   const [organizationDefaultSource, setOrganizationDefaultSource] =
     useState<AnalysisSource>("trustpilot");
@@ -1278,6 +1282,11 @@ export default function App() {
     }
   }
 
+  async function refreshOrganizationUsage() {
+    const usage = await getOrganizationUsage();
+    setOrganizationUsage(usage);
+  }
+
   async function refreshOrganizationAuditEvents() {
     setIsOrganizationAuditLoading(true);
     setOrganizationAuditError(null);
@@ -1367,6 +1376,9 @@ export default function App() {
     refreshActionCenter().catch((err: Error) => setActionCenterError(err.message));
     refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
     refreshOrganizationSettings().catch((err: Error) =>
+      setOrganizationSettingsError(err.message)
+    );
+    refreshOrganizationUsage().catch((err: Error) =>
       setOrganizationSettingsError(err.message)
     );
     if (currentUser.role === "admin") {
@@ -1595,6 +1607,7 @@ export default function App() {
     setOrganizationUserError(null);
     setOrganizationUserMessage(null);
     setOrganizationSettings(null);
+    setOrganizationUsage(null);
     setOrganizationSettingsName("");
     setOrganizationDefaultSource("trustpilot");
     setOrganizationDefaultPages(1);
@@ -1636,6 +1649,7 @@ export default function App() {
           : `Invitation creee pour ${invitedUser.email}.`
       );
       await refreshOrganizationUsers();
+      await refreshOrganizationUsage();
       await refreshActionCenter();
       await refreshAdminAuditEvents();
     } catch (err) {
@@ -2145,7 +2159,7 @@ export default function App() {
               execute_immediately: true
             });
       setSelectedRunId(run.run_id);
-      await Promise.all([refreshRuns(), refreshActionCenter()]);
+      await Promise.all([refreshRuns(), refreshActionCenter(), refreshOrganizationUsage()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -2170,7 +2184,7 @@ export default function App() {
       setTrend(null);
       setTrendError(null);
       setReviews([]);
-      await Promise.all([refreshRuns(), refreshActionCenter()]);
+      await Promise.all([refreshRuns(), refreshActionCenter(), refreshOrganizationUsage()]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -2921,8 +2935,8 @@ export default function App() {
             onCreateUser={handleCreateOrganizationUser}
             onRefreshAudit={() => refreshAdminAuditEvents()}
             onRefreshSettings={() =>
-              refreshOrganizationSettings().catch((err: Error) =>
-                setOrganizationSettingsError(err.message)
+              Promise.all([refreshOrganizationSettings(), refreshOrganizationUsage()]).catch(
+                (err: Error) => setOrganizationSettingsError(err.message)
               )
             }
             onRefreshUsers={() =>
@@ -2941,6 +2955,7 @@ export default function App() {
             settingsError={organizationSettingsError}
             settingsMessage={organizationSettingsMessage}
             settingsName={organizationSettingsName}
+            usage={organizationUsage}
             users={organizationUsers}
             usersError={organizationUserError}
           />
@@ -3538,6 +3553,7 @@ function ClientSpacePanel({
   settingsError,
   settingsMessage,
   settingsName,
+  usage,
   users,
   usersError
 }: {
@@ -3570,6 +3586,7 @@ function ClientSpacePanel({
   settingsError: string | null;
   settingsMessage: string | null;
   settingsName: string;
+  usage: OrganizationUsage | null;
   users: OrganizationUser[];
   usersError: string | null;
 }) {
@@ -3578,6 +3595,7 @@ function ClientSpacePanel({
   const pendingUsers = users.filter((user) => user.account_status === "pending");
   const isRefreshingClientSpace =
     isLoadingUsers || isLoadingSettings || isLoadingAudit;
+  const planLabel = usage?.plan_label ?? formatPlan(settings?.plan);
 
   return (
     <section className="client-space-panel insight-section wide" id="client_space">
@@ -3641,12 +3659,14 @@ function ClientSpacePanel({
         <div className="client-card">
           <CheckCircle2 size={20} />
           <div>
-            <span>Session</span>
-            <strong>{formatRole(currentUser.role)}</strong>
-            <small>{currentUser.email}</small>
+            <span>Plan</span>
+            <strong>{planLabel}</strong>
+            <small>{formatRole(currentUser.role)} - {currentUser.email}</small>
           </div>
         </div>
       </div>
+
+      {usage ? <OrganizationUsagePanel usage={usage} /> : null}
 
       {usersError ? <p className="form-error">{usersError}</p> : null}
       {settingsError ? <p className="form-error">{settingsError}</p> : null}
@@ -3822,6 +3842,75 @@ function ClientSpacePanel({
         </form>
       </div>
     </section>
+  );
+}
+
+function OrganizationUsagePanel({ usage }: { usage: OrganizationUsage }) {
+  const rows = [
+    {
+      label: "Analyses ce mois-ci",
+      used: usage.usage.monthly_runs,
+      limit: usage.limits.monthly_runs,
+      helper: "Runs Trustpilot ou CSV crees sur la periode courante."
+    },
+    {
+      label: "Avis analyses ce mois-ci",
+      used: usage.usage.monthly_reviews,
+      limit: usage.limits.monthly_reviews,
+      helper: "Volume d'avis traites dans les analyses terminees."
+    },
+    {
+      label: "Membres",
+      used: usage.usage.members,
+      limit: usage.limits.members,
+      helper: "Comptes actifs ou invitations en attente."
+    },
+    {
+      label: "Avis par import CSV",
+      used: 0,
+      limit: usage.limits.csv_reviews_per_import,
+      helper: "Limite appliquee a chaque fichier CSV importe."
+    }
+  ];
+
+  return (
+    <div className="organization-usage-panel">
+      <div className="mini-heading">
+        <strong>Plan et usage</strong>
+        <span>{usage.plan_label}</span>
+      </div>
+      <div className="usage-grid">
+        {rows.map((row) => {
+          const percent = usagePercent(row.used, row.limit);
+          return (
+            <div className="usage-card" key={row.label}>
+              <div>
+                <strong>{row.label}</strong>
+                <span>
+                  {row.label === "Avis par import CSV"
+                    ? formatLimit(row.limit)
+                    : `${row.used.toLocaleString("fr-FR")} / ${formatLimit(row.limit)}`}
+                </span>
+              </div>
+              {row.label === "Avis par import CSV" ? null : (
+                <div className="usage-bar">
+                  <span style={{ width: `${percent}%` }} />
+                </div>
+              )}
+              <small>{row.helper}</small>
+            </div>
+          );
+        })}
+      </div>
+      <div className="feature-grid">
+        <span className={usage.features.benchmark ? "feature-on" : "feature-off"}>
+          Benchmark {usage.features.benchmark ? "inclus" : "non inclus"}
+        </span>
+        <span className={usage.features.model_training ? "feature-on" : "feature-off"}>
+          Reentrainement IA {usage.features.model_training ? "inclus" : "non inclus"}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -4428,6 +4517,26 @@ function formatAuditEventType(eventType: string) {
 
 function formatRole(role: string) {
   return role === "admin" ? "Admin" : "Membre";
+}
+
+function formatPlan(plan?: string) {
+  const labels: Record<string, string> = {
+    free: "Free",
+    pro: "Pro",
+    business: "Business"
+  };
+  return labels[plan ?? "business"] ?? "Business";
+}
+
+function formatLimit(value: number | null | undefined) {
+  return value == null ? "Illimite" : value.toLocaleString("fr-FR");
+}
+
+function usagePercent(used: number, limit: number | null | undefined) {
+  if (!limit) {
+    return 0;
+  }
+  return Math.min(100, Math.round((used / limit) * 100));
 }
 
 function formatAccountStatus(status: string) {
