@@ -13,6 +13,7 @@ import type {
   ModelTrainingOverview,
   ModelTrainingRun,
   OrganizationAuditEvent,
+  OrganizationPlan,
   OrganizationUsage,
   OrganizationInvitationAccept,
   OrganizationInvitationCreate,
@@ -154,6 +155,13 @@ export function updateOrganizationSettings(payload: OrganizationSettingsUpdate) 
   return request<OrganizationSettings>("/auth/organization/settings", {
     method: "PATCH",
     body: JSON.stringify(payload)
+  });
+}
+
+export function updateOrganizationPlan(plan: OrganizationPlan) {
+  return request<OrganizationSettings>("/auth/organization/plan", {
+    method: "PATCH",
+    body: JSON.stringify({ plan })
   });
 }
 

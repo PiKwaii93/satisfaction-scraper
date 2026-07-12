@@ -16,6 +16,7 @@ from app.api.schemas import (
     OrganizationInvitationAccept,
     OrganizationInvitationCreate,
     OrganizationAuditEventResponse,
+    OrganizationPlanUpdate,
     OrganizationSettingsResponse,
     OrganizationSettingsUpdate,
     OrganizationUsageResponse,
@@ -30,6 +31,7 @@ from app.api.services.organization_service import (
     get_organization_settings,
     list_audit_events,
     record_audit_event,
+    update_organization_plan,
     update_organization_settings,
 )
 from app.api.services.usage_limits import (
@@ -197,6 +199,37 @@ def update_settings(
         entity_type="organization",
         entity_id=user.organization_id,
         metadata={"changed_fields": changed_fields},
+    )
+    return settings
+
+
+@router.patch(
+    "/organization/plan",
+    response_model=OrganizationSettingsResponse,
+    summary="Modifier le plan de l'organisation",
+)
+def update_plan(
+    payload: OrganizationPlanUpdate,
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(user)
+    previous_settings = get_organization_settings(user.organization_id)
+    settings = update_organization_plan(user.organization_id, payload.plan)
+    if settings is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organisation introuvable.",
+        )
+
+    previous_plan = (previous_settings or {}).get("plan")
+    record_audit_event(
+        organization_id=user.organization_id,
+        actor_user=user,
+        event_type="organization.plan_updated",
+        summary=f"Plan de l'organisation mis a jour: {previous_plan} -> {settings['plan']}.",
+        entity_type="organization",
+        entity_id=user.organization_id,
+        metadata={"previous_plan": previous_plan, "new_plan": settings["plan"]},
     )
     return settings
 

@@ -53,6 +53,7 @@ import {
   refreshRunBusinessAlerts,
   saveReviewFeedback,
   updateBusinessAlertStatus,
+  updateOrganizationPlan,
   updateOrganizationSettings,
   updateReviewSource,
   uploadCsvRun
@@ -79,6 +80,7 @@ import type {
   ModelTrainingOverview,
   ModelTrainingRun,
   OrganizationAuditEvent,
+  OrganizationPlan,
   OrganizationSettings,
   OrganizationUsage,
   OrganizationUser,
@@ -1147,6 +1149,8 @@ export default function App() {
     useState(false);
   const [isOrganizationSettingsSaving, setIsOrganizationSettingsSaving] =
     useState(false);
+  const [isOrganizationPlanSaving, setIsOrganizationPlanSaving] =
+    useState(false);
   const [organizationAuditEvents, setOrganizationAuditEvents] = useState<
     OrganizationAuditEvent[]
   >([]);
@@ -1705,6 +1709,40 @@ export default function App() {
       );
     } finally {
       setIsOrganizationSettingsSaving(false);
+    }
+  }
+
+  async function handleUpdateOrganizationPlan(plan: OrganizationPlan) {
+    if (!canManageWorkspace) {
+      setOrganizationSettingsError(
+        "Seul un administrateur peut modifier le plan de l'organisation."
+      );
+      return;
+    }
+
+    if (organizationUsage?.plan === plan) {
+      return;
+    }
+
+    setIsOrganizationPlanSaving(true);
+    setOrganizationSettingsError(null);
+    setOrganizationSettingsMessage(null);
+
+    try {
+      const settings = await updateOrganizationPlan(plan);
+      setOrganizationSettings(settings);
+      await Promise.all([
+        refreshOrganizationUsage(),
+        refreshAdminAuditEvents(),
+        refreshActionCenter()
+      ]);
+      setOrganizationSettingsMessage(`Plan ${formatPlan(plan)} applique.`);
+    } catch (err) {
+      setOrganizationSettingsError(
+        err instanceof Error ? err.message : "Plan impossible a modifier"
+      );
+    } finally {
+      setIsOrganizationPlanSaving(false);
     }
   }
 
@@ -2927,6 +2965,7 @@ export default function App() {
             isLoadingSettings={isOrganizationSettingsLoading}
             isCreatingUser={isCreatingOrganizationUser}
             isLoadingUsers={isOrganizationUsersLoading}
+            isSavingPlan={isOrganizationPlanSaving}
             isSavingSettings={isOrganizationSettingsSaving}
             message={organizationUserMessage}
             newUserEmail={organizationUserEmail}
@@ -2945,6 +2984,7 @@ export default function App() {
               )
             }
             onSaveSettings={handleUpdateOrganizationSettings}
+            onUpdatePlan={handleUpdateOrganizationPlan}
             onUpdateDefaultPagesPerStar={setOrganizationDefaultPages}
             onUpdateDefaultSource={setOrganizationDefaultSource}
             onUpdateOrganizationName={setOrganizationSettingsName}
@@ -3533,6 +3573,7 @@ function ClientSpacePanel({
   isLoadingSettings,
   isCreatingUser,
   isLoadingUsers,
+  isSavingPlan,
   isSavingSettings,
   message,
   newUserEmail,
@@ -3543,6 +3584,7 @@ function ClientSpacePanel({
   onRefreshSettings,
   onRefreshUsers,
   onSaveSettings,
+  onUpdatePlan,
   onUpdateDefaultPagesPerStar,
   onUpdateDefaultSource,
   onUpdateOrganizationName,
@@ -3566,6 +3608,7 @@ function ClientSpacePanel({
   isLoadingSettings: boolean;
   isCreatingUser: boolean;
   isLoadingUsers: boolean;
+  isSavingPlan: boolean;
   isSavingSettings: boolean;
   message: string | null;
   newUserEmail: string;
@@ -3576,6 +3619,7 @@ function ClientSpacePanel({
   onRefreshSettings: () => void;
   onRefreshUsers: () => void;
   onSaveSettings: (event: FormEvent<HTMLFormElement>) => void;
+  onUpdatePlan: (plan: OrganizationPlan) => void;
   onUpdateDefaultPagesPerStar: (value: number) => void;
   onUpdateDefaultSource: (value: AnalysisSource) => void;
   onUpdateOrganizationName: (value: string) => void;
@@ -3666,7 +3710,14 @@ function ClientSpacePanel({
         </div>
       </div>
 
-      {usage ? <OrganizationUsagePanel usage={usage} /> : null}
+      {usage ? (
+        <OrganizationUsagePanel
+          canManage={isAdmin}
+          isSavingPlan={isSavingPlan}
+          onUpdatePlan={onUpdatePlan}
+          usage={usage}
+        />
+      ) : null}
 
       {usersError ? <p className="form-error">{usersError}</p> : null}
       {settingsError ? <p className="form-error">{settingsError}</p> : null}
@@ -3845,7 +3896,17 @@ function ClientSpacePanel({
   );
 }
 
-function OrganizationUsagePanel({ usage }: { usage: OrganizationUsage }) {
+function OrganizationUsagePanel({
+  canManage,
+  isSavingPlan,
+  onUpdatePlan,
+  usage
+}: {
+  canManage: boolean;
+  isSavingPlan: boolean;
+  onUpdatePlan: (plan: OrganizationPlan) => void;
+  usage: OrganizationUsage;
+}) {
   const rows = [
     {
       label: "Analyses ce mois-ci",
@@ -3875,9 +3936,27 @@ function OrganizationUsagePanel({ usage }: { usage: OrganizationUsage }) {
 
   return (
     <div className="organization-usage-panel">
-      <div className="mini-heading">
-        <strong>Plan et usage</strong>
-        <span>{usage.plan_label}</span>
+      <div className="mini-heading usage-heading">
+        <div>
+          <strong>Plan et usage</strong>
+          <span>{usage.plan_label}</span>
+        </div>
+        <label className="plan-selector" htmlFor="organization-plan">
+          <span>Plan actif</span>
+          <select
+            disabled={!canManage || isSavingPlan}
+            id="organization-plan"
+            onChange={(event) =>
+              onUpdatePlan(event.target.value as OrganizationPlan)
+            }
+            value={usage.plan}
+          >
+            <option value="free">Free</option>
+            <option value="pro">Pro</option>
+            <option value="business">Business</option>
+          </select>
+          {isSavingPlan ? <Loader2 className="spin" size={14} /> : null}
+        </label>
       </div>
       <div className="usage-grid">
         {rows.map((row) => {
@@ -3910,6 +3989,13 @@ function OrganizationUsagePanel({ usage }: { usage: OrganizationUsage }) {
           Reentrainement IA {usage.features.model_training ? "inclus" : "non inclus"}
         </span>
       </div>
+      {!canManage ? (
+        <p className="muted">Seuls les administrateurs peuvent modifier le plan.</p>
+      ) : (
+        <p className="muted">
+          Changement interne MVP: les limites sont appliquees immediatement et journalisees.
+        </p>
+      )}
     </div>
   );
 }

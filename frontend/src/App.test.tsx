@@ -9,6 +9,7 @@ import type {
   FeedbackQuality,
   ModelTrainingOverview,
   OrganizationSettings,
+  OrganizationUsage,
   ReviewSource
 } from "./types";
 
@@ -27,6 +28,7 @@ const apiMocks = vi.hoisted(() => ({
   getModelTrainingOverview: vi.fn(),
   getOrganizationActionCenter: vi.fn(),
   getOrganizationSettings: vi.fn(),
+  getOrganizationUsage: vi.fn(),
   getReviews: vi.fn(),
   getRunEvents: vi.fn(),
   getRunTrend: vi.fn(),
@@ -43,6 +45,7 @@ const apiMocks = vi.hoisted(() => ({
   refreshRunBusinessAlerts: vi.fn(),
   saveReviewFeedback: vi.fn(),
   updateBusinessAlertStatus: vi.fn(),
+  updateOrganizationPlan: vi.fn(),
   updateOrganizationSettings: vi.fn(),
   updateReviewSource: vi.fn(),
   uploadCsvRun: vi.fn()
@@ -115,6 +118,27 @@ const organizationSettings: OrganizationSettings = {
   updated_at: null
 };
 
+const organizationUsage: OrganizationUsage = {
+  plan: "business",
+  plan_label: "Business",
+  period_start: null,
+  limits: {
+    monthly_runs: null,
+    monthly_reviews: 100000,
+    csv_reviews_per_import: 10000,
+    members: 25
+  },
+  usage: {
+    monthly_runs: 0,
+    monthly_reviews: 0,
+    members: 1
+  },
+  features: {
+    benchmark: true,
+    model_training: true
+  }
+};
+
 const reviewSources: ReviewSource[] = [
   {
     source_id: "trustpilot",
@@ -167,6 +191,7 @@ beforeEach(() => {
   apiMocks.getOrganizationActionCenter.mockResolvedValue(actionCenter);
   apiMocks.listOrganizationUsers.mockResolvedValue([]);
   apiMocks.getOrganizationSettings.mockResolvedValue(organizationSettings);
+  apiMocks.getOrganizationUsage.mockResolvedValue(organizationUsage);
   apiMocks.listOrganizationAuditEvents.mockResolvedValue([]);
   apiMocks.listReviewSources.mockResolvedValue(reviewSources);
 });

@@ -26,6 +26,10 @@ class OrganizationSettingsUpdate(BaseModel):
     default_pages_per_star: int | None = Field(default=None, ge=1, le=20)
 
 
+class OrganizationPlanUpdate(BaseModel):
+    plan: Literal["free", "pro", "business"]
+
+
 class OrganizationUsageLimits(BaseModel):
     monthly_runs: int | None = None
     monthly_reviews: int | None = None
