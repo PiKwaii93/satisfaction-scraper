@@ -868,6 +868,64 @@ def test_admin_can_update_review_source(authenticated_client, monkeypatch):
     assert captured["audit_event"]["organization_id"] == 123
 
 
+def test_admin_can_update_csv_review_source_mapping(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_update_review_source(organization_id, source_id, payload):
+        captured["organization_id"] = organization_id
+        captured["source_id"] = source_id
+        captured["config"] = payload.config
+        return {
+            "source_id": source_id,
+            "label": "CSV",
+            "category": "Import fichier",
+            "status": "active",
+            "supports_analysis": True,
+            "is_configured": True,
+            "is_enabled": True,
+            "can_configure": True,
+            "last_error": None,
+            "config": payload.config,
+            "updated_at": None,
+            "description": "Import CSV",
+            "setup_hint": "Mapping des colonnes",
+            "required_fields": ["verbatim"],
+            "optional_fields": ["rating"],
+            "column_aliases": {"verbatim": ["avis"]},
+            "primary_action": "Importer un fichier CSV",
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.review_sources.update_review_source",
+        fake_update_review_source,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.review_sources.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event", kwargs),
+    )
+
+    response = authenticated_client.patch(
+        "/review-sources/csv",
+        json={
+            "enabled": True,
+            "config": {
+                "column_mapping": {
+                    "verbatim": "commentaire",
+                    "rating": "note",
+                    "author": "client",
+                }
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["config"]["column_mapping"]["verbatim"] == "commentaire"
+    assert captured["organization_id"] == 123
+    assert captured["source_id"] == "csv"
+    assert captured["config"]["column_mapping"]["rating"] == "note"
+    assert captured["audit_event"]["organization_id"] == 123
+
+
 def test_member_cannot_update_review_source(member_client):
     response = member_client.patch(
         "/review-sources/csv",
@@ -1082,6 +1140,33 @@ def test_preview_csv_endpoint_accepts_column_mapping(authenticated_client):
         "/analysis-runs/preview-csv",
         files={"file": ("reviews.csv", csv_content, "text/csv")},
         data={"column_mapping": json.dumps(mapping)},
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["review_count"] == 2
+    assert payload["detected_columns"]["verbatim"] == "customer_review"
+    assert payload["preview_reviews"][0]["rating"] == 5
+
+
+def test_preview_csv_endpoint_uses_saved_mapping_profile(authenticated_client, monkeypatch):
+    csv_content = (
+        "stars_count;customer_review\n"
+        "5;Produit conforme et livraison rapide\n"
+        "1;Service client impossible a joindre\n"
+    ).encode("utf-8")
+
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_csv_column_mapping_profile",
+        lambda organization_id: {
+            "rating": "stars_count",
+            "verbatim": "customer_review",
+        },
+    )
+
+    response = authenticated_client.post(
+        "/analysis-runs/preview-csv",
+        files={"file": ("reviews.csv", csv_content, "text/csv")},
     )
 
     payload = response.json()

@@ -199,6 +199,25 @@ const reviewSources: ReviewSource[] = [
     required_fields: [],
     optional_fields: [],
     column_aliases: {}
+  },
+  {
+    source_id: "csv",
+    label: "CSV",
+    status: "active",
+    category: "import fichier",
+    description: "Import CSV",
+    primary_action: "Importer un fichier CSV",
+    setup_hint: null,
+    supports_analysis: true,
+    is_configured: true,
+    is_enabled: true,
+    can_configure: true,
+    last_error: null,
+    config: {},
+    updated_at: null,
+    required_fields: ["verbatim"],
+    optional_fields: ["rating", "author", "date", "company_responded"],
+    column_aliases: {}
   }
 ];
 
@@ -352,6 +371,64 @@ describe("App authentication and permissions", () => {
         config: {
           default_company: "https://fr.trustpilot.com/review/example.com",
           pages_per_star: 1
+        }
+      })
+    );
+  });
+
+  it("lets an admin save a reusable CSV mapping profile", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.previewCsvFile.mockResolvedValue({
+      review_count: 1,
+      skipped_rows: 0,
+      detected_columns: {
+        verbatim: "commentaire",
+        rating: "note"
+      },
+      available_columns: ["commentaire", "note", "client"],
+      preview_reviews: [
+        {
+          row_number: 1,
+          rating: 5,
+          author: "",
+          date: "",
+          company_responded: false,
+          verbatim: "Produit conforme"
+        }
+      ],
+      error_message: null
+    });
+    apiMocks.updateReviewSource.mockResolvedValue({
+      ...reviewSources[1],
+      config: {
+        column_mapping: {
+          verbatim: "commentaire",
+          rating: "note"
+        }
+      }
+    });
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await user.click(screen.getAllByRole("button", { name: /CSV/ })[0]);
+
+    const file = new File(["commentaire,note\nProduit conforme,5\n"], "avis.csv", {
+      type: "text/csv"
+    });
+    await user.upload(screen.getByLabelText("Fichier CSV d'avis"), file);
+    await screen.findByText("Controle avant import");
+    await user.click(screen.getByRole("button", { name: "Enregistrer ce mapping" }));
+
+    await waitFor(() =>
+      expect(apiMocks.updateReviewSource).toHaveBeenCalledWith("csv", {
+        enabled: true,
+        config: {
+          column_mapping: {
+            verbatim: "commentaire",
+            rating: "note"
+          }
         }
       })
     );

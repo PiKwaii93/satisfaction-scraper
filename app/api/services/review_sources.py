@@ -26,6 +26,14 @@ CSV_COLUMN_ALIASES = {
     "company_responded": ["responded", "response", "reponse", "has_response"],
 }
 
+CSV_MAPPING_FIELDS = {
+    "verbatim",
+    "rating",
+    "author",
+    "date",
+    "company_responded",
+}
+
 
 SOURCE_CATALOG = [
     {
@@ -146,12 +154,43 @@ def _normalize_trustpilot_config(config):
     return normalized
 
 
+def _normalize_csv_column_mapping(column_mapping):
+    if column_mapping in (None, ""):
+        return {}
+
+    if not isinstance(column_mapping, dict):
+        raise ValueError("Le mapping CSV doit etre un objet.")
+
+    normalized_mapping = {}
+    for field, column in column_mapping.items():
+        if field not in CSV_MAPPING_FIELDS:
+            raise ValueError(f"Champ CSV inconnu: {field}.")
+
+        normalized_mapping[field] = str(column or "").strip()
+
+    return normalized_mapping
+
+
+def _normalize_csv_config(config):
+    normalized = {}
+
+    if "column_mapping" in config:
+        normalized["column_mapping"] = _normalize_csv_column_mapping(
+            config.get("column_mapping")
+        )
+
+    return normalized
+
+
 def _normalize_source_config(source_id, config):
     if not isinstance(config, dict):
         raise ValueError("La configuration de source doit etre un objet.")
 
     if source_id == "trustpilot":
         return _normalize_trustpilot_config(config)
+
+    if source_id == "csv":
+        return _normalize_csv_config(config)
 
     return {}
 
@@ -275,6 +314,29 @@ def list_review_sources(organization_id=None):
         _serialize_source(source, rows.get(source["source_id"]))
         for source in SOURCE_CATALOG
     ]
+
+
+def get_review_source_config(organization_id, source_id):
+    ensure_organization_source_rows(organization_id)
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT config
+            FROM organization_review_sources
+            WHERE organization_id = %s
+              AND source_id = %s;
+            """,
+            (organization_id, source_id),
+        )
+        row = cursor.fetchone()
+
+    return (row or {}).get("config") or {}
+
+
+def get_csv_column_mapping_profile(organization_id):
+    config = get_review_source_config(organization_id, "csv")
+    column_mapping = config.get("column_mapping") if isinstance(config, dict) else None
+    return _normalize_csv_column_mapping(column_mapping)
 
 
 def update_review_source(organization_id, source_id, payload):
