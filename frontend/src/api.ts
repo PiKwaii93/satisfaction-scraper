@@ -27,7 +27,10 @@ import type {
   ReviewListResponse,
   RunsComparison,
   RunSummary,
-  SentimentLabel
+  SentimentLabel,
+  UpgradeRequest,
+  UpgradeRequestCreate,
+  UpgradeRequestStatus
 } from "./types";
 
 const API_BASE_URL =
@@ -163,6 +166,36 @@ export function updateOrganizationPlan(plan: OrganizationPlan) {
     method: "PATCH",
     body: JSON.stringify({ plan })
   });
+}
+
+export function createUpgradeRequest(payload: UpgradeRequestCreate) {
+  return request<UpgradeRequest>("/auth/organization/upgrade-requests", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listUpgradeRequests(status = "open") {
+  const params = new URLSearchParams({
+    request_status: status,
+    limit: "20"
+  });
+  return request<UpgradeRequest[]>(
+    `/auth/organization/upgrade-requests?${params.toString()}`
+  );
+}
+
+export function updateUpgradeRequestStatus(
+  upgradeRequestId: number,
+  status: UpgradeRequestStatus
+) {
+  return request<UpgradeRequest>(
+    `/auth/organization/upgrade-requests/${upgradeRequestId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status })
+    }
+  );
 }
 
 export function listOrganizationAuditEvents(limit = 30, offset = 0) {

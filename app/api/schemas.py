@@ -30,6 +30,32 @@ class OrganizationPlanUpdate(BaseModel):
     plan: Literal["free", "pro", "business"]
 
 
+class UpgradeRequestCreate(BaseModel):
+    requested_plan: Literal["pro", "business"]
+    source: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+    metadata: dict = Field(default_factory=dict)
+
+
+class UpgradeRequestStatusUpdate(BaseModel):
+    status: Literal["pending", "approved", "rejected", "completed", "cancelled"]
+
+
+class UpgradeRequestResponse(BaseModel):
+    upgrade_request_id: int
+    organization_id: int
+    requested_plan: Literal["pro", "business"]
+    current_plan: Literal["free", "pro", "business"]
+    status: Literal["pending", "approved", "rejected", "completed", "cancelled"]
+    source: str | None = None
+    note: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    requested_by_email: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    handled_at: datetime | None = None
+
+
 class OrganizationUsageLimits(BaseModel):
     monthly_runs: int | None = None
     monthly_reviews: int | None = None
@@ -74,6 +100,7 @@ class ActionCenterCounts(BaseModel):
     failed_runs: int = 0
     active_runs: int = 0
     pending_invitations: int = 0
+    pending_upgrade_requests: int = 0
     training_ready_corrections: int = 0
     recent_completed_runs: int = 0
 

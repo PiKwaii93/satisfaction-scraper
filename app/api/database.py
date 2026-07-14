@@ -158,6 +158,21 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "created_at",
         "updated_at",
     },
+    "upgrade_requests": {
+        "upgrade_request_id",
+        "organization_id",
+        "requested_by_user_id",
+        "requested_by_email",
+        "current_plan",
+        "requested_plan",
+        "status",
+        "source",
+        "note",
+        "metadata",
+        "created_at",
+        "updated_at",
+        "handled_at",
+    },
     "model_training_runs": {
         "training_run_id",
         "organization_id",
@@ -198,6 +213,10 @@ PRODUCT_INDEX_REQUIREMENTS = {
         "idx_business_alerts_unique_run_type",
         "idx_business_alerts_org_status",
         "idx_business_alerts_run",
+    },
+    "upgrade_requests": {
+        "idx_upgrade_requests_org_status",
+        "idx_upgrade_requests_open_plan",
     },
     "model_training_runs": {
         "idx_model_training_runs_status",

@@ -26,6 +26,7 @@ import {
   acceptOrganizationInvitation,
   createModelTrainingRun,
   createRun,
+  createUpgradeRequest,
   clearAuthToken,
   deleteReviewFeedback,
   executeRun,
@@ -48,6 +49,7 @@ import {
   listOrganizationUsers,
   listReviewSources,
   listRuns,
+  listUpgradeRequests,
   login,
   previewCsvFile,
   refreshRunBusinessAlerts,
@@ -55,6 +57,7 @@ import {
   updateBusinessAlertStatus,
   updateOrganizationPlan,
   updateOrganizationSettings,
+  updateUpgradeRequestStatus,
   updateReviewSource,
   uploadCsvRun
 } from "./api";
@@ -90,6 +93,8 @@ import type {
   RunSummary,
   SentimentLabel,
   SummaryReview,
+  UpgradeRequest,
+  UpgradeRequestStatus,
   UserRole
 } from "./types";
 
@@ -1165,6 +1170,17 @@ export default function App() {
     useState(false);
   const [organizationAuditError, setOrganizationAuditError] =
     useState<string | null>(null);
+  const [upgradeRequests, setUpgradeRequests] = useState<UpgradeRequest[]>([]);
+  const [isUpgradeRequestsLoading, setIsUpgradeRequestsLoading] =
+    useState(false);
+  const [upgradeRequestsError, setUpgradeRequestsError] =
+    useState<string | null>(null);
+  const [upgradeRequestMessage, setUpgradeRequestMessage] =
+    useState<string | null>(null);
+  const [submittingUpgradePlan, setSubmittingUpgradePlan] =
+    useState<OrganizationPlan | null>(null);
+  const [updatingUpgradeRequestId, setUpdatingUpgradeRequestId] =
+    useState<number | null>(null);
   const [actionCenter, setActionCenter] = useState<ActionCenter | null>(null);
   const [isActionCenterLoading, setIsActionCenterLoading] = useState(false);
   const [actionCenterError, setActionCenterError] = useState<string | null>(null);
@@ -1309,6 +1325,22 @@ export default function App() {
     }
   }
 
+  async function refreshUpgradeRequests() {
+    if (currentUser?.role !== "admin") {
+      setUpgradeRequests([]);
+      return;
+    }
+
+    setIsUpgradeRequestsLoading(true);
+    setUpgradeRequestsError(null);
+    try {
+      const requests = await listUpgradeRequests();
+      setUpgradeRequests(requests);
+    } finally {
+      setIsUpgradeRequestsLoading(false);
+    }
+  }
+
   async function refreshActionCenter() {
     setIsActionCenterLoading(true);
     setActionCenterError(null);
@@ -1396,9 +1428,14 @@ export default function App() {
       refreshOrganizationAuditEvents().catch((err: Error) =>
         setOrganizationAuditError(err.message)
       );
+      refreshUpgradeRequests().catch((err: Error) =>
+        setUpgradeRequestsError(err.message)
+      );
     } else {
       setOrganizationAuditEvents([]);
       setOrganizationAuditError(null);
+      setUpgradeRequests([]);
+      setUpgradeRequestsError(null);
     }
     refreshReviewSources().catch((err: Error) => setReviewSourcesError(err.message));
   }, [currentUser?.user_id]);
@@ -1648,6 +1685,11 @@ export default function App() {
     setOrganizationSettingsMessage(null);
     setOrganizationAuditEvents([]);
     setOrganizationAuditError(null);
+    setUpgradeRequests([]);
+    setUpgradeRequestsError(null);
+    setUpgradeRequestMessage(null);
+    setSubmittingUpgradePlan(null);
+    setUpdatingUpgradeRequestId(null);
     setReviewSources(DEFAULT_REVIEW_SOURCES);
     setReviewSourcesError(null);
     setUpdatingReviewSourceId(null);
@@ -1776,6 +1818,78 @@ export default function App() {
       );
     } finally {
       setIsOrganizationPlanSaving(false);
+    }
+  }
+
+  async function handleRequestUpgrade(gate: PlanGateInfo, source: string) {
+    if (gate.requiredPlan === "free") {
+      return;
+    }
+
+    setSubmittingUpgradePlan(gate.requiredPlan);
+    setUpgradeRequestsError(null);
+    setUpgradeRequestMessage(null);
+    setError(null);
+
+    try {
+      const request = await createUpgradeRequest({
+        requested_plan: gate.requiredPlan,
+        source,
+        note: gate.title,
+        metadata: {
+          message: gate.message,
+          action_label: gate.actionLabel
+        }
+      });
+      setUpgradeRequestMessage(
+        `Demande d'upgrade vers ${formatPlan(request.requested_plan)} creee.`
+      );
+      await Promise.all([
+        refreshActionCenter(),
+        refreshAdminAuditEvents(),
+        refreshUpgradeRequests()
+      ]);
+      setActiveView("admin");
+      scrollToWorkspaceSection("upgrade_requests", 120);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Demande d'upgrade impossible";
+      setUpgradeRequestsError(message);
+      setError(message);
+    } finally {
+      setSubmittingUpgradePlan(null);
+    }
+  }
+
+  async function handleUpdateUpgradeRequestStatus(
+    upgradeRequestId: number,
+    status: UpgradeRequestStatus
+  ) {
+    if (!canManageWorkspace) {
+      setUpgradeRequestsError(
+        "Seul un administrateur peut traiter les demandes d'upgrade."
+      );
+      return;
+    }
+
+    setUpdatingUpgradeRequestId(upgradeRequestId);
+    setUpgradeRequestsError(null);
+    setUpgradeRequestMessage(null);
+
+    try {
+      await updateUpgradeRequestStatus(upgradeRequestId, status);
+      setUpgradeRequestMessage(`Demande d'upgrade ${formatUpgradeRequestStatus(status)}.`);
+      await Promise.all([
+        refreshUpgradeRequests(),
+        refreshActionCenter(),
+        refreshAdminAuditEvents()
+      ]);
+    } catch (err) {
+      setUpgradeRequestsError(
+        err instanceof Error ? err.message : "Demande d'upgrade impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingUpgradeRequestId(null);
     }
   }
 
@@ -2665,13 +2779,15 @@ export default function App() {
           {analysisPlanGate ? (
             <PlanGate
               gate={analysisPlanGate}
-              onUpgrade={() => setActiveView("admin")}
+              isSubmitting={submittingUpgradePlan === analysisPlanGate.requiredPlan}
+              onUpgrade={() => handleRequestUpgrade(analysisPlanGate, "analysis_limit")}
             />
           ) : null}
           {!analysisPlanGate && sourceMode === "csv" && csvImportPlanGate ? (
             <PlanGate
               gate={csvImportPlanGate}
-              onUpgrade={() => setActiveView("admin")}
+              isSubmitting={submittingUpgradePlan === csvImportPlanGate.requiredPlan}
+              onUpgrade={() => handleRequestUpgrade(csvImportPlanGate, "csv_import_limit")}
             />
           ) : null}
 
@@ -2883,7 +2999,8 @@ export default function App() {
           {benchmarkPlanGate ? (
             <PlanGate
               gate={benchmarkPlanGate}
-              onUpgrade={() => setActiveView("admin")}
+              isSubmitting={submittingUpgradePlan === benchmarkPlanGate.requiredPlan}
+              onUpgrade={() => handleRequestUpgrade(benchmarkPlanGate, "benchmark_gate")}
             />
           ) : null}
 
@@ -3025,7 +3142,16 @@ export default function App() {
               isLoading={isTrainingOverviewLoading}
               isSubmitting={isTrainingSubmitting}
               planGate={modelTrainingPlanGate}
-              onUpgrade={() => setActiveView("admin")}
+              isUpgradeSubmitting={
+                modelTrainingPlanGate
+                  ? submittingUpgradePlan === modelTrainingPlanGate.requiredPlan
+                  : false
+              }
+              onUpgrade={() =>
+                modelTrainingPlanGate
+                  ? handleRequestUpgrade(modelTrainingPlanGate, "model_training_gate")
+                  : undefined
+              }
               onRefresh={() =>
                 refreshTrainingOverview().catch((err: Error) => setError(err.message))
               }
@@ -3055,9 +3181,11 @@ export default function App() {
             onCreateUser={handleCreateOrganizationUser}
             onRefreshAudit={() => refreshAdminAuditEvents()}
             onRefreshSettings={() =>
-              Promise.all([refreshOrganizationSettings(), refreshOrganizationUsage()]).catch(
-                (err: Error) => setOrganizationSettingsError(err.message)
-              )
+              Promise.all([
+                refreshOrganizationSettings(),
+                refreshOrganizationUsage(),
+                refreshUpgradeRequests()
+              ]).catch((err: Error) => setOrganizationSettingsError(err.message))
             }
             onRefreshUsers={() =>
               refreshOrganizationUsers().catch((err: Error) =>
@@ -3072,13 +3200,26 @@ export default function App() {
             onUpdateNewUserEmail={setOrganizationUserEmail}
             onUpdateNewUserFullName={setOrganizationUserFullName}
             onUpdateNewUserRole={setOrganizationUserRole}
+            onRefreshUpgradeRequests={() =>
+              refreshUpgradeRequests().catch((err: Error) =>
+                setUpgradeRequestsError(err.message)
+              )
+            }
+            onRequestUpgrade={(gate) => handleRequestUpgrade(gate, "members_limit")}
+            onUpdateUpgradeRequestStatus={handleUpdateUpgradeRequestStatus}
             settings={organizationSettings}
             settingsError={organizationSettingsError}
             settingsMessage={organizationSettingsMessage}
             settingsName={organizationSettingsName}
+            submittingUpgradePlan={submittingUpgradePlan}
             usage={organizationUsage}
+            upgradeRequestMessage={upgradeRequestMessage}
+            upgradeRequests={upgradeRequests}
+            upgradeRequestsError={upgradeRequestsError}
             users={organizationUsers}
             usersError={organizationUserError}
+            isLoadingUpgradeRequests={isUpgradeRequestsLoading}
+            updatingUpgradeRequestId={updatingUpgradeRequestId}
           />
         )}
 
@@ -3652,6 +3793,7 @@ function ClientSpacePanel({
   defaultSource,
   isLoadingAudit,
   isLoadingSettings,
+  isLoadingUpgradeRequests,
   isCreatingUser,
   isLoadingUsers,
   isSavingPlan,
@@ -3663,7 +3805,9 @@ function ClientSpacePanel({
   onCreateUser,
   onRefreshAudit,
   onRefreshSettings,
+  onRefreshUpgradeRequests,
   onRefreshUsers,
+  onRequestUpgrade,
   onSaveSettings,
   onUpdatePlan,
   onUpdateDefaultPagesPerStar,
@@ -3672,11 +3816,17 @@ function ClientSpacePanel({
   onUpdateNewUserEmail,
   onUpdateNewUserFullName,
   onUpdateNewUserRole,
+  onUpdateUpgradeRequestStatus,
   settings,
   settingsError,
   settingsMessage,
   settingsName,
+  submittingUpgradePlan,
   usage,
+  upgradeRequestMessage,
+  upgradeRequests,
+  upgradeRequestsError,
+  updatingUpgradeRequestId,
   users,
   usersError
 }: {
@@ -3687,6 +3837,7 @@ function ClientSpacePanel({
   defaultSource: AnalysisSource;
   isLoadingAudit: boolean;
   isLoadingSettings: boolean;
+  isLoadingUpgradeRequests: boolean;
   isCreatingUser: boolean;
   isLoadingUsers: boolean;
   isSavingPlan: boolean;
@@ -3698,7 +3849,9 @@ function ClientSpacePanel({
   onCreateUser: (event: FormEvent<HTMLFormElement>) => void;
   onRefreshAudit: () => void;
   onRefreshSettings: () => void;
+  onRefreshUpgradeRequests: () => void;
   onRefreshUsers: () => void;
+  onRequestUpgrade: (gate: PlanGateInfo) => void;
   onSaveSettings: (event: FormEvent<HTMLFormElement>) => void;
   onUpdatePlan: (plan: OrganizationPlan) => void;
   onUpdateDefaultPagesPerStar: (value: number) => void;
@@ -3707,11 +3860,20 @@ function ClientSpacePanel({
   onUpdateNewUserEmail: (value: string) => void;
   onUpdateNewUserFullName: (value: string) => void;
   onUpdateNewUserRole: (value: UserRole) => void;
+  onUpdateUpgradeRequestStatus: (
+    upgradeRequestId: number,
+    status: UpgradeRequestStatus
+  ) => void;
   settings: OrganizationSettings | null;
   settingsError: string | null;
   settingsMessage: string | null;
   settingsName: string;
+  submittingUpgradePlan: OrganizationPlan | null;
   usage: OrganizationUsage | null;
+  upgradeRequestMessage: string | null;
+  upgradeRequests: UpgradeRequest[];
+  upgradeRequestsError: string | null;
+  updatingUpgradeRequestId: number | null;
   users: OrganizationUser[];
   usersError: string | null;
 }) {
@@ -3719,7 +3881,7 @@ function ClientSpacePanel({
   const activeUsers = users.filter((user) => user.account_status === "active");
   const pendingUsers = users.filter((user) => user.account_status === "pending");
   const isRefreshingClientSpace =
-    isLoadingUsers || isLoadingSettings || isLoadingAudit;
+    isLoadingUsers || isLoadingSettings || isLoadingAudit || isLoadingUpgradeRequests;
   const planLabel = usage?.plan_label ?? formatPlan(settings?.plan);
   const invitePlanGate = getUsagePlanGate(usage, "members");
 
@@ -3742,6 +3904,7 @@ function ClientSpacePanel({
             onRefreshSettings();
             if (isAdmin) {
               onRefreshAudit();
+              onRefreshUpgradeRequests();
             }
           }}
           type="button"
@@ -3798,6 +3961,18 @@ function ClientSpacePanel({
           isSavingPlan={isSavingPlan}
           onUpdatePlan={onUpdatePlan}
           usage={usage}
+        />
+      ) : null}
+
+      {isAdmin ? (
+        <UpgradeRequestsPanel
+          error={upgradeRequestsError}
+          isLoading={isLoadingUpgradeRequests}
+          message={upgradeRequestMessage}
+          onRefresh={onRefreshUpgradeRequests}
+          onUpdateStatus={onUpdateUpgradeRequestStatus}
+          requests={upgradeRequests}
+          updatingRequestId={updatingUpgradeRequestId}
         />
       ) : null}
 
@@ -3939,11 +4114,8 @@ function ClientSpacePanel({
             <PlanGate
               compact
               gate={invitePlanGate}
-              onUpgrade={() =>
-                document
-                  .getElementById("organization-plan")
-                  ?.scrollIntoView({ behavior: "smooth", block: "center" })
-              }
+              isSubmitting={submittingUpgradePlan === invitePlanGate.requiredPlan}
+              onUpgrade={() => onRequestUpgrade(invitePlanGate)}
             />
           ) : null}
           <input
@@ -4102,13 +4274,139 @@ function OrganizationUsagePanel({
   );
 }
 
+function UpgradeRequestsPanel({
+  error,
+  isLoading,
+  message,
+  onRefresh,
+  onUpdateStatus,
+  requests,
+  updatingRequestId
+}: {
+  error: string | null;
+  isLoading: boolean;
+  message: string | null;
+  onRefresh: () => void;
+  onUpdateStatus: (
+    upgradeRequestId: number,
+    status: UpgradeRequestStatus
+  ) => void;
+  requests: UpgradeRequest[];
+  updatingRequestId: number | null;
+}) {
+  return (
+    <div className="upgrade-requests-panel" id="upgrade_requests">
+      <div className="mini-heading">
+        <div>
+          <strong>Demandes d'upgrade</strong>
+          <span>{requests.length} ouverte(s)</span>
+        </div>
+        <button
+          className="icon-button"
+          disabled={isLoading}
+          onClick={onRefresh}
+          type="button"
+        >
+          {isLoading ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
+        </button>
+      </div>
+
+      {message ? <p className="form-success">{message}</p> : null}
+      {error ? <p className="form-error">{error}</p> : null}
+
+      {requests.length === 0 && !isLoading ? (
+        <div className="empty-inline-state">
+          <strong>Aucune demande ouverte.</strong>
+          <span>Les CTA d'upgrade alimenteront ce panneau automatiquement.</span>
+        </div>
+      ) : (
+        <div className="upgrade-request-list">
+          {requests.map((request) => {
+            const isUpdating = updatingRequestId === request.upgrade_request_id;
+            return (
+              <article className="upgrade-request-row" key={request.upgrade_request_id}>
+                <div>
+                  <strong>
+                    {formatPlan(request.current_plan)} vers {formatPlan(request.requested_plan)}
+                  </strong>
+                  <p>
+                    {request.requested_by_email ?? "Utilisateur"} -{" "}
+                    {request.note ?? request.source ?? "Demande d'upgrade"}
+                  </p>
+                  <small>
+                    {formatUpgradeRequestStatus(request.status)} -{" "}
+                    {formatDate(request.created_at)}
+                  </small>
+                </div>
+                <span className={`upgrade-status ${request.status}`}>
+                  {formatUpgradeRequestStatus(request.status)}
+                </span>
+                <div className="upgrade-request-actions">
+                  {request.status === "pending" ? (
+                    <>
+                      <button
+                        className="secondary-action compact-action"
+                        disabled={isUpdating}
+                        onClick={() =>
+                          onUpdateStatus(request.upgrade_request_id, "approved")
+                        }
+                        type="button"
+                      >
+                        {isUpdating ? (
+                          <Loader2 className="spin" size={14} />
+                        ) : (
+                          <CheckCircle2 size={14} />
+                        )}
+                        Accepter
+                      </button>
+                      <button
+                        className="secondary-action compact-action danger-action"
+                        disabled={isUpdating}
+                        onClick={() =>
+                          onUpdateStatus(request.upgrade_request_id, "rejected")
+                        }
+                        type="button"
+                      >
+                        Refuser
+                      </button>
+                    </>
+                  ) : null}
+                  {request.status === "approved" ? (
+                    <button
+                      className="secondary-action compact-action"
+                      disabled={isUpdating}
+                      onClick={() =>
+                        onUpdateStatus(request.upgrade_request_id, "completed")
+                      }
+                      type="button"
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="spin" size={14} />
+                      ) : (
+                        <CheckCircle2 size={14} />
+                      )}
+                      Marquer traite
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlanGate({
   compact = false,
   gate,
+  isSubmitting = false,
   onUpgrade
 }: {
   compact?: boolean;
   gate: PlanGateInfo;
+  isSubmitting?: boolean;
   onUpgrade: () => void;
 }) {
   return (
@@ -4118,8 +4416,14 @@ function PlanGate({
         <strong>{gate.title}</strong>
         <p>{gate.message}</p>
       </div>
-      <button className="secondary-action compact-action" onClick={onUpgrade} type="button">
-        {gate.actionLabel}
+      <button
+        className="secondary-action compact-action"
+        disabled={isSubmitting}
+        onClick={onUpgrade}
+        type="button"
+      >
+        {isSubmitting ? <Loader2 className="spin" size={14} /> : null}
+        {isSubmitting ? "Demande..." : gate.actionLabel}
       </button>
     </div>
   );
@@ -4162,6 +4466,7 @@ function HomeCockpitPanel({
     failed_runs: 0,
     active_runs: 0,
     pending_invitations: 0,
+    pending_upgrade_requests: 0,
     training_ready_corrections: 0,
     recent_completed_runs: 0
   };
@@ -4173,7 +4478,10 @@ function HomeCockpitPanel({
     (alert) => alert.severity === "warning"
   ).length;
   const urgentCount = Math.max(counts.critical_alerts, criticalAlerts) + counts.failed_runs;
-  const adminQueue = counts.pending_invitations + counts.training_ready_corrections;
+  const adminQueue =
+    counts.pending_invitations +
+    counts.pending_upgrade_requests +
+    counts.training_ready_corrections;
   const canRefreshSelectedRun = canManage && selectedRun?.status === "completed";
   const isRefreshing = isActionCenterLoading || isBusinessAlertsLoading;
 
@@ -4243,7 +4551,7 @@ function HomeCockpitPanel({
           value={String(canManage ? adminQueue : counts.recent_completed_runs)}
           helper={
             canManage
-              ? `${counts.training_ready_corrections} correction(s) IA`
+              ? `${counts.pending_upgrade_requests} upgrade(s), ${counts.training_ready_corrections} correction(s) IA`
               : "analyse(s) terminee(s)"
           }
         />
@@ -4422,12 +4730,15 @@ function ActionCenterPanel({
     failed_runs: 0,
     active_runs: 0,
     pending_invitations: 0,
+    pending_upgrade_requests: 0,
     training_ready_corrections: 0,
     recent_completed_runs: 0
   };
   const items = actionCenter?.items ?? [];
   const adminQueue =
-    counts.pending_invitations + counts.training_ready_corrections;
+    counts.pending_invitations +
+    counts.pending_upgrade_requests +
+    counts.training_ready_corrections;
   const urgentCount = counts.critical_alerts + counts.failed_runs;
 
   return (
@@ -4739,6 +5050,17 @@ function formatPlan(plan?: string) {
   return labels[plan ?? "business"] ?? "Business";
 }
 
+function formatUpgradeRequestStatus(status: string) {
+  const labels: Record<string, string> = {
+    pending: "en attente",
+    approved: "acceptee",
+    rejected: "refusee",
+    completed: "traitee",
+    cancelled: "annulee"
+  };
+  return labels[status] ?? status;
+}
+
 function formatLimit(value: number | null | undefined) {
   return value == null ? "Illimite" : value.toLocaleString("fr-FR");
 }
@@ -5009,6 +5331,7 @@ function ModelTrainingPanel({
   feedbackQuality,
   isLoading,
   isSubmitting,
+  isUpgradeSubmitting,
   onUpgrade,
   onRefresh,
   onStartTraining,
@@ -5019,6 +5342,7 @@ function ModelTrainingPanel({
   feedbackQuality: FeedbackQuality | null;
   isLoading: boolean;
   isSubmitting: boolean;
+  isUpgradeSubmitting: boolean;
   onUpgrade: () => void;
   onRefresh: () => void;
   onStartTraining: () => void;
@@ -5082,7 +5406,11 @@ function ModelTrainingPanel({
         </p>
       )}
       {canManage && planGate ? (
-        <PlanGate gate={planGate} onUpgrade={onUpgrade} />
+        <PlanGate
+          gate={planGate}
+          isSubmitting={isUpgradeSubmitting}
+          onUpgrade={onUpgrade}
+        />
       ) : null}
 
       <div className="model-training-kpis">

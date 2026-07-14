@@ -56,6 +56,35 @@ export type OrganizationPlanUpdate = {
   plan: OrganizationPlan;
 };
 
+export type UpgradeRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "completed"
+  | "cancelled";
+
+export type UpgradeRequest = {
+  upgrade_request_id: number;
+  organization_id: number;
+  requested_plan: Exclude<OrganizationPlan, "free">;
+  current_plan: OrganizationPlan;
+  status: UpgradeRequestStatus;
+  source: string | null;
+  note: string | null;
+  metadata: Record<string, unknown>;
+  requested_by_email: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  handled_at: string | null;
+};
+
+export type UpgradeRequestCreate = {
+  requested_plan: Exclude<OrganizationPlan, "free">;
+  source?: string | null;
+  note?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
 export type OrganizationUsage = {
   plan: OrganizationPlan;
   plan_label: string;
@@ -96,6 +125,7 @@ export type ActionCenterCounts = {
   failed_runs: number;
   active_runs: number;
   pending_invitations: number;
+  pending_upgrade_requests: number;
   training_ready_corrections: number;
   recent_completed_runs: number;
 };
