@@ -19,6 +19,7 @@ const apiMocks = vi.hoisted(() => ({
   compareRuns: vi.fn(),
   createModelTrainingRun: vi.fn(),
   createRun: vi.fn(),
+  createUpgradeRequest: vi.fn(),
   deleteReviewFeedback: vi.fn(),
   executeRun: vi.fn(),
   exportFeedback: vi.fn(),
@@ -40,6 +41,7 @@ const apiMocks = vi.hoisted(() => ({
   listOrganizationUsers: vi.fn(),
   listReviewSources: vi.fn(),
   listRuns: vi.fn(),
+  listUpgradeRequests: vi.fn(),
   login: vi.fn(),
   previewCsvFile: vi.fn(),
   refreshRunBusinessAlerts: vi.fn(),
@@ -47,6 +49,7 @@ const apiMocks = vi.hoisted(() => ({
   updateBusinessAlertStatus: vi.fn(),
   updateOrganizationPlan: vi.fn(),
   updateOrganizationSettings: vi.fn(),
+  updateUpgradeRequestStatus: vi.fn(),
   updateReviewSource: vi.fn(),
   uploadCsvRun: vi.fn()
 }));
@@ -79,6 +82,7 @@ const actionCenter: ActionCenter = {
     failed_runs: 0,
     active_runs: 0,
     pending_invitations: 0,
+    pending_upgrade_requests: 0,
     training_ready_corrections: 0,
     recent_completed_runs: 0
   },
@@ -231,6 +235,7 @@ beforeEach(() => {
   apiMocks.getOrganizationUsage.mockResolvedValue(organizationUsage);
   apiMocks.listOrganizationAuditEvents.mockResolvedValue([]);
   apiMocks.listReviewSources.mockResolvedValue(reviewSources);
+  apiMocks.listUpgradeRequests.mockResolvedValue([]);
 });
 
 describe("App authentication and permissions", () => {
@@ -335,6 +340,40 @@ describe("App authentication and permissions", () => {
     expect(screen.getByText("Limite d'analyses atteinte")).toBeInTheDocument();
     expect(screen.getByLabelText("Entreprise ou URL Trustpilot")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Lancer l'analyse" })).toBeDisabled();
+  });
+
+  it("creates an upgrade request from a plan gate", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getOrganizationUsage.mockResolvedValue(freeLimitUsage);
+    apiMocks.createUpgradeRequest.mockResolvedValue({
+      upgrade_request_id: 31,
+      organization_id: 7,
+      requested_plan: "pro",
+      current_plan: "free",
+      status: "pending",
+      source: "analysis_limit",
+      note: "Limite d'analyses atteinte",
+      metadata: {},
+      requested_by_email: "admin@example.test",
+      created_at: null,
+      updated_at: null,
+      handled_at: null
+    });
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await user.click(screen.getByRole("button", { name: "Passer au Pro" }));
+
+    await waitFor(() =>
+      expect(apiMocks.createUpgradeRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requested_plan: "pro",
+          source: "analysis_limit"
+        })
+      )
+    );
   });
 
   it("shows an upgrade gate for model training outside Business", async () => {

@@ -20,6 +20,9 @@ from app.api.schemas import (
     OrganizationSettingsResponse,
     OrganizationSettingsUpdate,
     OrganizationUsageResponse,
+    UpgradeRequestCreate,
+    UpgradeRequestResponse,
+    UpgradeRequestStatusUpdate,
     AuthLoginRequest,
     AuthMeResponse,
     AuthTokenResponse,
@@ -33,6 +36,11 @@ from app.api.services.organization_service import (
     record_audit_event,
     update_organization_plan,
     update_organization_settings,
+)
+from app.api.services.upgrade_service import (
+    create_upgrade_request,
+    list_upgrade_requests,
+    update_upgrade_request_status,
 )
 from app.api.services.usage_limits import (
     UsageLimitError,
@@ -232,6 +240,101 @@ def update_plan(
         metadata={"previous_plan": previous_plan, "new_plan": settings["plan"]},
     )
     return settings
+
+
+@router.post(
+    "/organization/upgrade-requests",
+    response_model=UpgradeRequestResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Creer une demande d'upgrade",
+)
+def request_upgrade(
+    payload: UpgradeRequestCreate,
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    try:
+        upgrade_request = create_upgrade_request(user.organization_id, user, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    record_audit_event(
+        organization_id=user.organization_id,
+        actor_user=user,
+        event_type="organization.upgrade_requested",
+        summary=(
+            "Demande d'upgrade creee vers le plan "
+            f"{upgrade_request['requested_plan']}."
+        ),
+        entity_type="upgrade_request",
+        entity_id=upgrade_request["upgrade_request_id"],
+        metadata={
+            "current_plan": upgrade_request["current_plan"],
+            "requested_plan": upgrade_request["requested_plan"],
+            "status": upgrade_request["status"],
+            "source": upgrade_request.get("source"),
+        },
+    )
+    return upgrade_request
+
+
+@router.get(
+    "/organization/upgrade-requests",
+    response_model=list[UpgradeRequestResponse],
+    summary="Lister les demandes d'upgrade de l'organisation",
+)
+def organization_upgrade_requests(
+    request_status: str = Query(default="open", pattern="^(open|all|pending|approved|rejected|completed|cancelled)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(user)
+    return list_upgrade_requests(
+        user.organization_id,
+        status=request_status,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.patch(
+    "/organization/upgrade-requests/{upgrade_request_id}",
+    response_model=UpgradeRequestResponse,
+    summary="Mettre a jour une demande d'upgrade",
+)
+def update_upgrade_request(
+    upgrade_request_id: int,
+    payload: UpgradeRequestStatusUpdate,
+    user: AuthenticatedUser = Depends(require_current_user),
+):
+    require_org_admin(user)
+    upgrade_request = update_upgrade_request_status(
+        user.organization_id,
+        upgrade_request_id,
+        payload.status,
+    )
+    if upgrade_request is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demande d'upgrade introuvable.",
+        )
+
+    record_audit_event(
+        organization_id=user.organization_id,
+        actor_user=user,
+        event_type="organization.upgrade_request_updated",
+        summary=(
+            "Demande d'upgrade mise a jour: "
+            f"{upgrade_request['requested_plan']} -> {upgrade_request['status']}."
+        ),
+        entity_type="upgrade_request",
+        entity_id=upgrade_request_id,
+        metadata={
+            "requested_plan": upgrade_request["requested_plan"],
+            "status": upgrade_request["status"],
+        },
+    )
+    return upgrade_request
 
 
 @router.get(

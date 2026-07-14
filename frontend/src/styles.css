@@ -797,6 +797,88 @@ a {
   background: #ffffff;
 }
 
+.upgrade-requests-panel {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.upgrade-request-list {
+  display: grid;
+  gap: 8px;
+}
+
+.upgrade-request-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.upgrade-request-row strong,
+.upgrade-request-row p,
+.upgrade-request-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upgrade-request-row p {
+  margin: 3px 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.upgrade-request-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.upgrade-status {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: #eef2f7;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.upgrade-status.pending {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.upgrade-status.approved,
+.upgrade-status.completed {
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.upgrade-status.rejected,
+.upgrade-status.cancelled {
+  color: var(--red);
+  background: var(--red-soft);
+}
+
+.upgrade-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .mini-heading {
   display: flex;
   align-items: center;
@@ -3177,10 +3259,15 @@ tbody tr:last-child td {
 
   .member-row,
   .audit-event-row,
+  .upgrade-request-row,
   .action-item-row,
   .business-alert-row {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .upgrade-request-actions {
+    justify-content: flex-start;
   }
 
   .business-alert-actions {

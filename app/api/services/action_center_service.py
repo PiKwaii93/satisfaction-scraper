@@ -98,6 +98,19 @@ def get_action_center(organization_id: int, role: str = "member", limit=8):
             pending_invitations = _int(cursor.fetchone()["count"])
             training_ready_corrections = _count_feedback_ready(cursor, organization_id)
 
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM upgrade_requests
+                WHERE organization_id = %s
+                  AND status IN ('pending', 'approved');
+                """,
+                (organization_id,),
+            )
+            pending_upgrade_requests = _int(cursor.fetchone()["count"])
+        else:
+            pending_upgrade_requests = 0
+
         items = []
 
         cursor.execute(
@@ -192,6 +205,46 @@ def get_action_center(organization_id: int, role: str = "member", limit=8):
                 )
             )
 
+        if is_admin and pending_upgrade_requests:
+            cursor.execute(
+                """
+                SELECT
+                    upgrade_request_id,
+                    requested_plan,
+                    current_plan,
+                    status,
+                    requested_by_email,
+                    created_at
+                FROM upgrade_requests
+                WHERE organization_id = %s
+                  AND status IN ('pending', 'approved')
+                ORDER BY upgrade_request_id DESC
+                LIMIT 2;
+                """,
+                (organization_id,),
+            )
+            for upgrade_request in cursor.fetchall():
+                items.append(
+                    _item(
+                        f"upgrade_request:{upgrade_request['upgrade_request_id']}",
+                        "upgrade_request",
+                        "info",
+                        "Demande d'upgrade",
+                        (
+                            f"{upgrade_request['requested_by_email'] or 'Un utilisateur'} "
+                            f"demande le plan {upgrade_request['requested_plan']} "
+                            f"depuis {upgrade_request['current_plan']}."
+                        ),
+                        action_label="Voir le plan",
+                        action_target={
+                            "section": "client_space",
+                            "upgrade_request_id": upgrade_request["upgrade_request_id"],
+                        },
+                        requires_admin=True,
+                        created_at=upgrade_request.get("created_at"),
+                    )
+                )
+
         if is_admin and training_ready_corrections:
             items.append(
                 _item(
@@ -282,6 +335,7 @@ def get_action_center(organization_id: int, role: str = "member", limit=8):
             "failed_runs": _int(run_counts["failed_runs"]),
             "active_runs": _int(run_counts["active_runs"]),
             "pending_invitations": pending_invitations,
+            "pending_upgrade_requests": pending_upgrade_requests,
             "training_ready_corrections": training_ready_corrections,
             "recent_completed_runs": _int(run_counts["recent_completed_runs"]),
         },
