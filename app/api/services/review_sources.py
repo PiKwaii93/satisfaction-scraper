@@ -118,6 +118,44 @@ SOURCE_CATALOG = [
 SOURCE_CATALOG_BY_ID = {source["source_id"]: source for source in SOURCE_CATALOG}
 
 
+def _coerce_pages_per_star(value):
+    if value in (None, ""):
+        return None
+
+    try:
+        pages_per_star = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Le nombre de pages par note doit etre un entier.") from exc
+
+    if pages_per_star < 1 or pages_per_star > 10:
+        raise ValueError("Le nombre de pages par note doit etre compris entre 1 et 10.")
+
+    return pages_per_star
+
+
+def _normalize_trustpilot_config(config):
+    normalized = {}
+
+    if "default_company" in config:
+        normalized["default_company"] = str(config.get("default_company") or "").strip()
+
+    pages_per_star = _coerce_pages_per_star(config.get("pages_per_star"))
+    if pages_per_star is not None:
+        normalized["pages_per_star"] = pages_per_star
+
+    return normalized
+
+
+def _normalize_source_config(source_id, config):
+    if not isinstance(config, dict):
+        raise ValueError("La configuration de source doit etre un objet.")
+
+    if source_id == "trustpilot":
+        return _normalize_trustpilot_config(config)
+
+    return {}
+
+
 def _default_source_state(source):
     if source["status"] == PLANNED_SOURCE_STATUS:
         return {
@@ -249,19 +287,32 @@ def update_review_source(organization_id, source_id, payload):
 
     ensure_organization_source_rows(organization_id)
     enabled = payload.enabled
+    config_update = payload.config or {}
 
     with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            SELECT *
+            FROM organization_review_sources
+            WHERE organization_id = %s
+              AND source_id = %s;
+            """,
+            (organization_id, source_id),
+        )
+        current_row = cursor.fetchone()
+
         if enabled is None:
-            cursor.execute(
-                """
-                SELECT *
-                FROM organization_review_sources
-                WHERE organization_id = %s
-                  AND source_id = %s;
-                """,
-                (organization_id, source_id),
-            )
-            return _serialize_source(source, cursor.fetchone())
+            enabled = bool(current_row.get("is_enabled"))
+
+        current_config = current_row.get("config") or {}
+        next_config = current_config
+        if config_update:
+            next_config = {
+                **current_config,
+                **_normalize_source_config(source_id, config_update),
+            }
+        elif payload.enabled is None:
+            return _serialize_source(source, current_row)
 
         status = ACTIVE_SOURCE_STATUS if enabled else NOT_CONFIGURED_SOURCE_STATUS
         cursor.execute(
@@ -271,6 +322,7 @@ def update_review_source(organization_id, source_id, payload):
                 is_enabled = %s,
                 is_configured = %s,
                 status = %s,
+                config = %s,
                 last_error = NULL,
                 updated_at = NOW()
             WHERE organization_id = %s
@@ -281,6 +333,7 @@ def update_review_source(organization_id, source_id, payload):
                 enabled,
                 enabled,
                 status,
+                Json(next_config),
                 organization_id,
                 source_id,
             ),

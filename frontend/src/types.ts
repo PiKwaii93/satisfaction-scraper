@@ -26,6 +26,7 @@ export type ReviewSource = {
 
 export type ReviewSourceUpdate = {
   enabled?: boolean | null;
+  config?: Record<string, unknown>;
 };
 
 export type Organization = {

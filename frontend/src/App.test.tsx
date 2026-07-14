@@ -323,6 +323,35 @@ describe("App authentication and permissions", () => {
     );
   });
 
+  it("lets an admin save the Trustpilot source defaults", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    const defaultCompanyInput = await screen.findByPlaceholderText(
+      "https://fr.trustpilot.com/review/www.darty.com"
+    );
+    await user.clear(defaultCompanyInput);
+    await user.type(
+      defaultCompanyInput,
+      "https://fr.trustpilot.com/review/example.com"
+    );
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() =>
+      expect(apiMocks.updateReviewSource).toHaveBeenCalledWith("trustpilot", {
+        enabled: true,
+        config: {
+          default_company: "https://fr.trustpilot.com/review/example.com",
+          pages_per_star: 1
+        }
+      })
+    );
+  });
+
   it("blocks analysis creation when the plan run limit is reached", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);
