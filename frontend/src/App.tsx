@@ -117,6 +117,13 @@ type OnboardingStep = {
   requiresAdmin?: boolean;
 };
 
+type PlanGateInfo = {
+  title: string;
+  message: string;
+  requiredPlan: OrganizationPlan;
+  actionLabel: string;
+};
+
 type WorkspaceView = "home" | "analyses" | "benchmark" | "ai" | "admin";
 
 type WorkspaceNavItem = {
@@ -1445,6 +1452,28 @@ export default function App() {
   const canGoToPreviousReviews = reviewsOffset > 0;
   const canGoToNextReviews = reviewsOffset + reviews.length < reviewsTotal;
   const canManageWorkspace = currentUser?.role === "admin";
+  const benchmarkPlanGate = getFeaturePlanGate(
+    organizationUsage,
+    "benchmark"
+  );
+  const modelTrainingPlanGate = getFeaturePlanGate(
+    organizationUsage,
+    "model_training"
+  );
+  const analysisPlanGate = getUsagePlanGate(
+    organizationUsage,
+    "monthly_runs"
+  );
+  const csvImportPlanGate = getCsvImportPlanGate(
+    organizationUsage,
+    csvPreview?.review_count ?? null
+  );
+  const memberPlanGate = getUsagePlanGate(organizationUsage, "members");
+  const isAnalysisBlockedByPlan = Boolean(analysisPlanGate);
+  const isCsvImportBlockedByPlan =
+    sourceMode === "csv" && Boolean(csvImportPlanGate);
+  const isBenchmarkBlockedByPlan = Boolean(benchmarkPlanGate);
+  const isModelTrainingBlockedByPlan = Boolean(modelTrainingPlanGate);
   const onboardingSteps = useMemo<OnboardingStep[]>(() => {
     const hasActiveAnalysisSource = reviewSources.some(
       (source) =>
@@ -1633,6 +1662,10 @@ export default function App() {
       );
       return;
     }
+    if (memberPlanGate) {
+      setOrganizationUserError(memberPlanGate.message);
+      return;
+    }
 
     setOrganizationUserError(null);
     setOrganizationUserMessage(null);
@@ -1801,6 +1834,11 @@ export default function App() {
   }
 
   async function handleCompareRuns() {
+    if (benchmarkPlanGate) {
+      setError(benchmarkPlanGate.message);
+      return;
+    }
+
     if (comparisonRunIds.length < 2) {
       setError("Sélectionne au moins 2 analyses terminées à comparer.");
       return;
@@ -1823,6 +1861,10 @@ export default function App() {
   async function handleStartModelTraining() {
     if (!canManageWorkspace) {
       setError("Seul un administrateur peut lancer un reentrainement.");
+      return;
+    }
+    if (modelTrainingPlanGate) {
+      setError(modelTrainingPlanGate.message);
       return;
     }
 
@@ -2161,6 +2203,10 @@ export default function App() {
       setError("Mode lecture seule: un administrateur doit lancer les analyses.");
       return;
     }
+    if (analysisPlanGate) {
+      setError(analysisPlanGate.message);
+      return;
+    }
 
     if (sourceMode === "trustpilot") {
       const validationError = validateCompanyInput(company);
@@ -2179,6 +2225,9 @@ export default function App() {
       return;
     } else if (csvPreviewError || !csvPreview) {
       setError(csvPreviewError ?? "Previsualise le CSV avant de lancer l'analyse.");
+      return;
+    } else if (csvImportPlanGate) {
+      setError(csvImportPlanGate.message);
       return;
     }
 
@@ -2613,6 +2662,18 @@ export default function App() {
               une analyse.
             </p>
           )}
+          {analysisPlanGate ? (
+            <PlanGate
+              gate={analysisPlanGate}
+              onUpgrade={() => setActiveView("admin")}
+            />
+          ) : null}
+          {!analysisPlanGate && sourceMode === "csv" && csvImportPlanGate ? (
+            <PlanGate
+              gate={csvImportPlanGate}
+              onUpgrade={() => setActiveView("admin")}
+            />
+          ) : null}
 
           <label htmlFor="company">
             {sourceMode === "csv"
@@ -2628,7 +2689,7 @@ export default function App() {
               placeholder={
                 sourceMode === "csv" ? "Nom de l'entreprise" : "www.darty.com"
               }
-              disabled={isSubmitting || !canManageWorkspace}
+              disabled={isSubmitting || !canManageWorkspace || isAnalysisBlockedByPlan}
             />
           </div>
 
@@ -2640,7 +2701,11 @@ export default function App() {
                 <span>{csvFile ? csvFile.name : "Choisir un fichier .csv"}</span>
                 <input
                   accept=".csv,text/csv"
-                  disabled={isSubmitting || !canManageWorkspace}
+                  disabled={
+                    isSubmitting ||
+                    !canManageWorkspace ||
+                    isAnalysisBlockedByPlan
+                  }
                   id="csv-file"
                   onChange={(event) =>
                     handleCsvFileChange(event.target.files?.[0] ?? null)
@@ -2729,7 +2794,7 @@ export default function App() {
                     key={value}
                     type="button"
                     onClick={() => setPagesPerStar(value)}
-                    disabled={isSubmitting || !canManageWorkspace}
+                    disabled={isSubmitting || !canManageWorkspace || isAnalysisBlockedByPlan}
                   >
                     {value}
                   </button>
@@ -2742,6 +2807,8 @@ export default function App() {
             className="primary-action"
             disabled={
               !canManageWorkspace ||
+              isAnalysisBlockedByPlan ||
+              isCsvImportBlockedByPlan ||
               isSubmitting ||
               (sourceMode === "csv" &&
                 (!csvPreview || Boolean(csvPreviewError) || isCsvPreviewLoading))
@@ -2813,6 +2880,13 @@ export default function App() {
             Sélectionne 2 à 4 analyses terminées pour comparer les entreprises.
           </p>
 
+          {benchmarkPlanGate ? (
+            <PlanGate
+              gate={benchmarkPlanGate}
+              onUpgrade={() => setActiveView("admin")}
+            />
+          ) : null}
+
           <div className="benchmark-select-list">
             {completedRuns.length === 0 && (
               <p className="muted">Aucun run termine disponible.</p>
@@ -2823,6 +2897,7 @@ export default function App() {
                 <button
                   className={`benchmark-choice ${isSelected ? "selected" : ""}`}
                   key={run.run_id}
+                  disabled={isBenchmarkBlockedByPlan}
                   onClick={() => toggleComparisonRun(run.run_id)}
                   type="button"
                 >
@@ -2837,7 +2912,11 @@ export default function App() {
           <div className="benchmark-actions">
             <button
               className="primary-action"
-              disabled={comparisonRunIds.length < 2 || isComparisonLoading}
+              disabled={
+                isBenchmarkBlockedByPlan ||
+                comparisonRunIds.length < 2 ||
+                isComparisonLoading
+              }
               onClick={handleCompareRuns}
               type="button"
             >
@@ -2945,6 +3024,8 @@ export default function App() {
               feedbackQuality={feedbackQuality}
               isLoading={isTrainingOverviewLoading}
               isSubmitting={isTrainingSubmitting}
+              planGate={modelTrainingPlanGate}
+              onUpgrade={() => setActiveView("admin")}
               onRefresh={() =>
                 refreshTrainingOverview().catch((err: Error) => setError(err.message))
               }
@@ -3640,6 +3721,7 @@ function ClientSpacePanel({
   const isRefreshingClientSpace =
     isLoadingUsers || isLoadingSettings || isLoadingAudit;
   const planLabel = usage?.plan_label ?? formatPlan(settings?.plan);
+  const invitePlanGate = getUsagePlanGate(usage, "members");
 
   return (
     <section className="client-space-panel insight-section wide" id="client_space">
@@ -3853,6 +3935,17 @@ function ClientSpacePanel({
             <strong>Inviter un utilisateur</strong>
             <span>{isAdmin ? "Admin" : "Lecture seule"}</span>
           </div>
+          {invitePlanGate ? (
+            <PlanGate
+              compact
+              gate={invitePlanGate}
+              onUpgrade={() =>
+                document
+                  .getElementById("organization-plan")
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" })
+              }
+            />
+          ) : null}
           <input
             disabled={!isAdmin || isCreatingUser}
             onChange={(event) => onUpdateNewUserEmail(event.target.value)}
@@ -3877,7 +3970,7 @@ function ClientSpacePanel({
           </select>
           <button
             className="primary-action compact-action"
-            disabled={!isAdmin || isCreatingUser}
+            disabled={!isAdmin || isCreatingUser || Boolean(invitePlanGate)}
             type="submit"
           >
             {isCreatingUser ? <Loader2 className="spin" size={16} /> : <UserPlus size={16} />}
@@ -3961,8 +4054,14 @@ function OrganizationUsagePanel({
       <div className="usage-grid">
         {rows.map((row) => {
           const percent = usagePercent(row.used, row.limit);
+          const isOverLimit =
+            row.label !== "Avis par import CSV" &&
+            isUsageLimitReached(row.used, row.limit);
           return (
-            <div className="usage-card" key={row.label}>
+            <div
+              className={`usage-card ${isOverLimit ? "over-limit" : ""}`}
+              key={row.label}
+            >
               <div>
                 <strong>{row.label}</strong>
                 <span>
@@ -3977,6 +4076,9 @@ function OrganizationUsagePanel({
                 </div>
               )}
               <small>{row.helper}</small>
+              {isOverLimit ? (
+                <small className="usage-warning">Limite atteinte avec le plan actuel.</small>
+              ) : null}
             </div>
           );
         })}
@@ -3996,6 +4098,29 @@ function OrganizationUsagePanel({
           Changement interne MVP: les limites sont appliquees immediatement et journalisees.
         </p>
       )}
+    </div>
+  );
+}
+
+function PlanGate({
+  compact = false,
+  gate,
+  onUpgrade
+}: {
+  compact?: boolean;
+  gate: PlanGateInfo;
+  onUpgrade: () => void;
+}) {
+  return (
+    <div className={`plan-gate ${compact ? "compact" : ""}`}>
+      <AlertTriangle size={compact ? 16 : 18} />
+      <div>
+        <strong>{gate.title}</strong>
+        <p>{gate.message}</p>
+      </div>
+      <button className="secondary-action compact-action" onClick={onUpgrade} type="button">
+        {gate.actionLabel}
+      </button>
     </div>
   );
 }
@@ -4625,6 +4750,105 @@ function usagePercent(used: number, limit: number | null | undefined) {
   return Math.min(100, Math.round((used / limit) * 100));
 }
 
+function isUsageLimitReached(
+  used: number,
+  limit: number | null | undefined
+) {
+  return typeof limit === "number" && used >= limit;
+}
+
+function getUsagePlanGate(
+  usage: OrganizationUsage | null,
+  key: keyof OrganizationUsage["limits"]
+): PlanGateInfo | null {
+  if (!usage) {
+    return null;
+  }
+
+  if (key === "monthly_runs") {
+    return isUsageLimitReached(usage.usage.monthly_runs, usage.limits.monthly_runs)
+      ? {
+          title: "Limite d'analyses atteinte",
+          message: `${usage.usage.monthly_runs.toLocaleString("fr-FR")} analyse(s) utilisee(s) sur ${formatLimit(usage.limits.monthly_runs)} avec le plan ${usage.plan_label}. Passe au plan Pro ou Business pour continuer ce mois-ci.`,
+          requiredPlan: usage.plan === "free" ? "pro" : "business",
+          actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
+        }
+      : null;
+  }
+
+  if (key === "members") {
+    return isUsageLimitReached(usage.usage.members, usage.limits.members)
+      ? {
+          title: "Limite de membres atteinte",
+          message: `${usage.usage.members.toLocaleString("fr-FR")} membre(s) actif(s) ou invite(s) sur ${formatLimit(usage.limits.members)} avec le plan ${usage.plan_label}. Passe au plan superieur pour inviter l'equipe.`,
+          requiredPlan: usage.plan === "business" ? "business" : "pro",
+          actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
+        }
+      : null;
+  }
+
+  if (key === "monthly_reviews") {
+    return isUsageLimitReached(
+      usage.usage.monthly_reviews,
+      usage.limits.monthly_reviews
+    )
+      ? {
+          title: "Limite d'avis atteinte",
+          message: `${usage.usage.monthly_reviews.toLocaleString("fr-FR")} avis analyse(s) sur ${formatLimit(usage.limits.monthly_reviews)} avec le plan ${usage.plan_label}. Passe au plan superieur pour poursuivre les analyses.`,
+          requiredPlan: usage.plan === "free" ? "pro" : "business",
+          actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
+        }
+      : null;
+  }
+
+  return null;
+}
+
+function getCsvImportPlanGate(
+  usage: OrganizationUsage | null,
+  reviewCount: number | null
+): PlanGateInfo | null {
+  if (!usage || reviewCount == null || usage.limits.csv_reviews_per_import == null) {
+    return null;
+  }
+
+  if (reviewCount <= usage.limits.csv_reviews_per_import) {
+    return null;
+  }
+
+  return {
+    title: "CSV trop volumineux pour le plan actuel",
+    message: `Ce fichier contient ${reviewCount.toLocaleString("fr-FR")} avis, au-dessus de la limite ${formatLimit(usage.limits.csv_reviews_per_import)} du plan ${usage.plan_label}.`,
+    requiredPlan: usage.plan === "free" ? "pro" : "business",
+    actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
+  };
+}
+
+function getFeaturePlanGate(
+  usage: OrganizationUsage | null,
+  feature: keyof OrganizationUsage["features"]
+): PlanGateInfo | null {
+  if (!usage || usage.features[feature]) {
+    return null;
+  }
+
+  if (feature === "benchmark") {
+    return {
+      title: "Benchmark reserve aux plans Pro et Business",
+      message: `Le plan ${usage.plan_label} permet de lire les rapports, mais la comparaison multi-runs commence au plan Pro.`,
+      requiredPlan: "pro",
+      actionLabel: "Passer au Pro"
+    };
+  }
+
+  return {
+    title: "Reentrainement IA reserve au plan Business",
+    message: `Le plan ${usage.plan_label} conserve les corrections humaines, mais le reentrainement pilote depuis l'interface est inclus avec Business.`,
+    requiredPlan: "business",
+    actionLabel: "Passer au Business"
+  };
+}
+
 function formatAccountStatus(status: string) {
   const labels: Record<string, string> = {
     active: "Actif",
@@ -4785,17 +5009,21 @@ function ModelTrainingPanel({
   feedbackQuality,
   isLoading,
   isSubmitting,
+  onUpgrade,
   onRefresh,
   onStartTraining,
-  overview
+  overview,
+  planGate
 }: {
   canManage: boolean;
   feedbackQuality: FeedbackQuality | null;
   isLoading: boolean;
   isSubmitting: boolean;
+  onUpgrade: () => void;
   onRefresh: () => void;
   onStartTraining: () => void;
   overview: ModelTrainingOverview | null;
+  planGate: PlanGateInfo | null;
 }) {
   const activeRun = overview?.active_run ?? null;
   const latestRun = overview?.latest_run ?? null;
@@ -4826,10 +5054,12 @@ function ModelTrainingPanel({
           </button>
           <button
             className="primary-action compact-action"
-            disabled={!canManage || isSubmitting || hasActiveRun}
+            disabled={!canManage || Boolean(planGate) || isSubmitting || hasActiveRun}
             onClick={onStartTraining}
             title={
-              canManage
+              planGate
+                ? planGate.message
+                : canManage
                 ? "Lancer un reentrainement"
                 : "Reserve aux administrateurs"
             }
@@ -4851,6 +5081,9 @@ function ModelTrainingPanel({
           administrateurs.
         </p>
       )}
+      {canManage && planGate ? (
+        <PlanGate gate={planGate} onUpgrade={onUpgrade} />
+      ) : null}
 
       <div className="model-training-kpis">
         <Kpi

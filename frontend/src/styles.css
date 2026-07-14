@@ -667,6 +667,11 @@ a {
   background: var(--surface-muted);
 }
 
+.usage-card.over-limit {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
 .usage-card div:first-child {
   display: flex;
   align-items: baseline;
@@ -689,6 +694,10 @@ a {
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.usage-card .usage-warning {
+  color: var(--red);
 }
 
 .usage-bar {
@@ -727,6 +736,40 @@ a {
 .feature-off {
   color: var(--muted);
   background: #eef2f7;
+}
+
+.plan-gate {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.plan-gate.compact {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.plan-gate.compact button {
+  grid-column: 1 / -1;
+}
+
+.plan-gate strong {
+  display: block;
+  color: #172554;
+  font-size: 0.8rem;
+}
+
+.plan-gate p {
+  margin: 2px 0 0;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .client-members-layout {

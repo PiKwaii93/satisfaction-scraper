@@ -139,6 +139,43 @@ const organizationUsage: OrganizationUsage = {
   }
 };
 
+const freeLimitUsage: OrganizationUsage = {
+  ...organizationUsage,
+  plan: "free",
+  plan_label: "Free",
+  limits: {
+    monthly_runs: 3,
+    monthly_reviews: 300,
+    csv_reviews_per_import: 100,
+    members: 1
+  },
+  usage: {
+    monthly_runs: 3,
+    monthly_reviews: 120,
+    members: 1
+  },
+  features: {
+    benchmark: false,
+    model_training: false
+  }
+};
+
+const proUsage: OrganizationUsage = {
+  ...organizationUsage,
+  plan: "pro",
+  plan_label: "Pro",
+  limits: {
+    monthly_runs: 50,
+    monthly_reviews: 10000,
+    csv_reviews_per_import: 2000,
+    members: 5
+  },
+  features: {
+    benchmark: true,
+    model_training: false
+  }
+};
+
 const reviewSources: ReviewSource[] = [
   {
     source_id: "trustpilot",
@@ -284,5 +321,34 @@ describe("App authentication and permissions", () => {
         execute_immediately: true
       })
     );
+  });
+
+  it("blocks analysis creation when the plan run limit is reached", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getOrganizationUsage.mockResolvedValue(freeLimitUsage);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(screen.getByText("Limite d'analyses atteinte")).toBeInTheDocument();
+    expect(screen.getByLabelText("Entreprise ou URL Trustpilot")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Lancer l'analyse" })).toBeDisabled();
+  });
+
+  it("shows an upgrade gate for model training outside Business", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getOrganizationUsage.mockResolvedValue(proUsage);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Qualite IA/ }));
+
+    expect(
+      screen.getByText("Reentrainement IA reserve au plan Business")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reentrainer" })).toBeDisabled();
   });
 });
