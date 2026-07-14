@@ -196,6 +196,7 @@ class ReviewSourceResponse(BaseModel):
 
 class ReviewSourceUpdate(BaseModel):
     enabled: bool | None = None
+    config: dict = Field(default_factory=dict)
 
 
 class AnalysisRunCreate(BaseModel):

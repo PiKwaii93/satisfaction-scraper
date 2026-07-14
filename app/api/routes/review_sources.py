@@ -55,6 +55,7 @@ def configure_review_source(
             "source_id": source["source_id"],
             "status": source["status"],
             "is_enabled": source["is_enabled"],
+            "config_keys": sorted(source["config"].keys()),
         },
     )
     return source

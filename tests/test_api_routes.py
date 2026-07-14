@@ -817,24 +817,25 @@ def test_admin_can_update_review_source(authenticated_client, monkeypatch):
         captured["organization_id"] = organization_id
         captured["source_id"] = source_id
         captured["enabled"] = payload.enabled
+        captured["config"] = payload.config
         return {
             "source_id": source_id,
-            "label": "CSV",
-            "category": "Fichier",
-            "status": "not_configured",
-            "supports_analysis": False,
-            "is_configured": False,
-            "is_enabled": False,
+            "label": "Trustpilot",
+            "category": "Web public",
+            "status": "active",
+            "supports_analysis": True,
+            "is_configured": True,
+            "is_enabled": True,
             "can_configure": True,
             "last_error": None,
-            "config": {},
+            "config": payload.config,
             "updated_at": None,
-            "description": "Import CSV",
-            "setup_hint": "Importer un fichier CSV",
+            "description": "Avis Trustpilot",
+            "setup_hint": "Configurer une entreprise par defaut",
             "required_fields": [],
             "optional_fields": [],
             "column_aliases": {},
-            "primary_action": "Importer un CSV",
+            "primary_action": "Coller une URL",
         }
 
     monkeypatch.setattr(
@@ -847,15 +848,23 @@ def test_admin_can_update_review_source(authenticated_client, monkeypatch):
     )
 
     response = authenticated_client.patch(
-        "/review-sources/csv",
-        json={"enabled": False},
+        "/review-sources/trustpilot",
+        json={
+            "enabled": True,
+            "config": {
+                "default_company": "https://fr.trustpilot.com/review/www.darty.com",
+                "pages_per_star": 3,
+            },
+        },
     )
 
     assert response.status_code == 200
-    assert response.json()["status"] == "not_configured"
+    assert response.json()["status"] == "active"
+    assert response.json()["config"]["pages_per_star"] == 3
     assert captured["organization_id"] == 123
-    assert captured["source_id"] == "csv"
-    assert captured["enabled"] is False
+    assert captured["source_id"] == "trustpilot"
+    assert captured["enabled"] is True
+    assert captured["config"]["default_company"].endswith("www.darty.com")
     assert captured["audit_event"]["organization_id"] == 123
 
 

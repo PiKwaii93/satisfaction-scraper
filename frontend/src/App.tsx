@@ -317,6 +317,25 @@ function formatSourceStatus(status: ReviewSource["status"]) {
   return labels[status];
 }
 
+function getTrustpilotSourceConfig(source: ReviewSource | undefined) {
+  const config = source?.config ?? {};
+  const defaultCompany =
+    typeof config.default_company === "string" ? config.default_company : "";
+  const rawPagesPerStar =
+    typeof config.pages_per_star === "number"
+      ? config.pages_per_star
+      : Number(config.pages_per_star);
+  const pagesPerStar =
+    Number.isFinite(rawPagesPerStar) && rawPagesPerStar >= 1 && rawPagesPerStar <= 10
+      ? rawPagesPerStar
+      : 1;
+
+  return {
+    defaultCompany,
+    pagesPerStar
+  };
+}
+
 function formatDuration(seconds: number | null | undefined) {
   if (seconds === null || seconds === undefined) {
     return null;
@@ -1903,6 +1922,16 @@ export default function App() {
     }
 
     setSourceMode(sourceId);
+    if (sourceId === "trustpilot") {
+      const source = reviewSources.find(
+        (reviewSource) => reviewSource.source_id === "trustpilot"
+      );
+      const config = getTrustpilotSourceConfig(source);
+      if (config.defaultCompany) {
+        setCompany(config.defaultCompany);
+      }
+      setPagesPerStar(config.pagesPerStar);
+    }
     setError(null);
   }
 
@@ -1923,6 +1952,47 @@ export default function App() {
     } catch (err) {
       setReviewSourcesError(
         err instanceof Error ? err.message : "Source impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingReviewSourceId(null);
+    }
+  }
+
+  async function handleReviewSourceConfigSave(
+    source: ReviewSource,
+    config: Record<string, unknown>
+  ) {
+    if (!canManageWorkspace || !source.can_configure) {
+      return;
+    }
+
+    setUpdatingReviewSourceId(source.source_id);
+    setReviewSourcesError(null);
+
+    try {
+      await updateReviewSource(source.source_id, {
+        enabled: source.is_enabled,
+        config
+      });
+      await refreshReviewSources();
+      await refreshAdminAuditEvents();
+      if (source.source_id === "trustpilot") {
+        const defaultCompany =
+          typeof config.default_company === "string" ? config.default_company : "";
+        const pages =
+          typeof config.pages_per_star === "number"
+            ? config.pages_per_star
+            : Number(config.pages_per_star);
+        if (defaultCompany) {
+          setCompany(defaultCompany);
+        }
+        if (Number.isFinite(pages) && pages >= 1 && pages <= 10) {
+          setPagesPerStar(pages);
+        }
+      }
+    } catch (err) {
+      setReviewSourcesError(
+        err instanceof Error ? err.message : "Configuration impossible a enregistrer"
       );
     } finally {
       setUpdatingReviewSourceId(null);
@@ -2756,6 +2826,7 @@ export default function App() {
                 )
               }
               onSelectSource={handleReviewSourceSelect}
+              onSaveSourceConfig={handleReviewSourceConfigSave}
               onToggleSource={handleReviewSourceToggle}
               sources={reviewSources}
               updatingSourceId={updatingReviewSourceId}
@@ -3671,6 +3742,7 @@ function ReviewSourcesPanel({
   isLoading,
   onRefresh,
   onSelectSource,
+  onSaveSourceConfig,
   onToggleSource,
   sources,
   updatingSourceId
@@ -3681,10 +3753,14 @@ function ReviewSourcesPanel({
   isLoading: boolean;
   onRefresh: () => void;
   onSelectSource: (sourceId: string) => void;
+  onSaveSourceConfig: (source: ReviewSource, config: Record<string, unknown>) => void;
   onToggleSource: (source: ReviewSource) => void;
   sources: ReviewSource[];
   updatingSourceId: string | null;
 }) {
+  const [sourceConfigDrafts, setSourceConfigDrafts] = useState<
+    Record<string, { default_company: string; pages_per_star: string }>
+  >({});
   const activeSources = sources.filter(
     (source) => source.status === "active" && source.supports_analysis
   );
@@ -3692,6 +3768,35 @@ function ReviewSourcesPanel({
     (source) => source.status !== "planned"
   );
   const plannedSources = sources.filter((source) => source.status === "planned");
+
+  useEffect(() => {
+    setSourceConfigDrafts((currentDrafts) => {
+      const nextDrafts = { ...currentDrafts };
+      sources.forEach((source) => {
+        if (source.source_id !== "trustpilot") {
+          return;
+        }
+
+        const config = getTrustpilotSourceConfig(source);
+        nextDrafts[source.source_id] = {
+          default_company: config.defaultCompany,
+          pages_per_star: String(config.pagesPerStar)
+        };
+      });
+      return nextDrafts;
+    });
+  }, [sources]);
+
+  function updateConfigDraft(sourceId: string, field: string, value: string) {
+    setSourceConfigDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [sourceId]: {
+        default_company: currentDrafts[sourceId]?.default_company ?? "",
+        pages_per_star: currentDrafts[sourceId]?.pages_per_star ?? "1",
+        [field]: value
+      }
+    }));
+  }
 
   return (
     <section className="sources-panel" id="review_sources">
@@ -3765,6 +3870,57 @@ function ReviewSourcesPanel({
                     "Activer"
                   )}
                 </button>
+              ) : null}
+              {source.source_id === "trustpilot" && source.can_configure && !isReadOnly ? (
+                <div className="source-config-form">
+                  <label>
+                    <span>Entreprise par defaut</span>
+                    <input
+                      onChange={(event) =>
+                        updateConfigDraft(
+                          source.source_id,
+                          "default_company",
+                          event.target.value
+                        )
+                      }
+                      placeholder="https://fr.trustpilot.com/review/www.darty.com"
+                      type="text"
+                      value={sourceConfigDrafts[source.source_id]?.default_company ?? ""}
+                    />
+                  </label>
+                  <label>
+                    <span>Pages par note</span>
+                    <input
+                      max={10}
+                      min={1}
+                      onChange={(event) =>
+                        updateConfigDraft(
+                          source.source_id,
+                          "pages_per_star",
+                          event.target.value
+                        )
+                      }
+                      type="number"
+                      value={sourceConfigDrafts[source.source_id]?.pages_per_star ?? "1"}
+                    />
+                  </label>
+                  <button
+                    className="source-config-save"
+                    disabled={isUpdating}
+                    onClick={() =>
+                      onSaveSourceConfig(source, {
+                        default_company:
+                          sourceConfigDrafts[source.source_id]?.default_company ?? "",
+                        pages_per_star: Number(
+                          sourceConfigDrafts[source.source_id]?.pages_per_star ?? 1
+                        )
+                      })
+                    }
+                    type="button"
+                  >
+                    {isUpdating ? <Loader2 className="spin" size={14} /> : "Enregistrer"}
+                  </button>
+                </div>
               ) : null}
             </div>
           );
