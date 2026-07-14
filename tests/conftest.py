@@ -35,6 +35,10 @@ def configure_test_auth(monkeypatch):
         "app.api.routes.analysis_runs.is_source_available",
         lambda organization_id, source_id: True,
     )
+    monkeypatch.setattr(
+        "app.api.routes.analysis_runs.get_csv_column_mapping_profile",
+        lambda organization_id: {},
+    )
 
 
 @pytest.fixture

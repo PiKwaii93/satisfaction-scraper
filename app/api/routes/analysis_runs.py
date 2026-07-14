@@ -55,7 +55,7 @@ from app.api.services.analysis_service import (
     save_review_feedback,
 )
 from app.api.services.organization_service import record_audit_event
-from app.api.services.review_sources import is_source_available
+from app.api.services.review_sources import get_csv_column_mapping_profile, is_source_available
 from app.api.services.usage_limits import (
     REVIEWS_PER_TRUSTPILOT_PAGE_ESTIMATE,
     FeatureNotAvailableError,
@@ -94,6 +94,15 @@ def parse_csv_column_mapping(column_mapping: str | None):
         for field, column in payload.items()
         if field in allowed_fields
     }
+
+
+def resolve_csv_column_mapping(organization_id: int, column_mapping: str | None):
+    parsed_mapping = parse_csv_column_mapping(column_mapping)
+    if parsed_mapping is not None:
+        return parsed_mapping
+
+    profile_mapping = get_csv_column_mapping_profile(organization_id)
+    return profile_mapping or None
 
 
 def require_source_available(organization_id: int, source_id: str):
@@ -180,7 +189,10 @@ async def preview_csv_run(
             raise ValueError("Le fichier CSV est vide.")
         return build_csv_import_preview(
             content,
-            column_mapping=parse_csv_column_mapping(column_mapping),
+            column_mapping=resolve_csv_column_mapping(
+                current_user.organization_id,
+                column_mapping,
+            ),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -214,9 +226,13 @@ async def import_csv_run(
         content = await file.read()
         if not content:
             raise ValueError("Le fichier CSV est vide.")
+        resolved_mapping = resolve_csv_column_mapping(
+            current_user.organization_id,
+            column_mapping,
+        )
         preview = build_csv_import_preview(
             content,
-            column_mapping=parse_csv_column_mapping(column_mapping),
+            column_mapping=resolved_mapping,
         )
         assert_can_import_csv(current_user.organization_id, preview["review_count"])
         run = create_csv_analysis_run(
@@ -224,7 +240,7 @@ async def import_csv_run(
             file_bytes=content,
             organization_id=current_user.organization_id,
             original_filename=file.filename,
-            column_mapping=parse_csv_column_mapping(column_mapping),
+            column_mapping=resolved_mapping,
         )
         record_audit_event(
             organization_id=current_user.organization_id,

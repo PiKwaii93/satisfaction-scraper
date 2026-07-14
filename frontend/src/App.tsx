@@ -336,6 +336,42 @@ function getTrustpilotSourceConfig(source: ReviewSource | undefined) {
   };
 }
 
+function normalizeCsvColumnMapping(value: unknown): CsvColumnMapping {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const rawMapping = value as Record<string, unknown>;
+  return CSV_MAPPING_FIELDS.reduce<CsvColumnMapping>((mapping, field) => {
+    const column = rawMapping[field.key];
+    if (typeof column === "string" && column.trim()) {
+      mapping[field.key] = column.trim();
+    }
+    return mapping;
+  }, {});
+}
+
+function getCsvSourceConfig(source: ReviewSource | undefined) {
+  const config = source?.config ?? {};
+  return {
+    columnMapping: normalizeCsvColumnMapping(config.column_mapping)
+  };
+}
+
+function hasCsvColumnMapping(mapping: CsvColumnMapping) {
+  return CSV_MAPPING_FIELDS.some((field) => Boolean(mapping[field.key]));
+}
+
+function compactCsvColumnMapping(mapping: CsvColumnMapping) {
+  return CSV_MAPPING_FIELDS.reduce<CsvColumnMapping>((compactMapping, field) => {
+    const column = mapping[field.key];
+    if (column?.trim()) {
+      compactMapping[field.key] = column.trim();
+    }
+    return compactMapping;
+  }, {});
+}
+
 function formatDuration(seconds: number | null | undefined) {
   if (seconds === null || seconds === undefined) {
     return null;
@@ -1241,6 +1277,7 @@ export default function App() {
     useState<CsvColumnMapping>({});
   const [csvPreview, setCsvPreview] = useState<CsvImportPreview | null>(null);
   const [csvPreviewError, setCsvPreviewError] = useState<string | null>(null);
+  const [csvProfileMessage, setCsvProfileMessage] = useState<string | null>(null);
   const [isCsvPreviewLoading, setIsCsvPreviewLoading] = useState(false);
   const [pagesPerStar, setPagesPerStar] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -1458,6 +1495,18 @@ export default function App() {
     }
     refreshReviewSources().catch((err: Error) => setReviewSourcesError(err.message));
   }, [currentUser?.user_id]);
+
+  useEffect(() => {
+    if (csvFile) {
+      return;
+    }
+
+    const csvSource = reviewSources.find((source) => source.source_id === "csv");
+    const profileMapping = getCsvSourceConfig(csvSource).columnMapping;
+    if (hasCsvColumnMapping(profileMapping)) {
+      setCsvColumnMapping(profileMapping);
+    }
+  }, [csvFile, reviewSources]);
 
   useEffect(() => {
     const hasActiveRun = runs.some(
@@ -1932,6 +1981,20 @@ export default function App() {
       }
       setPagesPerStar(config.pagesPerStar);
     }
+    if (sourceId === "csv") {
+      const source = reviewSources.find(
+        (reviewSource) => reviewSource.source_id === "csv"
+      );
+      const profileMapping = getCsvSourceConfig(source).columnMapping;
+      setCsvColumnMapping(profileMapping);
+      if (csvFile) {
+        loadCsvPreview(
+          csvFile,
+          hasCsvColumnMapping(profileMapping) ? profileMapping : null,
+          !hasCsvColumnMapping(profileMapping)
+        ).catch((err: Error) => setCsvPreviewError(err.message));
+      }
+    }
     setError(null);
   }
 
@@ -1990,9 +2053,45 @@ export default function App() {
           setPagesPerStar(pages);
         }
       }
+      if (source.source_id === "csv") {
+        const profileMapping = compactCsvColumnMapping(
+          normalizeCsvColumnMapping(config.column_mapping)
+        );
+        setCsvColumnMapping(profileMapping);
+        setCsvProfileMessage("Profil CSV enregistre pour cette organisation.");
+      }
     } catch (err) {
       setReviewSourcesError(
         err instanceof Error ? err.message : "Configuration impossible a enregistrer"
+      );
+    } finally {
+      setUpdatingReviewSourceId(null);
+    }
+  }
+
+  async function handleCsvProfileSave() {
+    const source = reviewSources.find((reviewSource) => reviewSource.source_id === "csv");
+    if (!source || !canManageWorkspace || !source.can_configure) {
+      return;
+    }
+
+    setUpdatingReviewSourceId(source.source_id);
+    setCsvPreviewError(null);
+    setCsvProfileMessage(null);
+
+    try {
+      await updateReviewSource(source.source_id, {
+        enabled: source.is_enabled,
+        config: {
+          column_mapping: compactCsvColumnMapping(csvColumnMapping)
+        }
+      });
+      await refreshReviewSources();
+      await refreshAdminAuditEvents();
+      setCsvProfileMessage("Profil CSV enregistre pour cette organisation.");
+    } catch (err) {
+      setCsvPreviewError(
+        err instanceof Error ? err.message : "Profil CSV impossible a enregistrer"
       );
     } finally {
       setUpdatingReviewSourceId(null);
@@ -2232,15 +2331,22 @@ export default function App() {
     }
 
     setCsvFile(file);
-    setCsvColumnMapping({});
+    const csvSource = reviewSources.find((source) => source.source_id === "csv");
+    const profileMapping = getCsvSourceConfig(csvSource).columnMapping;
+    setCsvColumnMapping(profileMapping);
     setCsvPreview(null);
     setCsvPreviewError(null);
+    setCsvProfileMessage(null);
 
     if (!file) {
       return;
     }
 
-    await loadCsvPreview(file, null, true);
+    await loadCsvPreview(
+      file,
+      hasCsvColumnMapping(profileMapping) ? profileMapping : null,
+      !hasCsvColumnMapping(profileMapping)
+    );
   }
 
   function handleCsvColumnMappingChange(
@@ -2954,6 +3060,36 @@ export default function App() {
                       </label>
                     ))}
                   </div>
+                  <div className="csv-profile-actions">
+                    <span>
+                      {hasCsvColumnMapping(csvColumnMapping)
+                        ? "Mapping pret a etre reutilise par l'organisation."
+                        : "Aucun profil CSV sauvegarde pour le moment."}
+                    </span>
+                    <button
+                      className="secondary-button compact"
+                      disabled={
+                        !canManageWorkspace ||
+                        !csvPreview ||
+                        !hasCsvColumnMapping(csvColumnMapping) ||
+                        updatingReviewSourceId === "csv"
+                      }
+                      onClick={handleCsvProfileSave}
+                      type="button"
+                    >
+                      {updatingReviewSourceId === "csv" ? (
+                        <Loader2 className="spin" size={14} />
+                      ) : (
+                        "Enregistrer ce mapping"
+                      )}
+                    </button>
+                  </div>
+                  {csvProfileMessage ? (
+                    <div className="csv-preview-inline-success">
+                      <CheckCircle2 size={14} />
+                      <span>{csvProfileMessage}</span>
+                    </div>
+                  ) : null}
                   {csvPreview.error_message && (
                     <div className="csv-preview-inline-error">
                       <AlertTriangle size={14} />

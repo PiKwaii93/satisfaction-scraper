@@ -1554,6 +1554,24 @@ a {
   font-weight: 800;
 }
 
+.csv-profile-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.csv-profile-actions span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.csv-profile-actions .compact {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+}
+
 .csv-preview-inline-error {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr);
@@ -1564,6 +1582,19 @@ a {
   border-radius: 8px;
   background: #fff1f2;
   color: #991b1b;
+  font-weight: 800;
+}
+
+.csv-preview-inline-success {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
   font-weight: 800;
 }
 

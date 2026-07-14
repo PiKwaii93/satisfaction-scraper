@@ -265,7 +265,7 @@ Sources preparees, non connectees en production locale :
 - Shopify.
 - Support interne.
 
-Le CSV supporte une detection de colonnes et un mapping manuel. Les champs importants sont :
+Le CSV supporte une detection de colonnes, un mapping manuel et un profil de mapping sauvegarde par organisation pour reutiliser les colonnes habituelles sur les imports suivants. Les champs importants sont :
 
 - texte de l'avis ;
 - note ;
