@@ -50,6 +50,31 @@ def sample_alert(**overrides):
     return alert
 
 
+def sample_customer_action(**overrides):
+    action = {
+        "action_id": 4,
+        "organization_id": 123,
+        "alert_id": 9,
+        "run_id": 42,
+        "company_name": "demo-company.fr",
+        "alert_type": "negative_share_high",
+        "alert_title": "Part d'avis negatifs a surveiller",
+        "title": "Traiter les avis negatifs",
+        "description": "Verifier les avis critiques.",
+        "priority": "high",
+        "status": "open",
+        "owner_name": None,
+        "due_date": None,
+        "created_by_email": "demo@satisfaction.local",
+        "updated_by_email": None,
+        "created_at": None,
+        "updated_at": None,
+        "resolved_at": None,
+    }
+    action.update(overrides)
+    return action
+
+
 def test_health_is_public(client):
     response = client.get("/health")
 
@@ -627,6 +652,7 @@ def test_admin_can_get_organization_action_center(authenticated_client, monkeypa
                 "active_runs": 0,
                 "pending_invitations": 1,
                 "training_ready_corrections": 5,
+                "open_customer_actions": 0,
                 "recent_completed_runs": 3,
             },
             "items": [
@@ -672,6 +698,7 @@ def test_member_can_get_limited_organization_action_center(member_client, monkey
                 "active_runs": 1,
                 "pending_invitations": 0,
                 "training_ready_corrections": 0,
+                "open_customer_actions": 0,
                 "recent_completed_runs": 2,
             },
             "items": [],
@@ -1519,6 +1546,113 @@ def test_admin_can_update_business_alert_status(authenticated_client, monkeypatc
 def test_member_cannot_update_business_alert_status(member_client):
     response = member_client.patch(
         "/analysis-runs/alerts/9",
+        json={"status": "resolved"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_member_can_list_customer_actions(member_client, monkeypatch):
+    captured = {}
+
+    def fake_list_customer_actions(organization_id, status, limit, offset):
+        captured["organization_id"] = organization_id
+        captured["status"] = status
+        captured["limit"] = limit
+        captured["offset"] = offset
+        return [sample_customer_action()]
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.list_customer_actions",
+        fake_list_customer_actions,
+    )
+
+    response = member_client.get("/customer-actions?status=open&limit=5&offset=2")
+
+    assert response.status_code == 200
+    assert response.json()[0]["title"] == "Traiter les avis negatifs"
+    assert captured == {
+        "organization_id": 123,
+        "status": "open",
+        "limit": 5,
+        "offset": 2,
+    }
+
+
+def test_admin_can_create_customer_action(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_create_customer_action(organization_id, actor_user_id, payload):
+        captured["organization_id"] = organization_id
+        captured["actor_user_id"] = actor_user_id
+        captured["alert_id"] = payload.alert_id
+        return sample_customer_action(alert_id=payload.alert_id)
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.create_customer_action",
+        fake_create_customer_action,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event_type", kwargs["event_type"]),
+    )
+
+    response = authenticated_client.post("/customer-actions", json={"alert_id": 9})
+
+    assert response.status_code == 201
+    assert response.json()["alert_id"] == 9
+    assert captured == {
+        "organization_id": 123,
+        "actor_user_id": 1,
+        "alert_id": 9,
+        "audit_event_type": "customer_action.created",
+    }
+
+
+def test_member_cannot_create_customer_action(member_client):
+    response = member_client.post("/customer-actions", json={"alert_id": 9})
+
+    assert response.status_code == 403
+
+
+def test_admin_can_update_customer_action(authenticated_client, monkeypatch):
+    captured = {}
+
+    def fake_update_customer_action(action_id, organization_id, actor_user_id, payload):
+        captured["action_id"] = action_id
+        captured["organization_id"] = organization_id
+        captured["actor_user_id"] = actor_user_id
+        captured["status"] = payload.status
+        return sample_customer_action(action_id=action_id, status=payload.status)
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.update_customer_action",
+        fake_update_customer_action,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event_type", kwargs["event_type"]),
+    )
+
+    response = authenticated_client.patch(
+        "/customer-actions/4",
+        json={"status": "resolved"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "resolved"
+    assert captured == {
+        "action_id": 4,
+        "organization_id": 123,
+        "actor_user_id": 1,
+        "status": "resolved",
+        "audit_event_type": "customer_action.updated",
+    }
+
+
+def test_member_cannot_update_customer_action(member_client):
+    response = member_client.patch(
+        "/customer-actions/4",
         json={"status": "resolved"},
     )
 

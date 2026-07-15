@@ -125,6 +125,7 @@ export type ActionCenterSeverity = "critical" | "warning" | "info" | "success";
 export type ActionCenterCounts = {
   open_alerts: number;
   critical_alerts: number;
+  open_customer_actions: number;
   failed_runs: number;
   active_runs: number;
   pending_invitations: number;
@@ -404,6 +405,54 @@ export type BusinessAlert = {
   updated_at: string | null;
   acknowledged_at: string | null;
   resolved_at: string | null;
+};
+
+export type CustomerActionPriority = "low" | "medium" | "high" | "critical";
+export type CustomerActionStatus =
+  | "open"
+  | "in_progress"
+  | "resolved"
+  | "ignored";
+
+export type CustomerAction = {
+  action_id: number;
+  organization_id: number;
+  alert_id: number | null;
+  run_id: number | null;
+  company_name: string | null;
+  alert_title: string | null;
+  alert_type: string | null;
+  title: string;
+  description: string | null;
+  priority: CustomerActionPriority;
+  status: CustomerActionStatus;
+  owner_name: string | null;
+  due_date: string | null;
+  created_by_email: string | null;
+  updated_by_email: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  resolved_at: string | null;
+};
+
+export type CustomerActionCreate = {
+  alert_id?: number | null;
+  run_id?: number | null;
+  title?: string | null;
+  description?: string | null;
+  priority?: CustomerActionPriority | null;
+  status?: CustomerActionStatus;
+  owner_name?: string | null;
+  due_date?: string | null;
+};
+
+export type CustomerActionUpdate = {
+  title?: string | null;
+  description?: string | null;
+  priority?: CustomerActionPriority | null;
+  status?: CustomerActionStatus | null;
+  owner_name?: string | null;
+  due_date?: string | null;
 };
 
 export type RunSummary = {

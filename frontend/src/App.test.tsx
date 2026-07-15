@@ -6,6 +6,7 @@ import type {
   ActionCenter,
   AuthToken,
   CurrentUser,
+  CustomerAction,
   FeedbackQuality,
   ModelTrainingOverview,
   OrganizationSettings,
@@ -18,6 +19,7 @@ const apiMocks = vi.hoisted(() => ({
   clearAuthToken: vi.fn(),
   compareRuns: vi.fn(),
   createModelTrainingRun: vi.fn(),
+  createCustomerAction: vi.fn(),
   createRun: vi.fn(),
   createUpgradeRequest: vi.fn(),
   deleteReviewFeedback: vi.fn(),
@@ -37,6 +39,7 @@ const apiMocks = vi.hoisted(() => ({
   hasAuthToken: vi.fn(),
   inviteOrganizationUser: vi.fn(),
   listBusinessAlerts: vi.fn(),
+  listCustomerActions: vi.fn(),
   listOrganizationAuditEvents: vi.fn(),
   listOrganizationUsers: vi.fn(),
   listPlatformOrganizations: vi.fn(),
@@ -49,6 +52,7 @@ const apiMocks = vi.hoisted(() => ({
   refreshRunBusinessAlerts: vi.fn(),
   saveReviewFeedback: vi.fn(),
   updateBusinessAlertStatus: vi.fn(),
+  updateCustomerAction: vi.fn(),
   updateOrganizationSettings: vi.fn(),
   updatePlatformOrganizationPlan: vi.fn(),
   updatePlatformUpgradeRequestStatus: vi.fn(),
@@ -85,6 +89,7 @@ const actionCenter: ActionCenter = {
     active_runs: 0,
     pending_invitations: 0,
     pending_upgrade_requests: 0,
+    open_customer_actions: 0,
     training_ready_corrections: 0,
     recent_completed_runs: 0
   },
@@ -104,6 +109,27 @@ const feedbackQuality: FeedbackQuality = {
   corrected_label_distribution: [],
   transitions: [],
   recent_corrections: []
+};
+
+const customerAction: CustomerAction = {
+  action_id: 4,
+  organization_id: 7,
+  alert_id: 9,
+  run_id: 21,
+  company_name: "example.com",
+  alert_type: "negative_share_high",
+  alert_title: "Part d'avis negatifs a surveiller",
+  title: "Traiter les avis negatifs",
+  description: "Verifier les avis critiques.",
+  priority: "high",
+  status: "open",
+  owner_name: null,
+  due_date: null,
+  created_by_email: "admin@example.test",
+  updated_by_email: null,
+  created_at: null,
+  updated_at: null,
+  resolved_at: null
 };
 
 const trainingOverview: ModelTrainingOverview = {
@@ -250,6 +276,12 @@ beforeEach(() => {
   apiMocks.getFeedbackQuality.mockResolvedValue(feedbackQuality);
   apiMocks.getModelTrainingOverview.mockResolvedValue(trainingOverview);
   apiMocks.listBusinessAlerts.mockResolvedValue([]);
+  apiMocks.listCustomerActions.mockResolvedValue([]);
+  apiMocks.createCustomerAction.mockResolvedValue(customerAction);
+  apiMocks.updateCustomerAction.mockResolvedValue({
+    ...customerAction,
+    status: "resolved"
+  });
   apiMocks.getOrganizationActionCenter.mockResolvedValue(actionCenter);
   apiMocks.listOrganizationUsers.mockResolvedValue([]);
   apiMocks.getOrganizationSettings.mockResolvedValue(organizationSettings);

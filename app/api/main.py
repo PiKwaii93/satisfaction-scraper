@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.database import ensure_product_schema
 from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.customer_actions import router as customer_actions_router
 from app.api.routes.model_training import router as model_training_router
 from app.api.routes.platform import router as platform_router
 from app.api.routes.review_sources import router as review_sources_router
@@ -33,6 +34,10 @@ OPENAPI_TAGS = [
     {
         "name": "review-sources",
         "description": "Catalogue des sources d'avis disponibles ou planifiees.",
+    },
+    {
+        "name": "customer-actions",
+        "description": "Plan d'action client issu des alertes et signaux metier.",
     },
     {
         "name": "model-training",
@@ -77,6 +82,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(review_sources_router)
 app.include_router(analysis_runs_router)
+app.include_router(customer_actions_router)
 app.include_router(model_training_router)
 app.include_router(platform_router)
 

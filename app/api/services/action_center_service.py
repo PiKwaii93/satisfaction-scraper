@@ -48,9 +48,20 @@ def _count_feedback_ready(cursor, organization_id):
 
 
 def get_action_center(organization_id: int, role: str = "member", limit=8):
-    is_admin = role == "admin"
+    is_admin = role in {"admin", "platform_admin"}
 
     with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS open_customer_actions
+            FROM customer_actions
+            WHERE organization_id = %s
+              AND status IN ('open', 'in_progress');
+            """,
+            (organization_id,),
+        )
+        action_counts = cursor.fetchone()
+
         cursor.execute(
             """
             SELECT
@@ -112,6 +123,69 @@ def get_action_center(organization_id: int, role: str = "member", limit=8):
             pending_upgrade_requests = 0
 
         items = []
+
+        cursor.execute(
+            """
+            SELECT
+                ca.action_id,
+                ca.run_id,
+                ca.title,
+                ca.description,
+                ca.priority,
+                ca.status,
+                ca.owner_name,
+                ca.due_date,
+                ca.updated_at,
+                ca.created_at,
+                COALESCE(ca_alert.company_name, ca_run.company_name) AS company_name
+            FROM customer_actions ca
+            LEFT JOIN business_alerts ba ON ba.alert_id = ca.alert_id
+            LEFT JOIN companies ca_alert ON ca_alert.company_id = ba.company_id
+            LEFT JOIN analysis_runs ar ON ar.run_id = ca.run_id
+            LEFT JOIN companies ca_run ON ca_run.company_id = ar.company_id
+            WHERE ca.organization_id = %s
+              AND ca.status IN ('open', 'in_progress')
+            ORDER BY
+                CASE ca.priority
+                    WHEN 'critical' THEN 0
+                    WHEN 'high' THEN 1
+                    WHEN 'medium' THEN 2
+                    ELSE 3
+                END,
+                ca.due_date ASC NULLS LAST,
+                ca.updated_at DESC,
+                ca.action_id DESC
+            LIMIT 3;
+            """,
+            (organization_id,),
+        )
+        for action in cursor.fetchall():
+            severity = "info"
+            if action["priority"] == "critical":
+                severity = "critical"
+            elif action["priority"] == "high":
+                severity = "warning"
+            context = action.get("company_name") or "Espace client"
+            status_label = (
+                "en cours" if action["status"] == "in_progress" else "ouverte"
+            )
+            owner = f" - {action['owner_name']}" if action.get("owner_name") else ""
+            items.append(
+                _item(
+                    f"customer_action:{action['action_id']}",
+                    "customer_action",
+                    severity,
+                    action["title"],
+                    f"{context}: action {status_label}{owner}.",
+                    action_label="Ouvrir le run" if action.get("run_id") else None,
+                    action_target={
+                        "action_id": action["action_id"],
+                        "run_id": action.get("run_id"),
+                    },
+                    requires_admin=True,
+                    created_at=action.get("updated_at") or action.get("created_at"),
+                )
+            )
 
         cursor.execute(
             """
@@ -332,6 +406,7 @@ def get_action_center(organization_id: int, role: str = "member", limit=8):
         "counts": {
             "open_alerts": _int(alert_counts["open_alerts"]),
             "critical_alerts": _int(alert_counts["critical_alerts"]),
+            "open_customer_actions": _int(action_counts["open_customer_actions"]),
             "failed_runs": _int(run_counts["failed_runs"]),
             "active_runs": _int(run_counts["active_runs"]),
             "pending_invitations": pending_invitations,

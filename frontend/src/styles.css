@@ -1463,6 +1463,77 @@ a {
   background: #fbfcfd;
 }
 
+.customer-action-board {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.customer-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.customer-action-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.customer-action-card.critical {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.customer-action-card.high {
+  border-color: #fed7aa;
+  background: #fffaf3;
+}
+
+.customer-action-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.customer-action-card-header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.customer-action-card-header strong {
+  color: var(--text);
+}
+
+.customer-action-card-header span,
+.customer-action-meta {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.customer-action-card p {
+  margin: 0;
+  color: #344054;
+  line-height: 1.45;
+}
+
+.customer-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .compact-list {
   max-height: 520px;
   overflow: auto;
@@ -3651,6 +3722,7 @@ tbody tr:last-child td {
   .client-space-grid,
   .usage-grid,
   .action-center-kpis,
+  .customer-action-grid,
   .home-cockpit-layout,
   .ai-quality-kpis,
   .ai-quality-grid,

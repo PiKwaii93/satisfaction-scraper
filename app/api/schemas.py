@@ -1,5 +1,5 @@
 from typing import Literal
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -112,6 +112,7 @@ class OrganizationAuditEventResponse(BaseModel):
 class ActionCenterCounts(BaseModel):
     open_alerts: int = 0
     critical_alerts: int = 0
+    open_customer_actions: int = 0
     failed_runs: int = 0
     active_runs: int = 0
     pending_invitations: int = 0
@@ -565,6 +566,51 @@ class BusinessAlertResponse(BaseModel):
 
 class BusinessAlertStatusUpdate(BaseModel):
     status: Literal["open", "acknowledged", "resolved"]
+
+
+CustomerActionPriority = Literal["low", "medium", "high", "critical"]
+CustomerActionStatus = Literal["open", "in_progress", "resolved", "ignored"]
+
+
+class CustomerActionCreate(BaseModel):
+    alert_id: int | None = None
+    run_id: int | None = None
+    title: str | None = Field(default=None, min_length=2, max_length=220)
+    description: str | None = Field(default=None, max_length=1000)
+    priority: CustomerActionPriority | None = None
+    status: CustomerActionStatus = "open"
+    owner_name: str | None = Field(default=None, max_length=160)
+    due_date: date | None = None
+
+
+class CustomerActionUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=220)
+    description: str | None = Field(default=None, max_length=1000)
+    priority: CustomerActionPriority | None = None
+    status: CustomerActionStatus | None = None
+    owner_name: str | None = Field(default=None, max_length=160)
+    due_date: date | None = None
+
+
+class CustomerActionResponse(BaseModel):
+    action_id: int
+    organization_id: int
+    alert_id: int | None = None
+    run_id: int | None = None
+    company_name: str | None = None
+    alert_title: str | None = None
+    alert_type: str | None = None
+    title: str
+    description: str | None = None
+    priority: CustomerActionPriority
+    status: CustomerActionStatus
+    owner_name: str | None = None
+    due_date: date | None = None
+    created_by_email: str | None = None
+    updated_by_email: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    resolved_at: datetime | None = None
 
 
 class ErrorResponse(BaseModel):
