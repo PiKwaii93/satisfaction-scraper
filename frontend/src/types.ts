@@ -428,6 +428,7 @@ export type CustomerAction = {
   status: CustomerActionStatus;
   owner_name: string | null;
   due_date: string | null;
+  notes: string | null;
   created_by_email: string | null;
   updated_by_email: string | null;
   created_at: string | null;
@@ -444,6 +445,7 @@ export type CustomerActionCreate = {
   status?: CustomerActionStatus;
   owner_name?: string | null;
   due_date?: string | null;
+  notes?: string | null;
 };
 
 export type CustomerActionUpdate = {
@@ -453,6 +455,7 @@ export type CustomerActionUpdate = {
   status?: CustomerActionStatus | null;
   owner_name?: string | null;
   due_date?: string | null;
+  notes?: string | null;
 };
 
 export type RunSummary = {

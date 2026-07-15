@@ -125,6 +125,7 @@ const customerAction: CustomerAction = {
   status: "open",
   owner_name: null,
   due_date: null,
+  notes: null,
   created_by_email: "admin@example.test",
   updated_by_email: null,
   created_at: null,

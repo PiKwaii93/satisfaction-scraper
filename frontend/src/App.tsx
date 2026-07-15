@@ -82,6 +82,8 @@ import type {
   BusinessWatchpoint,
   CurrentUser,
   CustomerAction,
+  CustomerActionPriority,
+  CustomerActionUpdate,
   CustomerActionStatus,
   CsvColumnMapping,
   CsvImportPreview,
@@ -119,6 +121,18 @@ const FEEDBACK_SENTIMENTS = SENTIMENTS.filter(
 );
 
 const REVIEW_PAGE_SIZES = [30, 60, 120, 500];
+
+const CUSTOMER_ACTION_FILTERS: Array<{
+  value: CustomerActionStatus | "active" | "all";
+  label: string;
+}> = [
+  { value: "active", label: "Actives" },
+  { value: "open", label: "A faire" },
+  { value: "in_progress", label: "En cours" },
+  { value: "resolved", label: "Resolues" },
+  { value: "ignored", label: "Ignorees" },
+  { value: "all", label: "Toutes" }
+];
 
 type OnboardingStep = {
   key: string;
@@ -1395,7 +1409,7 @@ export default function App() {
     setIsCustomerActionsLoading(true);
     setCustomerActionsError(null);
     try {
-      const actions = await listCustomerActions("open");
+      const actions = await listCustomerActions("all", 80);
       setCustomerActions(actions);
     } finally {
       setIsCustomerActionsLoading(false);
@@ -2459,6 +2473,13 @@ export default function App() {
     actionId: number,
     status: CustomerActionStatus
   ) {
+    await handleUpdateCustomerAction(actionId, { status });
+  }
+
+  async function handleUpdateCustomerAction(
+    actionId: number,
+    payload: CustomerActionUpdate
+  ) {
     if (!canManageWorkspace) {
       setCustomerActionsError("Seul un administrateur peut traiter une action.");
       return;
@@ -2468,7 +2489,7 @@ export default function App() {
     setCustomerActionsError(null);
 
     try {
-      await updateCustomerAction(actionId, { status });
+      await updateCustomerAction(actionId, payload);
       await Promise.all([
         refreshCustomerActions(),
         refreshBusinessAlerts(),
@@ -3572,6 +3593,7 @@ export default function App() {
                 );
               }}
               onRefreshRunAlerts={handleRefreshRunBusinessAlerts}
+              onUpdateCustomerAction={handleUpdateCustomerAction}
               onUpdateCustomerActionStatus={handleUpdateCustomerActionStatus}
               onUpdateStatus={handleUpdateBusinessAlertStatus}
               selectedRun={selectedRun}
@@ -5660,6 +5682,7 @@ function HomeCockpitPanel({
   onCreateCustomerAction,
   onRefreshAll,
   onRefreshRunAlerts,
+  onUpdateCustomerAction,
   onUpdateCustomerActionStatus,
   onUpdateStatus,
   selectedRun,
@@ -5682,6 +5705,10 @@ function HomeCockpitPanel({
   onCreateCustomerAction: (alert: BusinessAlert) => void;
   onRefreshAll: () => void;
   onRefreshRunAlerts: () => void;
+  onUpdateCustomerAction: (
+    actionId: number,
+    payload: CustomerActionUpdate
+  ) => void;
   onUpdateCustomerActionStatus: (
     actionId: number,
     status: CustomerActionStatus
@@ -5717,6 +5744,47 @@ function HomeCockpitPanel({
   const canRefreshSelectedRun = canManage && selectedRun?.status === "completed";
   const isRefreshing =
     isActionCenterLoading || isBusinessAlertsLoading || isCustomerActionsLoading;
+  const [actionStatusFilter, setActionStatusFilter] = useState<
+    CustomerActionStatus | "active" | "all"
+  >("active");
+  const [editingActionId, setEditingActionId] = useState<number | null>(null);
+  const [actionDraft, setActionDraft] = useState<CustomerActionUpdate>({});
+  const activeCustomerActions = customerActions.filter((action) =>
+    ["open", "in_progress"].includes(action.status)
+  );
+  const overdueCount = customerActions.filter(isCustomerActionOverdue).length;
+  const filteredCustomerActions = customerActions.filter((action) => {
+    if (actionStatusFilter === "all") {
+      return true;
+    }
+    if (actionStatusFilter === "active") {
+      return ["open", "in_progress"].includes(action.status);
+    }
+    return action.status === actionStatusFilter;
+  });
+
+  function startEditAction(action: CustomerAction) {
+    setEditingActionId(action.action_id);
+    setActionDraft({
+      owner_name: action.owner_name ?? "",
+      due_date: action.due_date ?? "",
+      priority: action.priority,
+      status: action.status,
+      notes: action.notes ?? ""
+    });
+  }
+
+  function saveActionEdit(actionId: number) {
+    onUpdateCustomerAction(actionId, {
+      owner_name: normalizeOptionalField(actionDraft.owner_name),
+      due_date: normalizeOptionalField(actionDraft.due_date),
+      priority: actionDraft.priority,
+      status: actionDraft.status,
+      notes: normalizeOptionalField(actionDraft.notes)
+    });
+    setEditingActionId(null);
+    setActionDraft({});
+  }
 
   return (
     <section className="home-cockpit-panel insight-section wide" id="action_center">
@@ -5802,29 +5870,53 @@ function HomeCockpitPanel({
       <div className="customer-action-board">
         <div className="mini-heading">
           <strong>Plan d'action client</strong>
-          <span>{customerActions.length} action(s) ouverte(s)</span>
+          <span>
+            {activeCustomerActions.length} active(s), {overdueCount} en retard
+          </span>
         </div>
 
-        {isCustomerActionsLoading && customerActions.length === 0 ? (
+        <div className="customer-action-toolbar">
+          <div className="segmented compact-segmented">
+            {CUSTOMER_ACTION_FILTERS.map((filter) => (
+              <button
+                className={actionStatusFilter === filter.value ? "active" : ""}
+                key={filter.value}
+                onClick={() => setActionStatusFilter(filter.value)}
+                type="button"
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          <span className="customer-action-counts">
+            {filteredCustomerActions.length} action(s) affichee(s)
+          </span>
+        </div>
+
+        {isCustomerActionsLoading && filteredCustomerActions.length === 0 ? (
           <div className="loading-line compact-loading">
             <Loader2 className="spin" size={18} />
             Chargement des actions...
           </div>
         ) : null}
 
-        {!isCustomerActionsLoading && customerActions.length === 0 ? (
+        {!isCustomerActionsLoading && filteredCustomerActions.length === 0 ? (
           <div className="empty-inline-state">
-            <strong>Aucune action client ouverte.</strong>
-            <span>Cree une action depuis une alerte metier pour suivre le traitement.</span>
+            <strong>Aucune action pour ce filtre.</strong>
+            <span>Cree une action depuis une alerte metier ou change le filtre.</span>
           </div>
         ) : (
           <div className="customer-action-grid">
-            {customerActions.map((action) => {
+            {filteredCustomerActions.map((action) => {
               const isUpdating = updatingCustomerActionId === action.action_id;
+              const isEditing = editingActionId === action.action_id;
+              const isOverdue = isCustomerActionOverdue(action);
 
               return (
                 <article
-                  className={`customer-action-card ${action.priority}`}
+                  className={`customer-action-card ${action.priority} ${
+                    isOverdue ? "overdue" : ""
+                  }`}
                   key={action.action_id}
                 >
                   <div className="customer-action-card-header">
@@ -5840,13 +5932,128 @@ function HomeCockpitPanel({
                     </span>
                   </div>
                   {action.description ? <p>{action.description}</p> : null}
+                  {action.notes ? (
+                    <p className="customer-action-note">{action.notes}</p>
+                  ) : null}
                   <div className="customer-action-meta">
                     <span>{formatCustomerActionStatus(action.status)}</span>
                     {action.owner_name ? <span>{action.owner_name}</span> : null}
-                    {action.due_date ? <span>Echeance {formatDate(action.due_date)}</span> : null}
+                    {action.due_date ? (
+                      <span>Echeance {formatDate(action.due_date)}</span>
+                    ) : null}
+                    {isOverdue ? <span className="overdue-pill">En retard</span> : null}
                   </div>
+                  {isEditing ? (
+                    <div className="customer-action-edit-form">
+                      <div className="customer-action-edit-grid">
+                        <label>
+                          <span>Responsable</span>
+                          <input
+                            onChange={(event) =>
+                              setActionDraft((draft) => ({
+                                ...draft,
+                                owner_name: event.target.value
+                              }))
+                            }
+                            placeholder="SAV, operation, prenom..."
+                            value={actionDraft.owner_name ?? ""}
+                          />
+                        </label>
+                        <label>
+                          <span>Echeance</span>
+                          <input
+                            onChange={(event) =>
+                              setActionDraft((draft) => ({
+                                ...draft,
+                                due_date: event.target.value
+                              }))
+                            }
+                            type="date"
+                            value={actionDraft.due_date ?? ""}
+                          />
+                        </label>
+                        <label>
+                          <span>Priorite</span>
+                          <select
+                            onChange={(event) =>
+                              setActionDraft((draft) => ({
+                                ...draft,
+                                priority: event.target.value as CustomerActionPriority
+                              }))
+                            }
+                            value={actionDraft.priority ?? action.priority}
+                          >
+                            <option value="low">Basse</option>
+                            <option value="medium">Moyenne</option>
+                            <option value="high">Haute</option>
+                            <option value="critical">Critique</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Statut</span>
+                          <select
+                            onChange={(event) =>
+                              setActionDraft((draft) => ({
+                                ...draft,
+                                status: event.target.value as CustomerActionStatus
+                              }))
+                            }
+                            value={actionDraft.status ?? action.status}
+                          >
+                            <option value="open">A faire</option>
+                            <option value="in_progress">En cours</option>
+                            <option value="resolved">Resolue</option>
+                            <option value="ignored">Ignoree</option>
+                          </select>
+                        </label>
+                      </div>
+                      <label className="customer-action-note-field">
+                        <span>Notes</span>
+                        <textarea
+                          onChange={(event) =>
+                            setActionDraft((draft) => ({
+                              ...draft,
+                              notes: event.target.value
+                            }))
+                          }
+                          placeholder="Prochaine action, retour client, contexte..."
+                          rows={3}
+                          value={actionDraft.notes ?? ""}
+                        />
+                      </label>
+                      <div className="business-alert-actions">
+                        <button
+                          className="primary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() => saveActionEdit(action.action_id)}
+                          type="button"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() => {
+                            setEditingActionId(null);
+                            setActionDraft({});
+                          }}
+                          type="button"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                   {canManage ? (
                     <div className="business-alert-actions">
+                      <button
+                        className="secondary-action compact-action"
+                        disabled={isUpdating}
+                        onClick={() => startEditAction(action)}
+                        type="button"
+                      >
+                        Modifier
+                      </button>
                       {action.status === "open" ? (
                         <button
                           className="secondary-action compact-action"
@@ -6388,6 +6595,24 @@ function formatCustomerActionStatus(status: string) {
     ignored: "Ignoree"
   };
   return labels[status] ?? status;
+}
+
+function normalizeOptionalField(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function isCustomerActionOverdue(action: CustomerAction) {
+  if (
+    !action.due_date ||
+    action.status === "resolved" ||
+    action.status === "ignored"
+  ) {
+    return false;
+  }
+
+  const dueDate = new Date(`${action.due_date}T23:59:59`);
+  return Number.isFinite(dueDate.getTime()) && dueDate.getTime() < Date.now();
 }
 
 function actionItemIcon(severity: string) {

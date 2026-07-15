@@ -466,11 +466,12 @@ export function refreshRunBusinessAlerts(runId: number) {
 }
 
 export function listCustomerActions(
-  status: CustomerActionStatus | "all" = "open"
+  status: CustomerActionStatus | "all" = "all",
+  limit = 60
 ) {
   const params = new URLSearchParams({
     status,
-    limit: "30"
+    limit: String(limit)
   });
   return request<CustomerAction[]>(`/customer-actions?${params.toString()}`);
 }

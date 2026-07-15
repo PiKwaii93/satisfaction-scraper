@@ -169,6 +169,7 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "status",
         "owner_name",
         "due_date",
+        "notes",
         "created_by_user_id",
         "updated_by_user_id",
         "created_at",
@@ -233,6 +234,7 @@ PRODUCT_INDEX_REQUIREMENTS = {
     },
     "customer_actions": {
         "idx_customer_actions_alert",
+        "idx_customer_actions_due_date",
         "idx_customer_actions_org_status",
         "idx_customer_actions_run",
         "idx_customer_actions_unique_alert",
