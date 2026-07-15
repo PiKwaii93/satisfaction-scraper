@@ -129,7 +129,7 @@ type PlanGateInfo = {
   actionLabel: string;
 };
 
-type WorkspaceView = "home" | "analyses" | "benchmark" | "ai" | "admin";
+type WorkspaceView = "home" | "sources" | "analyses" | "benchmark" | "ai" | "admin";
 
 type WorkspaceNavItem = {
   id: WorkspaceView;
@@ -144,6 +144,12 @@ const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
     label: "Accueil",
     description: "Priorites et alertes",
     icon: ListChecks
+  },
+  {
+    id: "sources",
+    label: "Sources",
+    description: "Connecteurs et mappings",
+    icon: TableProperties
   },
   {
     id: "analyses",
@@ -1669,6 +1675,7 @@ export default function App() {
   const workspaceNavStats = useMemo<Record<WorkspaceView, string>>(
     () => ({
       home: `${actionCenter?.counts.open_alerts ?? 0} action(s)`,
+      sources: `${reviewSources.filter((source) => source.status === "active").length} active(s)`,
       analyses: `${runs.length} run(s)`,
       benchmark: `${comparisonRunIds.length}/4`,
       ai: `${feedbackQuality?.training_ready_count ?? 0} correction(s)`,
@@ -1679,6 +1686,7 @@ export default function App() {
       comparisonRunIds.length,
       feedbackQuality?.training_ready_count,
       organizationUsers.length,
+      reviewSources,
       runs.length
     ]
   );
@@ -3312,6 +3320,28 @@ export default function App() {
           </>
         )}
 
+        {activeView === "sources" && (
+          <SourcesWorkspacePanel
+            currentSource={sourceMode}
+            error={reviewSourcesError}
+            isLoading={isReviewSourcesLoading}
+            isReadOnly={!canManageWorkspace}
+            onOpenAnalysis={(sourceId) => {
+              handleReviewSourceSelect(sourceId);
+              setActiveView("analyses");
+            }}
+            onRefresh={() =>
+              refreshReviewSources().catch((err: Error) =>
+                setReviewSourcesError(err.message)
+              )
+            }
+            onSaveSourceConfig={handleReviewSourceConfigSave}
+            onToggleSource={handleReviewSourceToggle}
+            sources={reviewSources}
+            updatingSourceId={updatingReviewSourceId}
+          />
+        )}
+
         {activeView === "benchmark" && (
           <>
             {comparison ? (
@@ -3867,6 +3897,348 @@ function OnboardingPanel({
           );
         })}
       </div>
+    </section>
+  );
+}
+
+function SourcesWorkspacePanel({
+  currentSource,
+  error,
+  isLoading,
+  isReadOnly,
+  onOpenAnalysis,
+  onRefresh,
+  onSaveSourceConfig,
+  onToggleSource,
+  sources,
+  updatingSourceId
+}: {
+  currentSource: AnalysisSource;
+  error: string | null;
+  isLoading: boolean;
+  isReadOnly: boolean;
+  onOpenAnalysis: (sourceId: string) => void;
+  onRefresh: () => void;
+  onSaveSourceConfig: (source: ReviewSource, config: Record<string, unknown>) => void;
+  onToggleSource: (source: ReviewSource) => void;
+  sources: ReviewSource[];
+  updatingSourceId: string | null;
+}) {
+  const [sourceConfigDrafts, setSourceConfigDrafts] = useState<
+    Record<string, { default_company: string; pages_per_star: string }>
+  >({});
+  const activeSources = sources.filter((source) => source.status === "active");
+  const analysisSources = sources.filter(
+    (source) => source.status === "active" && source.supports_analysis
+  );
+  const configuredSources = sources.filter(
+    (source) => source.status !== "planned" && source.is_configured
+  );
+  const plannedSources = sources.filter((source) => source.status === "planned");
+  const csvSource = sources.find((source) => source.source_id === "csv");
+  const csvMapping = getCsvSourceConfig(csvSource).columnMapping;
+  const hasCsvProfile = hasCsvColumnMapping(csvMapping);
+
+  useEffect(() => {
+    setSourceConfigDrafts((currentDrafts) => {
+      const nextDrafts = { ...currentDrafts };
+      sources.forEach((source) => {
+        if (source.source_id !== "trustpilot") {
+          return;
+        }
+
+        const config = getTrustpilotSourceConfig(source);
+        nextDrafts[source.source_id] = {
+          default_company: config.defaultCompany,
+          pages_per_star: String(config.pagesPerStar)
+        };
+      });
+      return nextDrafts;
+    });
+  }, [sources]);
+
+  function updateConfigDraft(sourceId: string, field: string, value: string) {
+    setSourceConfigDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [sourceId]: {
+        default_company: currentDrafts[sourceId]?.default_company ?? "",
+        pages_per_star: currentDrafts[sourceId]?.pages_per_star ?? "1",
+        [field]: value
+      }
+    }));
+  }
+
+  return (
+    <section className="sources-workspace">
+      <div className="panel-heading sources-workspace-heading">
+        <div>
+          <span className="section-kicker">Sources d'avis</span>
+          <h2>Catalogue des connecteurs</h2>
+          <p>
+            Configure les entrees de donnees que l'espace client peut utiliser pour
+            lancer ses analyses.
+          </p>
+        </div>
+        <button
+          className="secondary-action"
+          disabled={isLoading}
+          onClick={onRefresh}
+          type="button"
+        >
+          {isLoading ? <Loader2 className="spin" size={18} /> : <RefreshCw size={18} />}
+          Actualiser
+        </button>
+      </div>
+
+      {error ? <p className="form-error">{error}</p> : null}
+      {isReadOnly ? (
+        <p className="permission-hint">
+          Lecture seule: seuls les administrateurs peuvent activer, desactiver ou
+          configurer une source.
+        </p>
+      ) : null}
+
+      <div className="source-dashboard-grid">
+        <Kpi
+          label="Sources actives"
+          value={String(activeSources.length)}
+          helper={`${analysisSources.length} prete(s) a analyser`}
+        />
+        <Kpi
+          label="Sources configurees"
+          value={String(configuredSources.length)}
+          helper="Connecteurs disponibles dans cet espace"
+        />
+        <Kpi
+          label="Profil CSV"
+          value={hasCsvProfile ? "Pret" : "A completer"}
+          helper={hasCsvProfile ? "Mapping reutilisable" : "Mapping a sauvegarder"}
+        />
+        <Kpi
+          label="Connecteurs futurs"
+          value={String(plannedSources.length)}
+          helper="Google, support et e-commerce"
+        />
+      </div>
+
+      <div className="connector-grid">
+        {sources
+          .filter((source) => source.status !== "planned")
+          .map((source) => {
+            const isUpdating = updatingSourceId === source.source_id;
+            const isCurrent = source.source_id === currentSource;
+            const canUse =
+              source.status === "active" &&
+              source.supports_analysis &&
+              isAnalysisSource(source.source_id);
+            const trustpilotConfig = getTrustpilotSourceConfig(source);
+            const sourceCsvMapping = getCsvSourceConfig(source).columnMapping;
+
+            return (
+              <article
+                className={`connector-card ${source.status} ${isCurrent ? "current" : ""}`}
+                key={source.source_id}
+              >
+                <div className="connector-card-header">
+                  <span className="connector-icon">{sourceIcon(source.source_id)}</span>
+                  <div>
+                    <span className="section-kicker">{source.category}</span>
+                    <h3>{source.label}</h3>
+                    <p>{source.description}</p>
+                  </div>
+                  <span className={`source-status ${source.status}`}>
+                    {formatSourceStatus(source.status)}
+                  </span>
+                </div>
+
+                <div className="connector-meta-grid">
+                  <div>
+                    <span>Champs requis</span>
+                    <strong>{source.required_fields.join(", ") || "Aucun"}</strong>
+                  </div>
+                  <div>
+                    <span>Champs optionnels</span>
+                    <strong>{source.optional_fields.join(", ") || "Aucun"}</strong>
+                  </div>
+                </div>
+
+                {source.source_id === "trustpilot" ? (
+                  <div className="connector-config-block">
+                    <div className="connector-config-summary">
+                      <span>Configuration actuelle</span>
+                      <strong>
+                        {trustpilotConfig.defaultCompany || "Aucune entreprise par defaut"}
+                      </strong>
+                      <small>{trustpilotConfig.pagesPerStar} page(s) par note</small>
+                    </div>
+                    {source.can_configure && !isReadOnly ? (
+                      <div className="source-config-form connector-form">
+                        <label>
+                          <span>Entreprise par defaut</span>
+                          <input
+                            onChange={(event) =>
+                              updateConfigDraft(
+                                source.source_id,
+                                "default_company",
+                                event.target.value
+                              )
+                            }
+                            placeholder="https://fr.trustpilot.com/review/www.darty.com"
+                            type="text"
+                            value={
+                              sourceConfigDrafts[source.source_id]?.default_company ?? ""
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Pages par note</span>
+                          <input
+                            max={10}
+                            min={1}
+                            onChange={(event) =>
+                              updateConfigDraft(
+                                source.source_id,
+                                "pages_per_star",
+                                event.target.value
+                              )
+                            }
+                            type="number"
+                            value={
+                              sourceConfigDrafts[source.source_id]?.pages_per_star ?? "1"
+                            }
+                          />
+                        </label>
+                        <button
+                          className="source-config-save"
+                          disabled={isUpdating}
+                          onClick={() =>
+                            onSaveSourceConfig(source, {
+                              default_company:
+                                sourceConfigDrafts[source.source_id]?.default_company ??
+                                "",
+                              pages_per_star: Number(
+                                sourceConfigDrafts[source.source_id]?.pages_per_star ?? 1
+                              )
+                            })
+                          }
+                          type="button"
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="spin" size={14} />
+                          ) : (
+                            "Enregistrer"
+                          )}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {source.source_id === "csv" ? (
+                  <div className="connector-config-block">
+                    <div className="connector-config-summary">
+                      <span>Profil de mapping</span>
+                      <strong>
+                        {hasCsvColumnMapping(sourceCsvMapping)
+                          ? "Mapping sauvegarde"
+                          : "Aucun mapping sauvegarde"}
+                      </strong>
+                      <small>
+                        Configure le mapping pendant le controle avant import CSV.
+                      </small>
+                    </div>
+                    <div className="csv-profile-list">
+                      {CSV_MAPPING_FIELDS.map((field) => (
+                        <div key={field.key}>
+                          <span>{field.label}</span>
+                          <strong>{sourceCsvMapping[field.key] ?? "Non defini"}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {source.last_error ? (
+                  <p className="connector-warning">
+                    <AlertTriangle size={14} />
+                    {source.last_error}
+                  </p>
+                ) : null}
+
+                <div className="connector-actions">
+                  <button
+                    className="primary-action"
+                    disabled={!canUse || isReadOnly}
+                    onClick={() => onOpenAnalysis(source.source_id)}
+                    type="button"
+                  >
+                    <Play size={16} />
+                    Utiliser pour une analyse
+                  </button>
+                  {source.can_configure && !isReadOnly ? (
+                    <button
+                      className="secondary-action"
+                      disabled={isUpdating}
+                      onClick={() => onToggleSource(source)}
+                      type="button"
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="spin" size={16} />
+                      ) : source.status === "active" ? (
+                        "Desactiver"
+                      ) : (
+                        "Activer"
+                      )}
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+      </div>
+
+      <section className="sources-reference">
+        <div>
+          <span className="section-kicker">Format CSV supporte</span>
+          <h3>Colonnes reconnues</h3>
+          <p>
+            Le fichier peut venir d'un export support, e-commerce ou BI. Le texte de
+            l'avis est obligatoire, les autres champs enrichissent le rapport.
+          </p>
+        </div>
+        <div className="csv-format-grid">
+          {CSV_MAPPING_FIELDS.map((field) => (
+            <div key={field.key}>
+              <strong>{field.label}</strong>
+              <span>{field.required ? "Obligatoire" : "Optionnel"}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {plannedSources.length > 0 ? (
+        <section className="planned-connectors">
+          <div>
+            <span className="section-kicker">Roadmap connecteurs</span>
+            <h3>Prochaines sources professionnelles</h3>
+          </div>
+          <div className="planned-connector-grid">
+            {plannedSources.map((source) => (
+              <article className="planned-connector-card" key={source.source_id}>
+                <span className="connector-icon">{sourceIcon(source.source_id)}</span>
+                <div>
+                  <h4>{source.label}</h4>
+                  <p>{source.description}</p>
+                  <small>{source.required_fields.join(", ") || source.setup_hint}</small>
+                </div>
+                <span className={`source-status ${source.status}`}>
+                  {formatSourceStatus(source.status)}
+                </span>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }
