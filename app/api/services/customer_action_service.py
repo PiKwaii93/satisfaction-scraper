@@ -31,6 +31,7 @@ def _serialize_action(row):
         "status": row["status"],
         "owner_name": row.get("owner_name"),
         "due_date": row.get("due_date"),
+        "notes": row.get("notes"),
         "created_by_email": row.get("created_by_email"),
         "updated_by_email": row.get("updated_by_email"),
         "created_at": row.get("created_at"),
@@ -208,11 +209,12 @@ def create_customer_action(
                 status,
                 owner_name,
                 due_date,
+                notes,
                 created_by_user_id,
                 updated_by_user_id,
                 resolved_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     CASE WHEN %s = 'resolved' THEN NOW() ELSE NULL END)
             RETURNING action_id;
             """,
@@ -226,6 +228,7 @@ def create_customer_action(
                 status,
                 data.get("owner_name"),
                 data.get("due_date"),
+                data.get("notes"),
                 actor_user_id,
                 actor_user_id,
                 status,
@@ -248,7 +251,15 @@ def update_customer_action(
 
     updates = []
     params = []
-    for field in ["title", "description", "priority", "status", "owner_name", "due_date"]:
+    for field in [
+        "title",
+        "description",
+        "priority",
+        "status",
+        "owner_name",
+        "due_date",
+        "notes",
+    ]:
         if field not in data:
             continue
         if field == "priority" and data[field] not in ACTION_PRIORITIES:

@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 from app.api.auth import AuthenticatedUser
 from app.api.auth import require_current_user
@@ -65,6 +66,7 @@ def sample_customer_action(**overrides):
         "status": "open",
         "owner_name": None,
         "due_date": None,
+        "notes": None,
         "created_by_email": "demo@satisfaction.local",
         "updated_by_email": None,
         "created_at": None,
@@ -1623,7 +1625,16 @@ def test_admin_can_update_customer_action(authenticated_client, monkeypatch):
         captured["organization_id"] = organization_id
         captured["actor_user_id"] = actor_user_id
         captured["status"] = payload.status
-        return sample_customer_action(action_id=action_id, status=payload.status)
+        captured["owner_name"] = payload.owner_name
+        captured["due_date"] = payload.due_date
+        captured["notes"] = payload.notes
+        return sample_customer_action(
+            action_id=action_id,
+            status=payload.status,
+            owner_name=payload.owner_name,
+            due_date=payload.due_date,
+            notes=payload.notes,
+        )
 
     monkeypatch.setattr(
         "app.api.routes.customer_actions.update_customer_action",
@@ -1636,16 +1647,27 @@ def test_admin_can_update_customer_action(authenticated_client, monkeypatch):
 
     response = authenticated_client.patch(
         "/customer-actions/4",
-        json={"status": "resolved"},
+        json={
+            "status": "resolved",
+            "owner_name": "SAV",
+            "due_date": "2026-07-20",
+            "notes": "Client a relancer apres verification.",
+        },
     )
 
     assert response.status_code == 200
     assert response.json()["status"] == "resolved"
+    assert response.json()["owner_name"] == "SAV"
+    assert response.json()["due_date"] == "2026-07-20"
+    assert response.json()["notes"] == "Client a relancer apres verification."
     assert captured == {
         "action_id": 4,
         "organization_id": 123,
         "actor_user_id": 1,
         "status": "resolved",
+        "owner_name": "SAV",
+        "due_date": date(2026, 7, 20),
+        "notes": "Client a relancer apres verification.",
         "audit_event_type": "customer_action.updated",
     }
 

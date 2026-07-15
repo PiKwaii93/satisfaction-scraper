@@ -581,6 +581,7 @@ class CustomerActionCreate(BaseModel):
     status: CustomerActionStatus = "open"
     owner_name: str | None = Field(default=None, max_length=160)
     due_date: date | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class CustomerActionUpdate(BaseModel):
@@ -590,6 +591,7 @@ class CustomerActionUpdate(BaseModel):
     status: CustomerActionStatus | None = None
     owner_name: str | None = Field(default=None, max_length=160)
     due_date: date | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class CustomerActionResponse(BaseModel):
@@ -606,6 +608,7 @@ class CustomerActionResponse(BaseModel):
     status: CustomerActionStatus
     owner_name: str | None = None
     due_date: date | None = None
+    notes: str | None = None
     created_by_email: str | None = None
     updated_by_email: str | None = None
     created_at: datetime | None = None
