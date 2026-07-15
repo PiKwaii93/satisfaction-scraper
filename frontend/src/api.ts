@@ -74,7 +74,7 @@ function buildHeaders(headers?: HeadersInit, includeJson = false) {
 }
 
 async function requestPublic<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await safeFetch(path, {
     headers: buildHeaders(init?.headers, true),
     ...init
   });
@@ -88,7 +88,7 @@ async function requestPublic<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await safeFetch(path, {
     headers: buildHeaders(init?.headers, true),
     ...init
   });
@@ -108,17 +108,67 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function safeFetch(path: string, init?: RequestInit) {
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, init);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        `API indisponible. Verifie que le service backend est lance sur ${API_BASE_URL}.`
+      );
+    }
+    throw error;
+  }
+}
+
 function parseApiError(detail: string, status: number) {
   try {
-    const payload = JSON.parse(detail) as { detail?: string };
-    if (payload.detail) {
+    const payload = JSON.parse(detail) as { detail?: string | unknown[] };
+    if (typeof payload.detail === "string") {
       return payload.detail;
+    }
+    if (Array.isArray(payload.detail)) {
+      return payload.detail
+        .map((entry) => {
+          if (
+            entry &&
+            typeof entry === "object" &&
+            "msg" in entry &&
+            typeof entry.msg === "string"
+          ) {
+            return entry.msg;
+          }
+          return "Champ invalide";
+        })
+        .join(", ");
     }
   } catch {
     // The response body is not JSON, keep the raw server message.
   }
 
-  return detail || `Erreur API ${status}`;
+  return detail || fallbackApiError(status);
+}
+
+function fallbackApiError(status: number) {
+  if (status === 401) {
+    return "Session expiree. Reconnecte-toi pour continuer.";
+  }
+  if (status === 403) {
+    return "Action non autorisee pour ce compte ou ce plan.";
+  }
+  if (status === 404) {
+    return "Ressource introuvable.";
+  }
+  if (status === 409) {
+    return "Operation impossible dans l'etat actuel.";
+  }
+  if (status === 422) {
+    return "Donnees invalides. Verifie le formulaire.";
+  }
+  if (status >= 500) {
+    return "Erreur serveur. Consulte les logs de l'API.";
+  }
+  return `Erreur API ${status}`;
 }
 
 export async function login(email: string, password: string) {
@@ -311,7 +361,7 @@ export async function uploadCsvRun(
   formData.append("file", file);
   appendCsvColumnMapping(formData, columnMapping);
 
-  const response = await fetch(`${API_BASE_URL}/analysis-runs/import-csv`, {
+  const response = await safeFetch("/analysis-runs/import-csv", {
     method: "POST",
     headers: buildHeaders(),
     body: formData
@@ -336,7 +386,7 @@ export async function previewCsvFile(
   formData.append("file", file);
   appendCsvColumnMapping(formData, columnMapping);
 
-  const response = await fetch(`${API_BASE_URL}/analysis-runs/preview-csv`, {
+  const response = await safeFetch("/analysis-runs/preview-csv", {
     method: "POST",
     headers: buildHeaders(),
     body: formData
@@ -429,7 +479,7 @@ export function createModelTrainingRun(feedbackSampleWeight?: number) {
 }
 
 async function requestFile(path: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await safeFetch(path, {
     headers: buildHeaders()
   });
 

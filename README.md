@@ -467,6 +467,9 @@ L'interface React + API FastAPI est la cible produit actuelle. Le dashboard Stre
 
 Principales variables utilisees :
 
+Un exemple local est fourni dans `.env.example`. Il sert de reference pour les
+secrets et URLs attendus, sans contenir de valeur de production.
+
 | Variable | Usage |
 | --- | --- |
 | `DB_HOST` | Host PostgreSQL. |
