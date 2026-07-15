@@ -44,7 +44,9 @@ import {
   getSummary,
   hasAuthToken,
   inviteOrganizationUser,
+  createCustomerAction,
   listBusinessAlerts,
+  listCustomerActions,
   listOrganizationAuditEvents,
   listPlatformOrganizations,
   listPlatformUpgradeRequests,
@@ -57,6 +59,7 @@ import {
   refreshRunBusinessAlerts,
   saveReviewFeedback,
   updateBusinessAlertStatus,
+  updateCustomerAction,
   updateOrganizationSettings,
   updatePlatformOrganizationPlan,
   updatePlatformUpgradeRequestStatus,
@@ -78,6 +81,8 @@ import type {
   BusinessStrength,
   BusinessWatchpoint,
   CurrentUser,
+  CustomerAction,
+  CustomerActionStatus,
   CsvColumnMapping,
   CsvImportPreview,
   DistributionRow,
@@ -1296,6 +1301,17 @@ export default function App() {
     null
   );
   const [updatingAlertId, setUpdatingAlertId] = useState<number | null>(null);
+  const [customerActions, setCustomerActions] = useState<CustomerAction[]>([]);
+  const [isCustomerActionsLoading, setIsCustomerActionsLoading] = useState(false);
+  const [customerActionsError, setCustomerActionsError] = useState<string | null>(
+    null
+  );
+  const [creatingActionAlertId, setCreatingActionAlertId] = useState<number | null>(
+    null
+  );
+  const [updatingCustomerActionId, setUpdatingCustomerActionId] = useState<
+    number | null
+  >(null);
   const [isRefreshingRunAlerts, setIsRefreshingRunAlerts] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
@@ -1372,6 +1388,17 @@ export default function App() {
       setBusinessAlerts(alerts);
     } finally {
       setIsBusinessAlertsLoading(false);
+    }
+  }
+
+  async function refreshCustomerActions() {
+    setIsCustomerActionsLoading(true);
+    setCustomerActionsError(null);
+    try {
+      const actions = await listCustomerActions("open");
+      setCustomerActions(actions);
+    } finally {
+      setIsCustomerActionsLoading(false);
     }
   }
 
@@ -1529,6 +1556,9 @@ export default function App() {
     refreshBusinessAlerts().catch((err: Error) =>
       setBusinessAlertsError(err.message)
     );
+    refreshCustomerActions().catch((err: Error) =>
+      setCustomerActionsError(err.message)
+    );
     refreshActionCenter().catch((err: Error) => setActionCenterError(err.message));
     refreshOrganizationUsers().catch((err: Error) => setOrganizationUserError(err.message));
     refreshOrganizationSettings().catch((err: Error) =>
@@ -1591,7 +1621,13 @@ export default function App() {
 
     const timer = window.setInterval(() => {
       refreshRuns()
-        .then(() => Promise.all([refreshBusinessAlerts(), refreshActionCenter()]))
+        .then(() =>
+          Promise.all([
+            refreshBusinessAlerts(),
+            refreshCustomerActions(),
+            refreshActionCenter()
+          ])
+        )
         .catch((err: Error) => setError(err.message));
     }, 3000);
 
@@ -1826,6 +1862,10 @@ export default function App() {
     setBusinessAlerts([]);
     setBusinessAlertsError(null);
     setUpdatingAlertId(null);
+    setCustomerActions([]);
+    setCustomerActionsError(null);
+    setCreatingActionAlertId(null);
+    setUpdatingCustomerActionId(null);
     setIsRefreshingRunAlerts(false);
     setOrganizationUsers([]);
     setOrganizationUserError(null);
@@ -2339,7 +2379,11 @@ export default function App() {
 
     try {
       await updateBusinessAlertStatus(alertId, status);
-      await Promise.all([refreshBusinessAlerts(), refreshActionCenter()]);
+      await Promise.all([
+        refreshBusinessAlerts(),
+        refreshCustomerActions(),
+        refreshActionCenter()
+      ]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setBusinessAlertsError(
@@ -2370,7 +2414,11 @@ export default function App() {
 
     try {
       await refreshRunBusinessAlerts(selectedRun.run_id);
-      await Promise.all([refreshBusinessAlerts(), refreshActionCenter()]);
+      await Promise.all([
+        refreshBusinessAlerts(),
+        refreshCustomerActions(),
+        refreshActionCenter()
+      ]);
       await refreshAdminAuditEvents();
     } catch (err) {
       setBusinessAlertsError(
@@ -2378,6 +2426,61 @@ export default function App() {
       );
     } finally {
       setIsRefreshingRunAlerts(false);
+    }
+  }
+
+  async function handleCreateCustomerActionFromAlert(alert: BusinessAlert) {
+    if (!canManageWorkspace) {
+      setCustomerActionsError("Seul un administrateur peut creer une action.");
+      return;
+    }
+
+    setCreatingActionAlertId(alert.alert_id);
+    setCustomerActionsError(null);
+
+    try {
+      await createCustomerAction({ alert_id: alert.alert_id });
+      await Promise.all([
+        refreshCustomerActions(),
+        refreshBusinessAlerts(),
+        refreshActionCenter()
+      ]);
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setCustomerActionsError(
+        err instanceof Error ? err.message : "Action impossible a creer"
+      );
+    } finally {
+      setCreatingActionAlertId(null);
+    }
+  }
+
+  async function handleUpdateCustomerActionStatus(
+    actionId: number,
+    status: CustomerActionStatus
+  ) {
+    if (!canManageWorkspace) {
+      setCustomerActionsError("Seul un administrateur peut traiter une action.");
+      return;
+    }
+
+    setUpdatingCustomerActionId(actionId);
+    setCustomerActionsError(null);
+
+    try {
+      await updateCustomerAction(actionId, { status });
+      await Promise.all([
+        refreshCustomerActions(),
+        refreshBusinessAlerts(),
+        refreshActionCenter()
+      ]);
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setCustomerActionsError(
+        err instanceof Error ? err.message : "Action impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingCustomerActionId(null);
     }
   }
 
@@ -3446,12 +3549,17 @@ export default function App() {
               actionCenter={actionCenter}
               businessAlerts={businessAlerts}
               canManage={canManageWorkspace}
+              customerActions={customerActions}
               actionCenterError={actionCenterError}
               businessAlertsError={businessAlertsError}
+              customerActionsError={customerActionsError}
               isActionCenterLoading={isActionCenterLoading}
               isBusinessAlertsLoading={isBusinessAlertsLoading}
+              isCustomerActionsLoading={isCustomerActionsLoading}
               isRefreshingRunAlerts={isRefreshingRunAlerts}
+              creatingActionAlertId={creatingActionAlertId}
               onActionItemAction={handleActionCenterItem}
+              onCreateCustomerAction={handleCreateCustomerActionFromAlert}
               onRefreshAll={() => {
                 refreshActionCenter().catch((err: Error) =>
                   setActionCenterError(err.message)
@@ -3459,11 +3567,16 @@ export default function App() {
                 refreshBusinessAlerts().catch((err: Error) =>
                   setBusinessAlertsError(err.message)
                 );
+                refreshCustomerActions().catch((err: Error) =>
+                  setCustomerActionsError(err.message)
+                );
               }}
               onRefreshRunAlerts={handleRefreshRunBusinessAlerts}
+              onUpdateCustomerActionStatus={handleUpdateCustomerActionStatus}
               onUpdateStatus={handleUpdateBusinessAlertStatus}
               selectedRun={selectedRun}
               updatingAlertId={updatingAlertId}
+              updatingCustomerActionId={updatingCustomerActionId}
             />
           </>
         )}
@@ -5534,36 +5647,54 @@ function HomeCockpitPanel({
   actionCenter,
   businessAlerts,
   canManage,
+  customerActions,
   actionCenterError,
   businessAlertsError,
+  customerActionsError,
   isActionCenterLoading,
   isBusinessAlertsLoading,
+  isCustomerActionsLoading,
   isRefreshingRunAlerts,
+  creatingActionAlertId,
   onActionItemAction,
+  onCreateCustomerAction,
   onRefreshAll,
   onRefreshRunAlerts,
+  onUpdateCustomerActionStatus,
   onUpdateStatus,
   selectedRun,
-  updatingAlertId
+  updatingAlertId,
+  updatingCustomerActionId
 }: {
   actionCenter: ActionCenter | null;
   businessAlerts: BusinessAlert[];
   canManage: boolean;
+  customerActions: CustomerAction[];
   actionCenterError: string | null;
   businessAlertsError: string | null;
+  customerActionsError: string | null;
   isActionCenterLoading: boolean;
   isBusinessAlertsLoading: boolean;
+  isCustomerActionsLoading: boolean;
   isRefreshingRunAlerts: boolean;
+  creatingActionAlertId: number | null;
   onActionItemAction: (item: ActionCenterItem) => void;
+  onCreateCustomerAction: (alert: BusinessAlert) => void;
   onRefreshAll: () => void;
   onRefreshRunAlerts: () => void;
+  onUpdateCustomerActionStatus: (
+    actionId: number,
+    status: CustomerActionStatus
+  ) => void;
   onUpdateStatus: (alertId: number, status: BusinessAlertStatus) => void;
   selectedRun: AnalysisRun | null;
   updatingAlertId: number | null;
+  updatingCustomerActionId: number | null;
 }) {
   const counts = actionCenter?.counts ?? {
     open_alerts: businessAlerts.length,
     critical_alerts: businessAlerts.filter((alert) => alert.severity === "critical").length,
+    open_customer_actions: customerActions.length,
     failed_runs: 0,
     active_runs: 0,
     pending_invitations: 0,
@@ -5584,7 +5715,8 @@ function HomeCockpitPanel({
     counts.pending_upgrade_requests +
     counts.training_ready_corrections;
   const canRefreshSelectedRun = canManage && selectedRun?.status === "completed";
-  const isRefreshing = isActionCenterLoading || isBusinessAlertsLoading;
+  const isRefreshing =
+    isActionCenterLoading || isBusinessAlertsLoading || isCustomerActionsLoading;
 
   return (
     <section className="home-cockpit-panel insight-section wide" id="action_center">
@@ -5630,11 +5762,14 @@ function HomeCockpitPanel({
 
       {actionCenterError ? <p className="form-error">{actionCenterError}</p> : null}
       {businessAlertsError ? <p className="form-error">{businessAlertsError}</p> : null}
+      {customerActionsError ? (
+        <p className="form-error">{customerActionsError}</p>
+      ) : null}
 
       <div className="action-center-kpis">
         <Kpi
           label="Actions ouvertes"
-          value={String(actionItems.length)}
+          value={String(counts.open_customer_actions)}
           helper={`${urgentCount} critique(s)`}
         />
         <Kpi
@@ -5663,6 +5798,96 @@ function HomeCockpitPanel({
           Lecture seule: un administrateur peut acquitter ou resoudre les alertes.
         </p>
       ) : null}
+
+      <div className="customer-action-board">
+        <div className="mini-heading">
+          <strong>Plan d'action client</strong>
+          <span>{customerActions.length} action(s) ouverte(s)</span>
+        </div>
+
+        {isCustomerActionsLoading && customerActions.length === 0 ? (
+          <div className="loading-line compact-loading">
+            <Loader2 className="spin" size={18} />
+            Chargement des actions...
+          </div>
+        ) : null}
+
+        {!isCustomerActionsLoading && customerActions.length === 0 ? (
+          <div className="empty-inline-state">
+            <strong>Aucune action client ouverte.</strong>
+            <span>Cree une action depuis une alerte metier pour suivre le traitement.</span>
+          </div>
+        ) : (
+          <div className="customer-action-grid">
+            {customerActions.map((action) => {
+              const isUpdating = updatingCustomerActionId === action.action_id;
+
+              return (
+                <article
+                  className={`customer-action-card ${action.priority}`}
+                  key={action.action_id}
+                >
+                  <div className="customer-action-card-header">
+                    <div>
+                      <strong>{action.title}</strong>
+                      <span>
+                        {action.company_name ?? "Entreprise"}{" "}
+                        {action.run_id ? `- Run #${action.run_id}` : ""}
+                      </span>
+                    </div>
+                    <span className={`alert-severity ${customerActionSeverity(action.priority)}`}>
+                      {formatCustomerActionPriority(action.priority)}
+                    </span>
+                  </div>
+                  {action.description ? <p>{action.description}</p> : null}
+                  <div className="customer-action-meta">
+                    <span>{formatCustomerActionStatus(action.status)}</span>
+                    {action.owner_name ? <span>{action.owner_name}</span> : null}
+                    {action.due_date ? <span>Echeance {formatDate(action.due_date)}</span> : null}
+                  </div>
+                  {canManage ? (
+                    <div className="business-alert-actions">
+                      {action.status === "open" ? (
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() =>
+                            onUpdateCustomerActionStatus(
+                              action.action_id,
+                              "in_progress"
+                            )
+                          }
+                          type="button"
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="spin" size={14} />
+                          ) : (
+                            <Play size={14} />
+                          )}
+                          Demarrer
+                        </button>
+                      ) : null}
+                      {action.status !== "resolved" ? (
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() =>
+                            onUpdateCustomerActionStatus(action.action_id, "resolved")
+                          }
+                          type="button"
+                        >
+                          <CheckCircle2 size={14} />
+                          Resoudre
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="home-cockpit-layout">
         <div className="home-cockpit-column">
@@ -5771,6 +5996,23 @@ function HomeCockpitPanel({
                       </small>
                     </div>
                     <div className="business-alert-actions">
+                      {canManage ? (
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={
+                            isUpdating || creatingActionAlertId === alert.alert_id
+                          }
+                          onClick={() => onCreateCustomerAction(alert)}
+                          type="button"
+                        >
+                          {creatingActionAlertId === alert.alert_id ? (
+                            <Loader2 className="spin" size={14} />
+                          ) : (
+                            <ListChecks size={14} />
+                          )}
+                          Creer action
+                        </button>
+                      ) : null}
                       {canManage && alert.status === "open" ? (
                         <button
                           className="secondary-action compact-action"
@@ -6116,6 +6358,36 @@ function formatAlertSeverity(severity: string) {
 
 function formatActionSeverity(severity: string) {
   return formatAlertSeverity(severity);
+}
+
+function customerActionSeverity(priority: string) {
+  if (priority === "critical") {
+    return "critical";
+  }
+  if (priority === "high") {
+    return "warning";
+  }
+  return "info";
+}
+
+function formatCustomerActionPriority(priority: string) {
+  const labels: Record<string, string> = {
+    critical: "Critique",
+    high: "Haute",
+    medium: "Moyenne",
+    low: "Basse"
+  };
+  return labels[priority] ?? priority;
+}
+
+function formatCustomerActionStatus(status: string) {
+  const labels: Record<string, string> = {
+    open: "A faire",
+    in_progress: "En cours",
+    resolved: "Resolue",
+    ignored: "Ignoree"
+  };
+  return labels[status] ?? status;
 }
 
 function actionItemIcon(severity: string) {

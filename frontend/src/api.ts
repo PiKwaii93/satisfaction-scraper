@@ -9,6 +9,10 @@ import type {
   CurrentUser,
   CsvColumnMapping,
   CsvImportPreview,
+  CustomerAction,
+  CustomerActionCreate,
+  CustomerActionStatus,
+  CustomerActionUpdate,
   FeedbackQuality,
   ModelTrainingOverview,
   ModelTrainingRun,
@@ -458,6 +462,33 @@ export function updateBusinessAlertStatus(
 export function refreshRunBusinessAlerts(runId: number) {
   return request<BusinessAlert[]>(`/analysis-runs/${runId}/alerts/refresh`, {
     method: "POST"
+  });
+}
+
+export function listCustomerActions(
+  status: CustomerActionStatus | "all" = "open"
+) {
+  const params = new URLSearchParams({
+    status,
+    limit: "30"
+  });
+  return request<CustomerAction[]>(`/customer-actions?${params.toString()}`);
+}
+
+export function createCustomerAction(payload: CustomerActionCreate) {
+  return request<CustomerAction>("/customer-actions", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateCustomerAction(
+  actionId: number,
+  payload: CustomerActionUpdate
+) {
+  return request<CustomerAction>(`/customer-actions/${actionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
   });
 }
 
