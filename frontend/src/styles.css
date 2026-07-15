@@ -1155,6 +1155,90 @@ a {
   gap: 8px;
 }
 
+.platform-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.platform-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.platform-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.platform-organization-list {
+  display: grid;
+  gap: 8px;
+}
+
+.platform-organization-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(120px, 140px) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.platform-organization-row div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.platform-organization-row strong,
+.platform-organization-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-organization-row small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.platform-organization-row select {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.plan-pill {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.plan-pill.pro {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.plan-pill.business {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
 .mini-heading {
   display: flex;
   align-items: center;
@@ -1237,6 +1321,11 @@ a {
 .role-pill.member {
   background: #f2f4f7;
   color: #344054;
+}
+
+.role-pill.platform_admin {
+  background: #eef4ff;
+  color: #3538cd;
 }
 
 .status-dot {
@@ -3507,7 +3596,8 @@ tbody tr:last-child td {
   }
 
   .client-members-layout,
-  .client-ops-layout {
+  .client-ops-layout,
+  .platform-layout {
     grid-template-columns: 1fr;
   }
 

@@ -98,6 +98,9 @@ services:
       - DEMO_ADMIN_EMAIL=demo@satisfaction.local
       - DEMO_ADMIN_PASSWORD=demo-password
       - DEMO_ADMIN_NAME=Admin Demo
+      - PLATFORM_ADMIN_EMAIL=platform@satisfaction.local
+      - PLATFORM_ADMIN_PASSWORD=platform-password
+      - PLATFORM_ADMIN_NAME=Admin Plateforme
     ports:
       - "8000:8000"
     command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload

@@ -21,6 +21,7 @@ import type {
   OrganizationSettingsUpdate,
   OrganizationUser,
   OrganizationUserCreate,
+  PlatformOrganization,
   ReviewSource,
   ReviewSourceUpdate,
   ReviewFeedback,
@@ -168,6 +169,23 @@ export function updateOrganizationPlan(plan: OrganizationPlan) {
   });
 }
 
+export function listPlatformOrganizations() {
+  return request<PlatformOrganization[]>("/platform/organizations");
+}
+
+export function updatePlatformOrganizationPlan(
+  organizationId: number,
+  plan: OrganizationPlan
+) {
+  return request<OrganizationSettings>(
+    `/platform/organizations/${organizationId}/plan`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ plan })
+    }
+  );
+}
+
 export function createUpgradeRequest(payload: UpgradeRequestCreate) {
   return request<UpgradeRequest>("/auth/organization/upgrade-requests", {
     method: "POST",
@@ -191,6 +209,29 @@ export function updateUpgradeRequestStatus(
 ) {
   return request<UpgradeRequest>(
     `/auth/organization/upgrade-requests/${upgradeRequestId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status })
+    }
+  );
+}
+
+export function listPlatformUpgradeRequests(status = "open") {
+  const params = new URLSearchParams({
+    request_status: status,
+    limit: "50"
+  });
+  return request<UpgradeRequest[]>(
+    `/platform/upgrade-requests?${params.toString()}`
+  );
+}
+
+export function updatePlatformUpgradeRequestStatus(
+  upgradeRequestId: number,
+  status: UpgradeRequestStatus
+) {
+  return request<UpgradeRequest>(
+    `/platform/upgrade-requests/${upgradeRequestId}`,
     {
       method: "PATCH",
       body: JSON.stringify({ status })

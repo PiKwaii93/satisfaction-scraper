@@ -39,6 +39,8 @@ const apiMocks = vi.hoisted(() => ({
   listBusinessAlerts: vi.fn(),
   listOrganizationAuditEvents: vi.fn(),
   listOrganizationUsers: vi.fn(),
+  listPlatformOrganizations: vi.fn(),
+  listPlatformUpgradeRequests: vi.fn(),
   listReviewSources: vi.fn(),
   listRuns: vi.fn(),
   listUpgradeRequests: vi.fn(),
@@ -47,9 +49,9 @@ const apiMocks = vi.hoisted(() => ({
   refreshRunBusinessAlerts: vi.fn(),
   saveReviewFeedback: vi.fn(),
   updateBusinessAlertStatus: vi.fn(),
-  updateOrganizationPlan: vi.fn(),
   updateOrganizationSettings: vi.fn(),
-  updateUpgradeRequestStatus: vi.fn(),
+  updatePlatformOrganizationPlan: vi.fn(),
+  updatePlatformUpgradeRequestStatus: vi.fn(),
   updateReviewSource: vi.fn(),
   uploadCsvRun: vi.fn()
 }));
@@ -253,6 +255,8 @@ beforeEach(() => {
   apiMocks.getOrganizationSettings.mockResolvedValue(organizationSettings);
   apiMocks.getOrganizationUsage.mockResolvedValue(organizationUsage);
   apiMocks.listOrganizationAuditEvents.mockResolvedValue([]);
+  apiMocks.listPlatformOrganizations.mockResolvedValue([]);
+  apiMocks.listPlatformUpgradeRequests.mockResolvedValue([]);
   apiMocks.listReviewSources.mockResolvedValue(reviewSources);
   apiMocks.listUpgradeRequests.mockResolvedValue([]);
 });

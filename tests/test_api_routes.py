@@ -260,11 +260,20 @@ def test_member_cannot_update_organization_settings(member_client):
     assert response.status_code == 403
 
 
-def test_admin_can_update_organization_plan(authenticated_client, monkeypatch):
+def test_admin_cannot_update_organization_plan(authenticated_client):
+    response = authenticated_client.patch(
+        "/auth/organization/plan",
+        json={"plan": "business"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_platform_admin_can_update_organization_plan(platform_client, monkeypatch):
     captured = {}
 
     monkeypatch.setattr(
-        "app.api.routes.auth.get_organization_settings",
+        "app.api.routes.platform.get_organization_settings",
         lambda organization_id: {
             "organization_id": organization_id,
             "name": "Demo Org",
@@ -292,16 +301,16 @@ def test_admin_can_update_organization_plan(authenticated_client, monkeypatch):
         }
 
     monkeypatch.setattr(
-        "app.api.routes.auth.update_organization_plan",
+        "app.api.routes.platform.update_organization_plan",
         fake_update_organization_plan,
     )
     monkeypatch.setattr(
-        "app.api.routes.auth.record_audit_event",
+        "app.api.routes.platform.record_audit_event",
         lambda **kwargs: captured.setdefault("audit_event", kwargs),
     )
 
-    response = authenticated_client.patch(
-        "/auth/organization/plan",
+    response = platform_client.patch(
+        "/platform/organizations/123/plan",
         json={"plan": "business"},
     )
 
@@ -309,7 +318,7 @@ def test_admin_can_update_organization_plan(authenticated_client, monkeypatch):
     assert response.json()["plan"] == "business"
     assert captured["organization_id"] == 123
     assert captured["plan"] == "business"
-    assert captured["audit_event"]["event_type"] == "organization.plan_updated"
+    assert captured["audit_event"]["event_type"] == "platform.organization_plan_updated"
     assert captured["audit_event"]["metadata"] == {
         "previous_plan": "free",
         "new_plan": "business",
@@ -425,16 +434,105 @@ def test_member_cannot_list_upgrade_requests(member_client):
     assert response.status_code == 403
 
 
-def test_admin_can_update_upgrade_request_status(authenticated_client, monkeypatch):
+def test_platform_admin_can_list_platform_organizations(platform_client, monkeypatch):
     captured = {}
 
-    def fake_update_upgrade_request_status(organization_id, upgrade_request_id, status):
-        captured["organization_id"] = organization_id
+    def fake_list_platform_organizations(limit, offset):
+        captured["limit"] = limit
+        captured["offset"] = offset
+        return [
+            {
+                "organization_id": 123,
+                "name": "Demo Org",
+                "slug": "demo-org",
+                "plan": "business",
+                "active_users": 3,
+                "analysis_runs": 12,
+                "total_reviews": 1200,
+                "open_upgrade_requests": 1,
+                "created_at": None,
+                "updated_at": None,
+            }
+        ]
+
+    monkeypatch.setattr(
+        "app.api.routes.platform.list_platform_organizations",
+        fake_list_platform_organizations,
+    )
+
+    response = platform_client.get("/platform/organizations?limit=5&offset=2")
+
+    assert response.status_code == 200
+    assert response.json()[0]["name"] == "Demo Org"
+    assert captured == {"limit": 5, "offset": 2}
+
+
+def test_admin_cannot_list_platform_organizations(authenticated_client):
+    response = authenticated_client.get("/platform/organizations")
+
+    assert response.status_code == 403
+
+
+def test_platform_admin_can_list_platform_upgrade_requests(platform_client, monkeypatch):
+    captured = {}
+
+    def fake_list_platform_upgrade_requests(status, limit, offset):
+        captured["status"] = status
+        captured["limit"] = limit
+        captured["offset"] = offset
+        return [
+            {
+                "upgrade_request_id": 7,
+                "organization_id": 123,
+                "organization_name": "Demo Org",
+                "organization_slug": "demo-org",
+                "requested_plan": "pro",
+                "current_plan": "free",
+                "status": "pending",
+                "source": "benchmark_gate",
+                "note": None,
+                "metadata": {},
+                "requested_by_email": "demo@satisfaction.local",
+                "created_at": None,
+                "updated_at": None,
+                "handled_at": None,
+            }
+        ]
+
+    monkeypatch.setattr(
+        "app.api.routes.platform.list_platform_upgrade_requests",
+        fake_list_platform_upgrade_requests,
+    )
+
+    response = platform_client.get(
+        "/platform/upgrade-requests?request_status=open&limit=5&offset=2"
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["organization_name"] == "Demo Org"
+    assert captured == {"status": "open", "limit": 5, "offset": 2}
+
+
+def test_admin_cannot_update_upgrade_request_status(authenticated_client):
+    response = authenticated_client.patch(
+        "/auth/organization/upgrade-requests/7",
+        json={"status": "completed"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_platform_admin_can_update_upgrade_request_status(platform_client, monkeypatch):
+    captured = {}
+
+    def fake_update_upgrade_request_status(upgrade_request_id, status):
         captured["upgrade_request_id"] = upgrade_request_id
         captured["status"] = status
         return {
             "upgrade_request_id": upgrade_request_id,
-            "organization_id": organization_id,
+            "organization_id": 123,
+            "organization_name": "Demo Org",
+            "organization_slug": "demo-org",
             "requested_plan": "pro",
             "current_plan": "free",
             "status": status,
@@ -448,24 +546,23 @@ def test_admin_can_update_upgrade_request_status(authenticated_client, monkeypat
         }
 
     monkeypatch.setattr(
-        "app.api.routes.auth.update_upgrade_request_status",
+        "app.api.routes.platform.update_platform_upgrade_request_status",
         fake_update_upgrade_request_status,
     )
     monkeypatch.setattr(
-        "app.api.routes.auth.record_audit_event",
+        "app.api.routes.platform.record_audit_event",
         lambda **kwargs: captured.setdefault("audit_event", kwargs),
     )
 
-    response = authenticated_client.patch(
-        "/auth/organization/upgrade-requests/7",
+    response = platform_client.patch(
+        "/platform/upgrade-requests/7",
         json={"status": "completed"},
     )
 
     assert response.status_code == 200
     assert response.json()["status"] == "completed"
-    assert captured["organization_id"] == 123
     assert captured["upgrade_request_id"] == 7
-    assert captured["audit_event"]["event_type"] == "organization.upgrade_request_updated"
+    assert captured["audit_event"]["event_type"] == "platform.upgrade_request_updated"
 
 
 def test_member_cannot_update_upgrade_request_status(member_client):

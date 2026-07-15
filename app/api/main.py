@@ -7,6 +7,7 @@ from app.api.database import ensure_product_schema
 from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.model_training import router as model_training_router
+from app.api.routes.platform import router as platform_router
 from app.api.routes.review_sources import router as review_sources_router
 
 API_DESCRIPTION = """
@@ -36,6 +37,10 @@ OPENAPI_TAGS = [
     {
         "name": "model-training",
         "description": "Pilotage du reentrainement du modele de sentiment.",
+    },
+    {
+        "name": "platform",
+        "description": "Backoffice interne pour piloter les organisations clientes.",
     },
 ]
 
@@ -73,6 +78,7 @@ app.include_router(auth_router)
 app.include_router(review_sources_router)
 app.include_router(analysis_runs_router)
 app.include_router(model_training_router)
+app.include_router(platform_router)
 
 
 @app.get(
