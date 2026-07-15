@@ -404,10 +404,19 @@ def accept_organization_invitation(payload):
 
 
 def require_org_admin(user: AuthenticatedUser):
-    if user.role != "admin":
+    if user.role not in {"admin", "platform_admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Action reservee aux administrateurs de l'organisation.",
+        )
+    return user
+
+
+def require_platform_admin(user: AuthenticatedUser):
+    if user.role != "platform_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Action reservee aux administrateurs plateforme.",
         )
     return user
 
@@ -471,6 +480,9 @@ def seed_demo_identity():
     admin_email = os.getenv("DEMO_ADMIN_EMAIL", "demo@satisfaction.local")
     admin_password = os.getenv("DEMO_ADMIN_PASSWORD", "demo-password")
     admin_name = os.getenv("DEMO_ADMIN_NAME", "Admin Demo")
+    platform_email = os.getenv("PLATFORM_ADMIN_EMAIL", "platform@satisfaction.local")
+    platform_password = os.getenv("PLATFORM_ADMIN_PASSWORD", admin_password)
+    platform_name = os.getenv("PLATFORM_ADMIN_NAME", "Admin Plateforme")
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
@@ -534,3 +546,32 @@ def seed_demo_identity():
                     hash_password(admin_password),
                 ),
             )
+
+        cursor.execute(
+            """
+            INSERT INTO users (
+                organization_id,
+                email,
+                full_name,
+                password_hash,
+                role,
+                is_active,
+                account_status,
+                activated_at,
+                updated_at
+            )
+            VALUES (%s, %s, %s, %s, 'platform_admin', TRUE, 'active', NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE
+            SET role = 'platform_admin',
+                is_active = TRUE,
+                account_status = 'active',
+                activated_at = COALESCE(users.activated_at, NOW()),
+                updated_at = NOW();
+            """,
+            (
+                organization_id,
+                platform_email,
+                platform_name,
+                hash_password(platform_password),
+            ),
+        )

@@ -67,6 +67,8 @@ export type UpgradeRequestStatus =
 export type UpgradeRequest = {
   upgrade_request_id: number;
   organization_id: number;
+  organization_name?: string | null;
+  organization_slug?: string | null;
   requested_plan: Exclude<OrganizationPlan, "free">;
   current_plan: OrganizationPlan;
   status: UpgradeRequestStatus;
@@ -156,7 +158,8 @@ export type CurrentUser = {
   organization: Organization;
 };
 
-export type UserRole = "admin" | "member";
+export type UserRole = "admin" | "member" | "platform_admin";
+export type OrganizationMemberRole = "admin" | "member";
 export type UserAccountStatus = "active" | "pending" | "inactive";
 
 export type OrganizationUser = {
@@ -177,13 +180,13 @@ export type OrganizationUserCreate = {
   email: string;
   password: string;
   full_name?: string | null;
-  role: UserRole;
+  role: OrganizationMemberRole;
 };
 
 export type OrganizationInvitationCreate = {
   email: string;
   full_name?: string | null;
-  role: UserRole;
+  role: OrganizationMemberRole;
 };
 
 export type OrganizationInvitationAccept = {
@@ -196,6 +199,19 @@ export type AuthToken = {
   access_token: string;
   token_type: "bearer" | string;
   user: CurrentUser;
+};
+
+export type PlatformOrganization = {
+  organization_id: number;
+  name: string;
+  slug: string;
+  plan: OrganizationPlan;
+  active_users: number;
+  analysis_runs: number;
+  total_reviews: number;
+  open_upgrade_requests: number;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 export type AnalysisRun = {

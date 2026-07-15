@@ -10,6 +10,7 @@ from app.api.auth import (
     list_organization_users,
     require_org_admin,
     require_current_user,
+    require_platform_admin,
 )
 from app.api.schemas import (
     ActionCenterResponse,
@@ -132,7 +133,7 @@ def me(user: AuthenticatedUser = Depends(require_current_user)):
 def organization_users(user: AuthenticatedUser = Depends(require_current_user)):
     return list_organization_users(
         user.organization_id,
-        include_invitation_links=user.role == "admin",
+        include_invitation_links=user.role in {"admin", "platform_admin"},
     )
 
 
@@ -220,7 +221,7 @@ def update_plan(
     payload: OrganizationPlanUpdate,
     user: AuthenticatedUser = Depends(require_current_user),
 ):
-    require_org_admin(user)
+    require_platform_admin(user)
     previous_settings = get_organization_settings(user.organization_id)
     settings = update_organization_plan(user.organization_id, payload.plan)
     if settings is None:
@@ -307,7 +308,7 @@ def update_upgrade_request(
     payload: UpgradeRequestStatusUpdate,
     user: AuthenticatedUser = Depends(require_current_user),
 ):
-    require_org_admin(user)
+    require_platform_admin(user)
     upgrade_request = update_upgrade_request_status(
         user.organization_id,
         upgrade_request_id,

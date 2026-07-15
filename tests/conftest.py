@@ -6,6 +6,7 @@ from app.api.auth import AuthenticatedUser, require_current_user
 from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.model_training import router as model_training_router
+from app.api.routes.platform import router as platform_router
 from app.api.routes.review_sources import router as review_sources_router
 
 
@@ -23,6 +24,15 @@ TEST_MEMBER_USER = AuthenticatedUser(
     email="member@satisfaction.local",
     full_name="Member Demo",
     role="member",
+    organization_id=123,
+    organization_name="Demo Org",
+)
+
+TEST_PLATFORM_USER = AuthenticatedUser(
+    user_id=3,
+    email="platform@satisfaction.local",
+    full_name="Platform Admin",
+    role="platform_admin",
     organization_id=123,
     organization_name="Demo Org",
 )
@@ -45,6 +55,7 @@ def configure_test_auth(monkeypatch):
 def test_app():
     app = FastAPI()
     app.include_router(auth_router)
+    app.include_router(platform_router)
     app.include_router(review_sources_router)
     app.include_router(analysis_runs_router)
     app.include_router(model_training_router)
@@ -73,6 +84,15 @@ def authenticated_client(test_app):
 @pytest.fixture
 def member_client(test_app):
     test_app.dependency_overrides[require_current_user] = lambda: TEST_MEMBER_USER
+    try:
+        yield TestClient(test_app)
+    finally:
+        test_app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def platform_client(test_app):
+    test_app.dependency_overrides[require_current_user] = lambda: TEST_PLATFORM_USER
     try:
         yield TestClient(test_app)
     finally:

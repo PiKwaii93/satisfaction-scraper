@@ -46,6 +46,8 @@ import {
   inviteOrganizationUser,
   listBusinessAlerts,
   listOrganizationAuditEvents,
+  listPlatformOrganizations,
+  listPlatformUpgradeRequests,
   listOrganizationUsers,
   listReviewSources,
   listRuns,
@@ -55,9 +57,9 @@ import {
   refreshRunBusinessAlerts,
   saveReviewFeedback,
   updateBusinessAlertStatus,
-  updateOrganizationPlan,
   updateOrganizationSettings,
-  updateUpgradeRequestStatus,
+  updatePlatformOrganizationPlan,
+  updatePlatformUpgradeRequestStatus,
   updateReviewSource,
   uploadCsvRun
 } from "./api";
@@ -83,10 +85,12 @@ import type {
   ModelTrainingOverview,
   ModelTrainingRun,
   OrganizationAuditEvent,
+  OrganizationMemberRole,
   OrganizationPlan,
   OrganizationSettings,
   OrganizationUsage,
   OrganizationUser,
+  PlatformOrganization,
   Review,
   ReviewSource,
   RunsComparison,
@@ -129,7 +133,14 @@ type PlanGateInfo = {
   actionLabel: string;
 };
 
-type WorkspaceView = "home" | "sources" | "analyses" | "benchmark" | "ai" | "admin";
+type WorkspaceView =
+  | "home"
+  | "sources"
+  | "analyses"
+  | "benchmark"
+  | "ai"
+  | "admin"
+  | "platform";
 
 type WorkspaceNavItem = {
   id: WorkspaceView;
@@ -174,6 +185,12 @@ const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
     label: "Administration",
     description: "Equipe et espace client",
     icon: Users
+  },
+  {
+    id: "platform",
+    label: "Plateforme",
+    description: "Clients et upgrades",
+    icon: Building2
   }
 ];
 
@@ -1200,7 +1217,7 @@ export default function App() {
   const [organizationUserEmail, setOrganizationUserEmail] = useState("");
   const [organizationUserFullName, setOrganizationUserFullName] = useState("");
   const [organizationUserRole, setOrganizationUserRole] =
-    useState<UserRole>("member");
+    useState<OrganizationMemberRole>("member");
   const [organizationUserError, setOrganizationUserError] = useState<string | null>(
     null
   );
@@ -1241,6 +1258,19 @@ export default function App() {
   const [submittingUpgradePlan, setSubmittingUpgradePlan] =
     useState<OrganizationPlan | null>(null);
   const [updatingUpgradeRequestId, setUpdatingUpgradeRequestId] =
+    useState<number | null>(null);
+  const [platformOrganizations, setPlatformOrganizations] = useState<
+    PlatformOrganization[]
+  >([]);
+  const [platformUpgradeRequests, setPlatformUpgradeRequests] = useState<
+    UpgradeRequest[]
+  >([]);
+  const [isPlatformLoading, setIsPlatformLoading] = useState(false);
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [platformMessage, setPlatformMessage] = useState<string | null>(null);
+  const [updatingPlatformOrganizationId, setUpdatingPlatformOrganizationId] =
+    useState<number | null>(null);
+  const [updatingPlatformUpgradeRequestId, setUpdatingPlatformUpgradeRequestId] =
     useState<number | null>(null);
   const [actionCenter, setActionCenter] = useState<ActionCenter | null>(null);
   const [isActionCenterLoading, setIsActionCenterLoading] = useState(false);
@@ -1388,7 +1418,7 @@ export default function App() {
   }
 
   async function refreshUpgradeRequests() {
-    if (currentUser?.role !== "admin") {
+    if (currentUser?.role !== "admin" && currentUser?.role !== "platform_admin") {
       setUpgradeRequests([]);
       return;
     }
@@ -1415,7 +1445,7 @@ export default function App() {
   }
 
   async function refreshAdminAuditEvents() {
-    if (currentUser?.role !== "admin") {
+    if (currentUser?.role !== "admin" && currentUser?.role !== "platform_admin") {
       return;
     }
 
@@ -1425,6 +1455,27 @@ export default function App() {
       setOrganizationAuditError(
         err instanceof Error ? err.message : "Journal d'activite indisponible"
       );
+    }
+  }
+
+  async function refreshPlatformBackoffice() {
+    if (currentUser?.role !== "platform_admin") {
+      setPlatformOrganizations([]);
+      setPlatformUpgradeRequests([]);
+      return;
+    }
+
+    setIsPlatformLoading(true);
+    setPlatformError(null);
+    try {
+      const [organizations, requests] = await Promise.all([
+        listPlatformOrganizations(),
+        listPlatformUpgradeRequests("open")
+      ]);
+      setPlatformOrganizations(organizations);
+      setPlatformUpgradeRequests(requests);
+    } finally {
+      setIsPlatformLoading(false);
     }
   }
 
@@ -1486,7 +1537,7 @@ export default function App() {
     refreshOrganizationUsage().catch((err: Error) =>
       setOrganizationSettingsError(err.message)
     );
-    if (currentUser.role === "admin") {
+    if (currentUser.role === "admin" || currentUser.role === "platform_admin") {
       refreshOrganizationAuditEvents().catch((err: Error) =>
         setOrganizationAuditError(err.message)
       );
@@ -1499,8 +1550,23 @@ export default function App() {
       setUpgradeRequests([]);
       setUpgradeRequestsError(null);
     }
+    if (currentUser.role === "platform_admin") {
+      refreshPlatformBackoffice().catch((err: Error) =>
+        setPlatformError(err.message)
+      );
+    } else {
+      setPlatformOrganizations([]);
+      setPlatformUpgradeRequests([]);
+      setPlatformError(null);
+    }
     refreshReviewSources().catch((err: Error) => setReviewSourcesError(err.message));
   }, [currentUser?.user_id]);
+
+  useEffect(() => {
+    if (activeView === "platform" && currentUser?.role !== "platform_admin") {
+      setActiveView("home");
+    }
+  }, [activeView, currentUser?.role]);
 
   useEffect(() => {
     if (csvFile) {
@@ -1562,7 +1628,9 @@ export default function App() {
   const reviewsPageCount = Math.max(1, Math.ceil(reviewsTotal / reviewsLimit));
   const canGoToPreviousReviews = reviewsOffset > 0;
   const canGoToNextReviews = reviewsOffset + reviews.length < reviewsTotal;
-  const canManageWorkspace = currentUser?.role === "admin";
+  const isPlatformAdmin = currentUser?.role === "platform_admin";
+  const canManageWorkspace =
+    currentUser?.role === "admin" || currentUser?.role === "platform_admin";
   const benchmarkPlanGate = getFeaturePlanGate(
     organizationUsage,
     "benchmark"
@@ -1669,8 +1737,16 @@ export default function App() {
   const onboardingCompletedCount = onboardingSteps.filter(
     (step) => step.completed
   ).length;
+  const visibleWorkspaceItems = useMemo(
+    () =>
+      WORKSPACE_NAV_ITEMS.filter(
+        (item) => item.id !== "platform" || isPlatformAdmin
+      ),
+    [isPlatformAdmin]
+  );
   const activeWorkspaceItem =
-    WORKSPACE_NAV_ITEMS.find((item) => item.id === activeView) ??
+    visibleWorkspaceItems.find((item) => item.id === activeView) ??
+    visibleWorkspaceItems[0] ??
     WORKSPACE_NAV_ITEMS[0];
   const workspaceNavStats = useMemo<Record<WorkspaceView, string>>(
     () => ({
@@ -1679,13 +1755,15 @@ export default function App() {
       analyses: `${runs.length} run(s)`,
       benchmark: `${comparisonRunIds.length}/4`,
       ai: `${feedbackQuality?.training_ready_count ?? 0} correction(s)`,
-      admin: `${organizationUsers.length} membre(s)`
+      admin: `${organizationUsers.length} membre(s)`,
+      platform: `${platformOrganizations.length} client(s)`
     }),
     [
       actionCenter?.counts.open_alerts,
       comparisonRunIds.length,
       feedbackQuality?.training_ready_count,
       organizationUsers.length,
+      platformOrganizations.length,
       reviewSources,
       runs.length
     ]
@@ -1766,6 +1844,12 @@ export default function App() {
     setUpgradeRequestMessage(null);
     setSubmittingUpgradePlan(null);
     setUpdatingUpgradeRequestId(null);
+    setPlatformOrganizations([]);
+    setPlatformUpgradeRequests([]);
+    setPlatformError(null);
+    setPlatformMessage(null);
+    setUpdatingPlatformOrganizationId(null);
+    setUpdatingPlatformUpgradeRequestId(null);
     setReviewSources(DEFAULT_REVIEW_SOURCES);
     setReviewSourcesError(null);
     setUpdatingReviewSourceId(null);
@@ -1864,9 +1948,9 @@ export default function App() {
   }
 
   async function handleUpdateOrganizationPlan(plan: OrganizationPlan) {
-    if (!canManageWorkspace) {
+    if (!isPlatformAdmin || !organizationSettings) {
       setOrganizationSettingsError(
-        "Seul un administrateur peut modifier le plan de l'organisation."
+        "Seul un administrateur plateforme peut modifier le plan de l'organisation."
       );
       return;
     }
@@ -1880,12 +1964,16 @@ export default function App() {
     setOrganizationSettingsMessage(null);
 
     try {
-      const settings = await updateOrganizationPlan(plan);
+      const settings = await updatePlatformOrganizationPlan(
+        organizationSettings.organization_id,
+        plan
+      );
       setOrganizationSettings(settings);
       await Promise.all([
         refreshOrganizationUsage(),
         refreshAdminAuditEvents(),
-        refreshActionCenter()
+        refreshActionCenter(),
+        refreshPlatformBackoffice()
       ]);
       setOrganizationSettingsMessage(`Plan ${formatPlan(plan)} applique.`);
     } catch (err) {
@@ -1941,9 +2029,9 @@ export default function App() {
     upgradeRequestId: number,
     status: UpgradeRequestStatus
   ) {
-    if (!canManageWorkspace) {
+    if (!isPlatformAdmin) {
       setUpgradeRequestsError(
-        "Seul un administrateur peut traiter les demandes d'upgrade."
+        "Seul un administrateur plateforme peut traiter les demandes d'upgrade."
       );
       return;
     }
@@ -1953,12 +2041,13 @@ export default function App() {
     setUpgradeRequestMessage(null);
 
     try {
-      await updateUpgradeRequestStatus(upgradeRequestId, status);
+      await updatePlatformUpgradeRequestStatus(upgradeRequestId, status);
       setUpgradeRequestMessage(`Demande d'upgrade ${formatUpgradeRequestStatus(status)}.`);
       await Promise.all([
         refreshUpgradeRequests(),
         refreshActionCenter(),
-        refreshAdminAuditEvents()
+        refreshAdminAuditEvents(),
+        refreshPlatformBackoffice()
       ]);
     } catch (err) {
       setUpgradeRequestsError(
@@ -1966,6 +2055,65 @@ export default function App() {
       );
     } finally {
       setUpdatingUpgradeRequestId(null);
+    }
+  }
+
+  async function handleUpdatePlatformOrganizationPlan(
+    organizationId: number,
+    plan: OrganizationPlan
+  ) {
+    setUpdatingPlatformOrganizationId(organizationId);
+    setPlatformError(null);
+    setPlatformMessage(null);
+
+    try {
+      const settings = await updatePlatformOrganizationPlan(organizationId, plan);
+      setPlatformMessage(
+        `${settings.name} est maintenant sur le plan ${formatPlan(settings.plan)}.`
+      );
+      if (organizationSettings?.organization_id === organizationId) {
+        setOrganizationSettings(settings);
+      }
+      await Promise.all([
+        refreshPlatformBackoffice(),
+        refreshOrganizationUsage(),
+        refreshAdminAuditEvents(),
+        refreshActionCenter()
+      ]);
+    } catch (err) {
+      setPlatformError(
+        err instanceof Error ? err.message : "Plan client impossible a modifier"
+      );
+    } finally {
+      setUpdatingPlatformOrganizationId(null);
+    }
+  }
+
+  async function handleUpdatePlatformUpgradeRequestStatus(
+    upgradeRequestId: number,
+    status: UpgradeRequestStatus
+  ) {
+    setUpdatingPlatformUpgradeRequestId(upgradeRequestId);
+    setPlatformError(null);
+    setPlatformMessage(null);
+
+    try {
+      await updatePlatformUpgradeRequestStatus(upgradeRequestId, status);
+      setPlatformMessage(
+        `Demande d'upgrade ${formatUpgradeRequestStatus(status)}.`
+      );
+      await Promise.all([
+        refreshPlatformBackoffice(),
+        refreshUpgradeRequests(),
+        refreshAdminAuditEvents(),
+        refreshActionCenter()
+      ]);
+    } catch (err) {
+      setPlatformError(
+        err instanceof Error ? err.message : "Demande d'upgrade impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingPlatformUpgradeRequestId(null);
     }
   }
 
@@ -2905,7 +3053,7 @@ export default function App() {
         </section>
 
         <nav className="product-nav" aria-label="Espaces produit">
-          {WORKSPACE_NAV_ITEMS.map((item) => {
+          {visibleWorkspaceItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -3402,6 +3550,8 @@ export default function App() {
           <ClientSpacePanel
             auditError={organizationAuditError}
             auditEvents={organizationAuditEvents}
+            canUpdatePlan={isPlatformAdmin}
+            canUpdateUpgradeRequests={isPlatformAdmin}
             currentUser={currentUser}
             defaultPagesPerStar={organizationDefaultPages}
             defaultSource={organizationDefaultSource}
@@ -3457,6 +3607,21 @@ export default function App() {
             usersError={organizationUserError}
             isLoadingUpgradeRequests={isUpgradeRequestsLoading}
             updatingUpgradeRequestId={updatingUpgradeRequestId}
+          />
+        )}
+
+        {activeView === "platform" && isPlatformAdmin && (
+          <PlatformBackofficePanel
+            error={platformError}
+            isLoading={isPlatformLoading}
+            message={platformMessage}
+            onRefresh={() => refreshPlatformBackoffice()}
+            onUpdateOrganizationPlan={handleUpdatePlatformOrganizationPlan}
+            onUpdateUpgradeRequestStatus={handleUpdatePlatformUpgradeRequestStatus}
+            organizations={platformOrganizations}
+            requests={platformUpgradeRequests}
+            updatingOrganizationId={updatingPlatformOrganizationId}
+            updatingRequestId={updatingPlatformUpgradeRequestId}
           />
         )}
 
@@ -4452,6 +4617,8 @@ function ReviewSourcesPanel({
 function ClientSpacePanel({
   auditError,
   auditEvents,
+  canUpdatePlan,
+  canUpdateUpgradeRequests,
   currentUser,
   defaultPagesPerStar,
   defaultSource,
@@ -4496,6 +4663,8 @@ function ClientSpacePanel({
 }: {
   auditError: string | null;
   auditEvents: OrganizationAuditEvent[];
+  canUpdatePlan: boolean;
+  canUpdateUpgradeRequests: boolean;
   currentUser: CurrentUser;
   defaultPagesPerStar: number;
   defaultSource: AnalysisSource;
@@ -4509,7 +4678,7 @@ function ClientSpacePanel({
   message: string | null;
   newUserEmail: string;
   newUserFullName: string;
-  newUserRole: UserRole;
+  newUserRole: OrganizationMemberRole;
   onCreateUser: (event: FormEvent<HTMLFormElement>) => void;
   onRefreshAudit: () => void;
   onRefreshSettings: () => void;
@@ -4523,7 +4692,7 @@ function ClientSpacePanel({
   onUpdateOrganizationName: (value: string) => void;
   onUpdateNewUserEmail: (value: string) => void;
   onUpdateNewUserFullName: (value: string) => void;
-  onUpdateNewUserRole: (value: UserRole) => void;
+  onUpdateNewUserRole: (value: OrganizationMemberRole) => void;
   onUpdateUpgradeRequestStatus: (
     upgradeRequestId: number,
     status: UpgradeRequestStatus
@@ -4541,7 +4710,8 @@ function ClientSpacePanel({
   users: OrganizationUser[];
   usersError: string | null;
 }) {
-  const isAdmin = currentUser.role === "admin";
+  const isOrgAdmin =
+    currentUser.role === "admin" || currentUser.role === "platform_admin";
   const activeUsers = users.filter((user) => user.account_status === "active");
   const pendingUsers = users.filter((user) => user.account_status === "pending");
   const isRefreshingClientSpace =
@@ -4566,7 +4736,7 @@ function ClientSpacePanel({
           onClick={() => {
             onRefreshUsers();
             onRefreshSettings();
-            if (isAdmin) {
+            if (isOrgAdmin) {
               onRefreshAudit();
               onRefreshUpgradeRequests();
             }
@@ -4621,15 +4791,16 @@ function ClientSpacePanel({
 
       {usage ? (
         <OrganizationUsagePanel
-          canManage={isAdmin}
+          canManagePlan={canUpdatePlan}
           isSavingPlan={isSavingPlan}
           onUpdatePlan={onUpdatePlan}
           usage={usage}
         />
       ) : null}
 
-      {isAdmin ? (
+      {isOrgAdmin ? (
         <UpgradeRequestsPanel
+          canUpdate={canUpdateUpgradeRequests}
           error={upgradeRequestsError}
           isLoading={isLoadingUpgradeRequests}
           message={upgradeRequestMessage}
@@ -4649,11 +4820,11 @@ function ClientSpacePanel({
         <form className="organization-settings-form" onSubmit={onSaveSettings}>
           <div className="mini-heading">
             <strong>Parametres organisation</strong>
-            <span>{isAdmin ? "Admin" : "Lecture seule"}</span>
+            <span>{isOrgAdmin ? "Admin" : "Lecture seule"}</span>
           </div>
           <label htmlFor="organization-name">Nom de l'organisation</label>
           <input
-            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            disabled={!isOrgAdmin || isSavingSettings || isLoadingSettings}
             id="organization-name"
             onChange={(event) => onUpdateOrganizationName(event.target.value)}
             type="text"
@@ -4661,7 +4832,7 @@ function ClientSpacePanel({
           />
           <label htmlFor="organization-default-source">Source par defaut</label>
           <select
-            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            disabled={!isOrgAdmin || isSavingSettings || isLoadingSettings}
             id="organization-default-source"
             onChange={(event) =>
               onUpdateDefaultSource(event.target.value as AnalysisSource)
@@ -4673,7 +4844,7 @@ function ClientSpacePanel({
           </select>
           <label htmlFor="organization-pages">Pages par note par defaut</label>
           <input
-            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            disabled={!isOrgAdmin || isSavingSettings || isLoadingSettings}
             id="organization-pages"
             max={20}
             min={1}
@@ -4685,13 +4856,13 @@ function ClientSpacePanel({
           />
           <button
             className="primary-action compact-action"
-            disabled={!isAdmin || isSavingSettings || isLoadingSettings}
+            disabled={!isOrgAdmin || isSavingSettings || isLoadingSettings}
             type="submit"
           >
             {isSavingSettings ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
             Sauvegarder
           </button>
-          {!isAdmin ? (
+          {!isOrgAdmin ? (
             <p className="muted">Seuls les administrateurs modifient ces preferences.</p>
           ) : (
             <p className="muted">
@@ -4705,7 +4876,7 @@ function ClientSpacePanel({
             <strong>Journal d'activite</strong>
             <button
               className="icon-button"
-              disabled={!isAdmin || isLoadingAudit}
+              disabled={!isOrgAdmin || isLoadingAudit}
               onClick={onRefreshAudit}
               type="button"
             >
@@ -4717,7 +4888,7 @@ function ClientSpacePanel({
             </button>
           </div>
           {auditError ? <p className="form-error">{auditError}</p> : null}
-          {!isAdmin ? (
+          {!isOrgAdmin ? (
             <p className="muted">Le journal d'activite est reserve aux administrateurs.</p>
           ) : auditEvents.length === 0 && !isLoadingAudit ? (
             <p className="muted">Aucune activite admin enregistree pour le moment.</p>
@@ -4772,7 +4943,7 @@ function ClientSpacePanel({
         <form className="client-user-form" onSubmit={onCreateUser}>
           <div className="mini-heading">
             <strong>Inviter un utilisateur</strong>
-            <span>{isAdmin ? "Admin" : "Lecture seule"}</span>
+            <span>{isOrgAdmin ? "Admin" : "Lecture seule"}</span>
           </div>
           {invitePlanGate ? (
             <PlanGate
@@ -4783,22 +4954,24 @@ function ClientSpacePanel({
             />
           ) : null}
           <input
-            disabled={!isAdmin || isCreatingUser}
+            disabled={!isOrgAdmin || isCreatingUser}
             onChange={(event) => onUpdateNewUserEmail(event.target.value)}
             placeholder="email@entreprise.fr"
             type="email"
             value={newUserEmail}
           />
           <input
-            disabled={!isAdmin || isCreatingUser}
+            disabled={!isOrgAdmin || isCreatingUser}
             onChange={(event) => onUpdateNewUserFullName(event.target.value)}
             placeholder="Nom complet"
             type="text"
             value={newUserFullName}
           />
           <select
-            disabled={!isAdmin || isCreatingUser}
-            onChange={(event) => onUpdateNewUserRole(event.target.value as UserRole)}
+            disabled={!isOrgAdmin || isCreatingUser}
+            onChange={(event) =>
+              onUpdateNewUserRole(event.target.value as OrganizationMemberRole)
+            }
             value={newUserRole}
           >
             <option value="member">Membre</option>
@@ -4806,13 +4979,13 @@ function ClientSpacePanel({
           </select>
           <button
             className="primary-action compact-action"
-            disabled={!isAdmin || isCreatingUser || Boolean(invitePlanGate)}
+            disabled={!isOrgAdmin || isCreatingUser || Boolean(invitePlanGate)}
             type="submit"
           >
             {isCreatingUser ? <Loader2 className="spin" size={16} /> : <UserPlus size={16} />}
             Inviter
           </button>
-          {!isAdmin ? (
+          {!isOrgAdmin ? (
             <p className="muted">Seuls les administrateurs peuvent inviter un membre.</p>
           ) : (
             <p className="muted">
@@ -4825,13 +4998,267 @@ function ClientSpacePanel({
   );
 }
 
+function PlatformBackofficePanel({
+  error,
+  isLoading,
+  message,
+  onRefresh,
+  onUpdateOrganizationPlan,
+  onUpdateUpgradeRequestStatus,
+  organizations,
+  requests,
+  updatingOrganizationId,
+  updatingRequestId
+}: {
+  error: string | null;
+  isLoading: boolean;
+  message: string | null;
+  onRefresh: () => void;
+  onUpdateOrganizationPlan: (
+    organizationId: number,
+    plan: OrganizationPlan
+  ) => void;
+  onUpdateUpgradeRequestStatus: (
+    upgradeRequestId: number,
+    status: UpgradeRequestStatus
+  ) => void;
+  organizations: PlatformOrganization[];
+  requests: UpgradeRequest[];
+  updatingOrganizationId: number | null;
+  updatingRequestId: number | null;
+}) {
+  const activeUsers = organizations.reduce(
+    (total, organization) => total + organization.active_users,
+    0
+  );
+  const totalReviews = organizations.reduce(
+    (total, organization) => total + organization.total_reviews,
+    0
+  );
+  const pendingRequests = requests.filter(
+    (request) => request.status === "pending"
+  ).length;
+
+  return (
+    <section className="platform-panel insight-section wide" id="platform_backoffice">
+      <div className="section-heading client-space-heading">
+        <div>
+          <span className="eyebrow">Plateforme</span>
+          <h3>Backoffice clients</h3>
+          <p>
+            Vue interne pour suivre les espaces clients, les plans et les demandes
+            d'upgrade.
+          </p>
+        </div>
+        <button
+          className="secondary-action"
+          disabled={isLoading}
+          onClick={onRefresh}
+          type="button"
+        >
+          {isLoading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
+          Actualiser
+        </button>
+      </div>
+
+      {message ? <p className="form-success">{message}</p> : null}
+      {error ? <p className="form-error">{error}</p> : null}
+
+      <div className="client-space-grid">
+        <div className="client-card">
+          <Building2 size={20} />
+          <div>
+            <span>Organisations</span>
+            <strong>{organizations.length}</strong>
+            <small>{organizations.length} client(s) suivi(s)</small>
+          </div>
+        </div>
+        <div className="client-card">
+          <ListChecks size={20} />
+          <div>
+            <span>Demandes upgrade</span>
+            <strong>{requests.length}</strong>
+            <small>{pendingRequests} en attente</small>
+          </div>
+        </div>
+        <div className="client-card">
+          <Users size={20} />
+          <div>
+            <span>Utilisateurs actifs</span>
+            <strong>{activeUsers}</strong>
+            <small>Tous espaces clients</small>
+          </div>
+        </div>
+        <div className="client-card">
+          <Database size={20} />
+          <div>
+            <span>Avis analyses</span>
+            <strong>{totalReviews.toLocaleString("fr-FR")}</strong>
+            <small>Historique plateforme</small>
+          </div>
+        </div>
+      </div>
+
+      <div className="platform-layout">
+        <div className="platform-card">
+          <div className="mini-heading">
+            <strong>Organisations clientes</strong>
+            <span>{organizations.length} client(s)</span>
+          </div>
+          {organizations.length === 0 && !isLoading ? (
+            <p className="muted">Aucune organisation cliente.</p>
+          ) : (
+            <div className="platform-organization-list">
+              {organizations.map((organization) => {
+                const isUpdating =
+                  updatingOrganizationId === organization.organization_id;
+                return (
+                  <article
+                    className="platform-organization-row"
+                    key={organization.organization_id}
+                  >
+                    <div>
+                      <strong>{organization.name}</strong>
+                      <small>
+                        {organization.slug} - {organization.active_users} utilisateur(s)
+                        actif(s) - {organization.analysis_runs} run(s)
+                      </small>
+                    </div>
+                    <span className={`plan-pill ${organization.plan}`}>
+                      {formatPlan(organization.plan)}
+                    </span>
+                    <select
+                      disabled={isUpdating}
+                      onChange={(event) =>
+                        onUpdateOrganizationPlan(
+                          organization.organization_id,
+                          event.target.value as OrganizationPlan
+                        )
+                      }
+                      value={organization.plan}
+                    >
+                      <option value="free">Free</option>
+                      <option value="pro">Pro</option>
+                      <option value="business">Business</option>
+                    </select>
+                    {isUpdating ? <Loader2 className="spin" size={16} /> : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="platform-card">
+          <div className="mini-heading">
+            <strong>Demandes d'upgrade ouvertes</strong>
+            <span>{requests.length} demande(s)</span>
+          </div>
+          {requests.length === 0 && !isLoading ? (
+            <p className="muted">Aucune demande d'upgrade ouverte.</p>
+          ) : (
+            <div className="upgrade-request-list">
+              {requests.map((request) => {
+                const isUpdating =
+                  updatingRequestId === request.upgrade_request_id;
+                return (
+                  <article
+                    className="upgrade-request-row"
+                    key={request.upgrade_request_id}
+                  >
+                    <div>
+                      <strong>
+                        {request.organization_name ?? "Organisation"}:{" "}
+                        {formatPlan(request.current_plan)} vers{" "}
+                        {formatPlan(request.requested_plan)}
+                      </strong>
+                      <p>
+                        {request.requested_by_email ?? "Utilisateur"} -{" "}
+                        {request.note ?? request.source ?? "Demande d'upgrade"}
+                      </p>
+                      <small>
+                        {formatUpgradeRequestStatus(request.status)} -{" "}
+                        {formatDate(request.created_at)}
+                      </small>
+                    </div>
+                    <span className={`upgrade-status ${request.status}`}>
+                      {formatUpgradeRequestStatus(request.status)}
+                    </span>
+                    <div className="upgrade-request-actions">
+                      {request.status === "pending" ? (
+                        <>
+                          <button
+                            className="secondary-action compact-action"
+                            disabled={isUpdating}
+                            onClick={() =>
+                              onUpdateUpgradeRequestStatus(
+                                request.upgrade_request_id,
+                                "approved"
+                              )
+                            }
+                            type="button"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="spin" size={14} />
+                            ) : (
+                              <CheckCircle2 size={14} />
+                            )}
+                            Accepter
+                          </button>
+                          <button
+                            className="secondary-action compact-action danger-action"
+                            disabled={isUpdating}
+                            onClick={() =>
+                              onUpdateUpgradeRequestStatus(
+                                request.upgrade_request_id,
+                                "rejected"
+                              )
+                            }
+                            type="button"
+                          >
+                            Refuser
+                          </button>
+                        </>
+                      ) : null}
+                      {request.status === "approved" ? (
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={isUpdating}
+                          onClick={() =>
+                            onUpdateUpgradeRequestStatus(
+                              request.upgrade_request_id,
+                              "completed"
+                            )
+                          }
+                          type="button"
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="spin" size={14} />
+                          ) : (
+                            <CheckCircle2 size={14} />
+                          )}
+                          Marquer traite
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function OrganizationUsagePanel({
-  canManage,
+  canManagePlan,
   isSavingPlan,
   onUpdatePlan,
   usage
 }: {
-  canManage: boolean;
+  canManagePlan: boolean;
   isSavingPlan: boolean;
   onUpdatePlan: (plan: OrganizationPlan) => void;
   usage: OrganizationUsage;
@@ -4873,7 +5300,7 @@ function OrganizationUsagePanel({
         <label className="plan-selector" htmlFor="organization-plan">
           <span>Plan actif</span>
           <select
-            disabled={!canManage || isSavingPlan}
+            disabled={!canManagePlan || isSavingPlan}
             id="organization-plan"
             onChange={(event) =>
               onUpdatePlan(event.target.value as OrganizationPlan)
@@ -4927,8 +5354,10 @@ function OrganizationUsagePanel({
           Reentrainement IA {usage.features.model_training ? "inclus" : "non inclus"}
         </span>
       </div>
-      {!canManage ? (
-        <p className="muted">Seuls les administrateurs peuvent modifier le plan.</p>
+      {!canManagePlan ? (
+        <p className="muted">
+          Seuls les administrateurs plateforme peuvent modifier le plan.
+        </p>
       ) : (
         <p className="muted">
           Changement interne MVP: les limites sont appliquees immediatement et journalisees.
@@ -4939,6 +5368,7 @@ function OrganizationUsagePanel({
 }
 
 function UpgradeRequestsPanel({
+  canUpdate,
   error,
   isLoading,
   message,
@@ -4947,6 +5377,7 @@ function UpgradeRequestsPanel({
   requests,
   updatingRequestId
 }: {
+  canUpdate: boolean;
   error: string | null;
   isLoading: boolean;
   message: string | null;
@@ -4977,6 +5408,12 @@ function UpgradeRequestsPanel({
 
       {message ? <p className="form-success">{message}</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
+      {!canUpdate ? (
+        <p className="permission-hint">
+          Lecture seule: un administrateur plateforme peut traiter les demandes
+          d'upgrade.
+        </p>
+      ) : null}
 
       {requests.length === 0 && !isLoading ? (
         <div className="empty-inline-state">
@@ -5006,7 +5443,7 @@ function UpgradeRequestsPanel({
                   {formatUpgradeRequestStatus(request.status)}
                 </span>
                 <div className="upgrade-request-actions">
-                  {request.status === "pending" ? (
+                  {canUpdate && request.status === "pending" ? (
                     <>
                       <button
                         className="secondary-action compact-action"
@@ -5035,7 +5472,7 @@ function UpgradeRequestsPanel({
                       </button>
                     </>
                   ) : null}
-                  {request.status === "approved" ? (
+                  {canUpdate && request.status === "approved" ? (
                     <button
                       className="secondary-action compact-action"
                       disabled={isUpdating}
@@ -5702,6 +6139,9 @@ function formatAuditEventType(eventType: string) {
 }
 
 function formatRole(role: string) {
+  if (role === "platform_admin") {
+    return "Plateforme";
+  }
   return role === "admin" ? "Admin" : "Membre";
 }
 

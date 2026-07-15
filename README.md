@@ -218,6 +218,9 @@ Le compte demo initial est cree au demarrage si aucun utilisateur n'existe. Les 
 - `DEMO_ADMIN_EMAIL`
 - `DEMO_ADMIN_PASSWORD`
 - `DEMO_ADMIN_NAME`
+- `PLATFORM_ADMIN_EMAIL`
+- `PLATFORM_ADMIN_PASSWORD`
+- `PLATFORM_ADMIN_NAME`
 
 Le frontend stocke le JWT dans `localStorage` pour le MVP et l'envoie avec :
 
@@ -231,6 +234,7 @@ Roles :
 
 | Role | Droits principaux |
 | --- | --- |
+| `platform_admin` | Acceder au backoffice plateforme, suivre les organisations clientes, changer les plans et traiter les demandes d'upgrade. |
 | `admin` | Lancer analyses, importer CSV, configurer sources, inviter utilisateurs, gerer alertes, corriger avis, reentrainer le modele. |
 | `member` | Consulter rapports, runs, benchmark, qualite IA et administration en lecture seule selon les ecrans. |
 
@@ -482,6 +486,9 @@ Principales variables utilisees :
 | `DEMO_ADMIN_EMAIL` | Email admin demo. |
 | `DEMO_ADMIN_PASSWORD` | Mot de passe admin demo. |
 | `DEMO_ADMIN_NAME` | Nom admin demo. |
+| `PLATFORM_ADMIN_EMAIL` | Email admin plateforme pour le backoffice interne. |
+| `PLATFORM_ADMIN_PASSWORD` | Mot de passe admin plateforme. |
+| `PLATFORM_ADMIN_NAME` | Nom admin plateforme. |
 | `VITE_API_BASE_URL` | Base URL API cote frontend. |
 | `FEEDBACK_SAMPLE_WEIGHT` | Poids des corrections humaines dans l'entrainement. |
 

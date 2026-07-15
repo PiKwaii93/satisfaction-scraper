@@ -44,6 +44,8 @@ class UpgradeRequestStatusUpdate(BaseModel):
 class UpgradeRequestResponse(BaseModel):
     upgrade_request_id: int
     organization_id: int
+    organization_name: str | None = None
+    organization_slug: str | None = None
     requested_plan: Literal["pro", "business"]
     current_plan: Literal["free", "pro", "business"]
     status: Literal["pending", "approved", "rejected", "completed", "cancelled"]
@@ -54,6 +56,19 @@ class UpgradeRequestResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     handled_at: datetime | None = None
+
+
+class PlatformOrganizationResponse(BaseModel):
+    organization_id: int
+    name: str
+    slug: str
+    plan: Literal["free", "pro", "business"]
+    active_users: int = 0
+    analysis_runs: int = 0
+    total_reviews: int = 0
+    open_upgrade_requests: int = 0
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class OrganizationUsageLimits(BaseModel):
