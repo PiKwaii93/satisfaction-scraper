@@ -1,6 +1,9 @@
 from datetime import date
 
-from app.api.services.customer_action_service import _build_customer_action_playbook
+from app.api.services.customer_action_service import (
+    _build_customer_action_playbook,
+    _impact_status_for_delta,
+)
 
 
 def test_builds_topic_playbook_from_alert_metadata():
@@ -36,3 +39,14 @@ def test_builds_negative_share_playbook_from_json_metadata():
     assert playbook["owner_name"] == "Responsable service client"
     assert "avis negatifs" in playbook["notes"]
     assert "Diminution de la part d'avis negatifs" in playbook["notes"]
+
+
+def test_negative_share_impact_rewards_decrease():
+    assert _impact_status_for_delta("negative_share", -2) == "improved"
+    assert _impact_status_for_delta("negative_share", 2) == "degraded"
+    assert _impact_status_for_delta("negative_share", 0.4) == "stable"
+
+
+def test_health_impact_rewards_increase():
+    assert _impact_status_for_delta("health_score", 2) == "improved"
+    assert _impact_status_for_delta("health_score", -2) == "degraded"

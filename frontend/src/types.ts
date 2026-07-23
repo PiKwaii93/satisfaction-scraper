@@ -414,6 +414,25 @@ export type CustomerActionStatus =
   | "resolved"
   | "ignored";
 
+export type CustomerActionImpactStatus =
+  | "not_measurable"
+  | "improved"
+  | "stable"
+  | "degraded";
+
+export type CustomerActionImpact = {
+  status: CustomerActionImpactStatus;
+  label: string;
+  summary: string;
+  metric_label: string;
+  unit: string | null;
+  baseline_run_id: number | null;
+  comparison_run_id: number | null;
+  baseline_value: number | null;
+  comparison_value: number | null;
+  delta: number | null;
+};
+
 export type CustomerAction = {
   action_id: number;
   organization_id: number;
@@ -434,6 +453,7 @@ export type CustomerAction = {
   created_at: string | null;
   updated_at: string | null;
   resolved_at: string | null;
+  impact: CustomerActionImpact | null;
 };
 
 export type CustomerActionCreate = {
