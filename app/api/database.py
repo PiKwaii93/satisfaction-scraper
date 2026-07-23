@@ -176,6 +176,14 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "updated_at",
         "resolved_at",
     },
+    "customer_action_comments": {
+        "comment_id",
+        "action_id",
+        "organization_id",
+        "author_user_id",
+        "body",
+        "created_at",
+    },
     "upgrade_requests": {
         "upgrade_request_id",
         "organization_id",
@@ -238,6 +246,10 @@ PRODUCT_INDEX_REQUIREMENTS = {
         "idx_customer_actions_org_status",
         "idx_customer_actions_run",
         "idx_customer_actions_unique_alert",
+    },
+    "customer_action_comments": {
+        "idx_customer_action_comments_action_created",
+        "idx_customer_action_comments_org_created",
     },
     "upgrade_requests": {
         "idx_upgrade_requests_org_status",

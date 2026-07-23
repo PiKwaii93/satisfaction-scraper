@@ -1,5 +1,9 @@
 from app.api.database import get_cursor
-from app.api.schemas import CustomerActionCreate, CustomerActionUpdate
+from app.api.schemas import (
+    CustomerActionCommentCreate,
+    CustomerActionCreate,
+    CustomerActionUpdate,
+)
 
 
 ACTION_STATUSES = {"open", "in_progress", "resolved", "ignored"}
@@ -37,6 +41,18 @@ def _serialize_action(row):
         "created_at": row.get("created_at"),
         "updated_at": row.get("updated_at"),
         "resolved_at": row.get("resolved_at"),
+    }
+
+
+def _serialize_comment(row):
+    return {
+        "comment_id": row["comment_id"],
+        "action_id": row["action_id"],
+        "organization_id": row["organization_id"],
+        "author_user_id": row.get("author_user_id"),
+        "author_name": row.get("author_name") or row.get("author_email"),
+        "body": row["body"],
+        "created_at": row.get("created_at"),
     }
 
 
@@ -292,3 +308,68 @@ def update_customer_action(
         if not cursor.fetchone():
             raise ValueError("Action client introuvable.")
         return _select_action(cursor, organization_id, action_id)
+
+
+def list_customer_action_comments(action_id: int, organization_id: int, limit=30):
+    limit = max(1, min(int(limit), 100))
+
+    with get_cursor() as cursor:
+        _select_action(cursor, organization_id, action_id)
+        cursor.execute(
+            """
+            SELECT
+                cac.*,
+                users.full_name AS author_name,
+                users.email AS author_email
+            FROM customer_action_comments cac
+            LEFT JOIN users ON users.user_id = cac.author_user_id
+            WHERE cac.organization_id = %s
+              AND cac.action_id = %s
+            ORDER BY cac.created_at ASC, cac.comment_id ASC
+            LIMIT %s;
+            """,
+            (organization_id, action_id, limit),
+        )
+        return [_serialize_comment(row) for row in cursor.fetchall()]
+
+
+def create_customer_action_comment(
+    action_id: int,
+    organization_id: int,
+    author_user_id: int,
+    payload: CustomerActionCommentCreate,
+):
+    body = payload.body.strip()
+    if not body:
+        raise ValueError("Commentaire obligatoire.")
+
+    with get_cursor(commit=True) as cursor:
+        _select_action(cursor, organization_id, action_id)
+        cursor.execute(
+            """
+            INSERT INTO customer_action_comments (
+                action_id,
+                organization_id,
+                author_user_id,
+                body
+            )
+            VALUES (%s, %s, %s, %s)
+            RETURNING comment_id;
+            """,
+            (action_id, organization_id, author_user_id, body),
+        )
+        comment_id = cursor.fetchone()["comment_id"]
+        cursor.execute(
+            """
+            SELECT
+                cac.*,
+                users.full_name AS author_name,
+                users.email AS author_email
+            FROM customer_action_comments cac
+            LEFT JOIN users ON users.user_id = cac.author_user_id
+            WHERE cac.organization_id = %s
+              AND cac.comment_id = %s;
+            """,
+            (organization_id, comment_id),
+        )
+        return _serialize_comment(cursor.fetchone())

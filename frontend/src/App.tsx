@@ -13,9 +13,11 @@ import {
   ListChecks,
   Loader2,
   LogOut,
+  MessageSquare,
   Play,
   RefreshCw,
   Search,
+  Send,
   TableProperties,
   Users,
   UserPlus
@@ -45,7 +47,9 @@ import {
   hasAuthToken,
   inviteOrganizationUser,
   createCustomerAction,
+  createCustomerActionComment,
   listBusinessAlerts,
+  listCustomerActionComments,
   listCustomerActions,
   listOrganizationAuditEvents,
   listPlatformOrganizations,
@@ -82,6 +86,7 @@ import type {
   BusinessWatchpoint,
   CurrentUser,
   CustomerAction,
+  CustomerActionComment,
   CustomerActionPriority,
   CustomerActionUpdate,
   CustomerActionStatus,
@@ -1326,6 +1331,14 @@ export default function App() {
   const [updatingCustomerActionId, setUpdatingCustomerActionId] = useState<
     number | null
   >(null);
+  const [customerActionComments, setCustomerActionComments] = useState<
+    Record<number, CustomerActionComment[]>
+  >({});
+  const [customerActionCommentDrafts, setCustomerActionCommentDrafts] = useState<
+    Record<number, string>
+  >({});
+  const [loadingCustomerActionComments, setLoadingCustomerActionComments] =
+    useState<Record<number, boolean>>({});
   const [isRefreshingRunAlerts, setIsRefreshingRunAlerts] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
@@ -1880,6 +1893,9 @@ export default function App() {
     setCustomerActionsError(null);
     setCreatingActionAlertId(null);
     setUpdatingCustomerActionId(null);
+    setCustomerActionComments({});
+    setCustomerActionCommentDrafts({});
+    setLoadingCustomerActionComments({});
     setIsRefreshingRunAlerts(false);
     setOrganizationUsers([]);
     setOrganizationUserError(null);
@@ -2499,6 +2515,70 @@ export default function App() {
     } catch (err) {
       setCustomerActionsError(
         err instanceof Error ? err.message : "Action impossible a mettre a jour"
+      );
+    } finally {
+      setUpdatingCustomerActionId(null);
+    }
+  }
+
+  async function refreshCustomerActionComments(actionId: number) {
+    setLoadingCustomerActionComments((current) => ({
+      ...current,
+      [actionId]: true
+    }));
+    setCustomerActionsError(null);
+
+    try {
+      const comments = await listCustomerActionComments(actionId);
+      setCustomerActionComments((current) => ({
+        ...current,
+        [actionId]: comments
+      }));
+    } catch (err) {
+      setCustomerActionsError(
+        err instanceof Error ? err.message : "Commentaires impossibles a charger"
+      );
+    } finally {
+      setLoadingCustomerActionComments((current) => ({
+        ...current,
+        [actionId]: false
+      }));
+    }
+  }
+
+  function handleCustomerActionCommentDraftChange(
+    actionId: number,
+    value: string
+  ) {
+    setCustomerActionCommentDrafts((current) => ({
+      ...current,
+      [actionId]: value
+    }));
+  }
+
+  async function handleAddCustomerActionComment(actionId: number) {
+    const body = (customerActionCommentDrafts[actionId] ?? "").trim();
+    if (!body) {
+      return;
+    }
+
+    setUpdatingCustomerActionId(actionId);
+    setCustomerActionsError(null);
+
+    try {
+      const comment = await createCustomerActionComment(actionId, { body });
+      setCustomerActionComments((current) => ({
+        ...current,
+        [actionId]: [...(current[actionId] ?? []), comment]
+      }));
+      setCustomerActionCommentDrafts((current) => ({
+        ...current,
+        [actionId]: ""
+      }));
+      await refreshAdminAuditEvents();
+    } catch (err) {
+      setCustomerActionsError(
+        err instanceof Error ? err.message : "Commentaire impossible a ajouter"
       );
     } finally {
       setUpdatingCustomerActionId(null);
@@ -3571,16 +3651,24 @@ export default function App() {
               businessAlerts={businessAlerts}
               canManage={canManageWorkspace}
               customerActions={customerActions}
+              customerActionComments={customerActionComments}
+              customerActionCommentDrafts={customerActionCommentDrafts}
               actionCenterError={actionCenterError}
               businessAlertsError={businessAlertsError}
               customerActionsError={customerActionsError}
               isActionCenterLoading={isActionCenterLoading}
               isBusinessAlertsLoading={isBusinessAlertsLoading}
               isCustomerActionsLoading={isCustomerActionsLoading}
+              loadingCustomerActionComments={loadingCustomerActionComments}
               isRefreshingRunAlerts={isRefreshingRunAlerts}
               creatingActionAlertId={creatingActionAlertId}
+              onAddCustomerActionComment={handleAddCustomerActionComment}
               onActionItemAction={handleActionCenterItem}
               onCreateCustomerAction={handleCreateCustomerActionFromAlert}
+              onCustomerActionCommentDraftChange={
+                handleCustomerActionCommentDraftChange
+              }
+              onLoadCustomerActionComments={refreshCustomerActionComments}
               onRefreshAll={() => {
                 refreshActionCenter().catch((err: Error) =>
                   setActionCenterError(err.message)
@@ -5670,16 +5758,22 @@ function HomeCockpitPanel({
   businessAlerts,
   canManage,
   customerActions,
+  customerActionComments,
+  customerActionCommentDrafts,
   actionCenterError,
   businessAlertsError,
   customerActionsError,
   isActionCenterLoading,
   isBusinessAlertsLoading,
   isCustomerActionsLoading,
+  loadingCustomerActionComments,
   isRefreshingRunAlerts,
   creatingActionAlertId,
+  onAddCustomerActionComment,
   onActionItemAction,
   onCreateCustomerAction,
+  onCustomerActionCommentDraftChange,
+  onLoadCustomerActionComments,
   onRefreshAll,
   onRefreshRunAlerts,
   onUpdateCustomerAction,
@@ -5693,16 +5787,22 @@ function HomeCockpitPanel({
   businessAlerts: BusinessAlert[];
   canManage: boolean;
   customerActions: CustomerAction[];
+  customerActionComments: Record<number, CustomerActionComment[]>;
+  customerActionCommentDrafts: Record<number, string>;
   actionCenterError: string | null;
   businessAlertsError: string | null;
   customerActionsError: string | null;
   isActionCenterLoading: boolean;
   isBusinessAlertsLoading: boolean;
   isCustomerActionsLoading: boolean;
+  loadingCustomerActionComments: Record<number, boolean>;
   isRefreshingRunAlerts: boolean;
   creatingActionAlertId: number | null;
+  onAddCustomerActionComment: (actionId: number) => void;
   onActionItemAction: (item: ActionCenterItem) => void;
   onCreateCustomerAction: (alert: BusinessAlert) => void;
+  onCustomerActionCommentDraftChange: (actionId: number, value: string) => void;
+  onLoadCustomerActionComments: (actionId: number) => void;
   onRefreshAll: () => void;
   onRefreshRunAlerts: () => void;
   onUpdateCustomerAction: (
@@ -5749,6 +5849,9 @@ function HomeCockpitPanel({
   >("active");
   const [editingActionId, setEditingActionId] = useState<number | null>(null);
   const [actionDraft, setActionDraft] = useState<CustomerActionUpdate>({});
+  const [expandedCommentActionIds, setExpandedCommentActionIds] = useState<
+    Set<number>
+  >(() => new Set());
   const activeCustomerActions = customerActions.filter((action) =>
     ["open", "in_progress"].includes(action.status)
   );
@@ -5784,6 +5887,21 @@ function HomeCockpitPanel({
     });
     setEditingActionId(null);
     setActionDraft({});
+  }
+
+  function toggleActionComments(actionId: number) {
+    setExpandedCommentActionIds((current) => {
+      const next = new Set(current);
+      if (next.has(actionId)) {
+        next.delete(actionId);
+      } else {
+        next.add(actionId);
+        if (!customerActionComments[actionId]) {
+          onLoadCustomerActionComments(actionId);
+        }
+      }
+      return next;
+    });
   }
 
   return (
@@ -5911,6 +6029,15 @@ function HomeCockpitPanel({
               const isUpdating = updatingCustomerActionId === action.action_id;
               const isEditing = editingActionId === action.action_id;
               const isOverdue = isCustomerActionOverdue(action);
+              const comments = customerActionComments[action.action_id] ?? [];
+              const commentDraft =
+                customerActionCommentDrafts[action.action_id] ?? "";
+              const commentsExpanded = expandedCommentActionIds.has(
+                action.action_id
+              );
+              const commentsLoading = Boolean(
+                loadingCustomerActionComments[action.action_id]
+              );
 
               return (
                 <article
@@ -6044,6 +6171,71 @@ function HomeCockpitPanel({
                       </div>
                     </div>
                   ) : null}
+                  <div className="customer-action-comments-toggle">
+                    <button
+                      className="secondary-action compact-action"
+                      onClick={() => toggleActionComments(action.action_id)}
+                      type="button"
+                    >
+                      <MessageSquare size={14} />
+                      {commentsExpanded ? "Masquer suivi" : `Suivi (${comments.length})`}
+                    </button>
+                  </div>
+
+                  {commentsExpanded ? (
+                    <div className="customer-action-comments">
+                      {commentsLoading ? (
+                        <p className="muted">Chargement du suivi...</p>
+                      ) : comments.length === 0 ? (
+                        <p className="muted">Aucun commentaire de suivi.</p>
+                      ) : (
+                        comments.map((comment) => (
+                          <article
+                            className="customer-action-comment"
+                            key={comment.comment_id}
+                          >
+                            <div className="customer-action-comment-meta">
+                              <span>{comment.author_name ?? "Equipe"}</span>
+                              <span>
+                                {comment.created_at
+                                  ? formatDate(comment.created_at)
+                                  : "Date inconnue"}
+                              </span>
+                            </div>
+                            <p>{comment.body}</p>
+                          </article>
+                        ))
+                      )}
+
+                      <div className="customer-action-comment-form">
+                        <textarea
+                          onChange={(event) =>
+                            onCustomerActionCommentDraftChange(
+                              action.action_id,
+                              event.target.value
+                            )
+                          }
+                          placeholder="Ajouter une note de suivi..."
+                          rows={2}
+                          value={commentDraft}
+                        />
+                        <button
+                          className="secondary-action compact-action"
+                          disabled={!commentDraft.trim() || isUpdating}
+                          onClick={() => onAddCustomerActionComment(action.action_id)}
+                          type="button"
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="spin" size={14} />
+                          ) : (
+                            <Send size={14} />
+                          )}
+                          Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {canManage ? (
                     <div className="business-alert-actions">
                       <button

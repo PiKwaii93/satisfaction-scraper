@@ -77,6 +77,20 @@ def sample_customer_action(**overrides):
     return action
 
 
+def sample_customer_action_comment(**overrides):
+    comment = {
+        "comment_id": 3,
+        "action_id": 4,
+        "organization_id": 123,
+        "author_user_id": 2,
+        "author_name": "Member Demo",
+        "body": "Client relance par le SAV.",
+        "created_at": None,
+    }
+    comment.update(overrides)
+    return comment
+
+
 def test_health_is_public(client):
     response = client.get("/health")
 
@@ -1578,6 +1592,76 @@ def test_member_can_list_customer_actions(member_client, monkeypatch):
         "status": "open",
         "limit": 5,
         "offset": 2,
+    }
+
+
+def test_member_can_list_customer_action_comments(member_client, monkeypatch):
+    captured = {}
+
+    def fake_list_customer_action_comments(action_id, organization_id, limit):
+        captured.update(
+            {
+                "action_id": action_id,
+                "organization_id": organization_id,
+                "limit": limit,
+            }
+        )
+        return [sample_customer_action_comment(action_id=action_id)]
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.list_customer_action_comments",
+        fake_list_customer_action_comments,
+    )
+
+    response = member_client.get("/customer-actions/4/comments?limit=5")
+
+    assert response.status_code == 200
+    assert response.json()[0]["body"] == "Client relance par le SAV."
+    assert captured == {"action_id": 4, "organization_id": 123, "limit": 5}
+
+
+def test_member_can_create_customer_action_comment(member_client, monkeypatch):
+    captured = {}
+
+    def fake_create_customer_action_comment(
+        action_id, organization_id, author_user_id, payload
+    ):
+        captured.update(
+            {
+                "action_id": action_id,
+                "organization_id": organization_id,
+                "author_user_id": author_user_id,
+                "body": payload.body,
+            }
+        )
+        return sample_customer_action_comment(
+            action_id=action_id,
+            author_user_id=author_user_id,
+            body=payload.body,
+        )
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.create_customer_action_comment",
+        fake_create_customer_action_comment,
+    )
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.record_audit_event",
+        lambda **kwargs: captured.setdefault("audit_event_type", kwargs["event_type"]),
+    )
+
+    response = member_client.post(
+        "/customer-actions/4/comments",
+        json={"body": "Verifier la livraison avec le transporteur."},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["body"] == "Verifier la livraison avec le transporteur."
+    assert captured == {
+        "action_id": 4,
+        "organization_id": 123,
+        "author_user_id": 2,
+        "body": "Verifier la livraison avec le transporteur.",
+        "audit_event_type": "customer_action.comment_created",
     }
 
 

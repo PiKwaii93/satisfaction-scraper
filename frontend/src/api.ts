@@ -10,6 +10,8 @@ import type {
   CsvColumnMapping,
   CsvImportPreview,
   CustomerAction,
+  CustomerActionComment,
+  CustomerActionCommentCreate,
   CustomerActionCreate,
   CustomerActionStatus,
   CustomerActionUpdate,
@@ -489,6 +491,23 @@ export function updateCustomerAction(
 ) {
   return request<CustomerAction>(`/customer-actions/${actionId}`, {
     method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listCustomerActionComments(actionId: number, limit = 30) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<CustomerActionComment[]>(
+    `/customer-actions/${actionId}/comments?${params.toString()}`
+  );
+}
+
+export function createCustomerActionComment(
+  actionId: number,
+  payload: CustomerActionCommentCreate
+) {
+  return request<CustomerActionComment>(`/customer-actions/${actionId}/comments`, {
+    method: "POST",
     body: JSON.stringify(payload)
   });
 }

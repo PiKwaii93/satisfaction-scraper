@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.auth import AuthenticatedUser, require_current_user, require_org_admin
 from app.api.schemas import (
+    CustomerActionCommentCreate,
+    CustomerActionCommentResponse,
     CustomerActionCreate,
     CustomerActionResponse,
     CustomerActionUpdate,
@@ -9,7 +11,9 @@ from app.api.schemas import (
 )
 from app.api.services.customer_action_service import (
     ACTION_STATUSES,
+    create_customer_action_comment,
     create_customer_action,
+    list_customer_action_comments,
     list_customer_actions,
     update_customer_action,
 )
@@ -117,5 +121,57 @@ def update_action(
             },
         )
         return action
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{action_id}/comments",
+    response_model=list[CustomerActionCommentResponse],
+    summary="Lister les commentaires d'une action client",
+)
+def list_action_comments(
+    action_id: int,
+    limit: int = Query(default=30, ge=1, le=100),
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    try:
+        return list_customer_action_comments(
+            action_id,
+            current_user.organization_id,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{action_id}/comments",
+    response_model=CustomerActionCommentResponse,
+    status_code=201,
+    summary="Ajouter un commentaire a une action client",
+)
+def create_action_comment(
+    action_id: int,
+    payload: CustomerActionCommentCreate,
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    try:
+        comment = create_customer_action_comment(
+            action_id,
+            current_user.organization_id,
+            current_user.user_id,
+            payload,
+        )
+        record_audit_event(
+            organization_id=current_user.organization_id,
+            actor_user=current_user,
+            event_type="customer_action.comment_created",
+            summary="Commentaire ajoute a une action client.",
+            entity_type="customer_action",
+            entity_id=action_id,
+            metadata={"comment_id": comment["comment_id"]},
+        )
+        return comment
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

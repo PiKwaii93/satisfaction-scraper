@@ -7,6 +7,7 @@ import type {
   AuthToken,
   CurrentUser,
   CustomerAction,
+  CustomerActionComment,
   FeedbackQuality,
   ModelTrainingOverview,
   OrganizationSettings,
@@ -20,6 +21,7 @@ const apiMocks = vi.hoisted(() => ({
   compareRuns: vi.fn(),
   createModelTrainingRun: vi.fn(),
   createCustomerAction: vi.fn(),
+  createCustomerActionComment: vi.fn(),
   createRun: vi.fn(),
   createUpgradeRequest: vi.fn(),
   deleteReviewFeedback: vi.fn(),
@@ -40,6 +42,7 @@ const apiMocks = vi.hoisted(() => ({
   inviteOrganizationUser: vi.fn(),
   listBusinessAlerts: vi.fn(),
   listCustomerActions: vi.fn(),
+  listCustomerActionComments: vi.fn(),
   listOrganizationAuditEvents: vi.fn(),
   listOrganizationUsers: vi.fn(),
   listPlatformOrganizations: vi.fn(),
@@ -131,6 +134,16 @@ const customerAction: CustomerAction = {
   created_at: null,
   updated_at: null,
   resolved_at: null
+};
+
+const customerActionComment: CustomerActionComment = {
+  comment_id: 8,
+  action_id: 4,
+  organization_id: 7,
+  author_user_id: 2,
+  author_name: "Member Test",
+  body: "Transporteur contacte ce matin.",
+  created_at: null
 };
 
 const trainingOverview: ModelTrainingOverview = {
@@ -278,7 +291,13 @@ beforeEach(() => {
   apiMocks.getModelTrainingOverview.mockResolvedValue(trainingOverview);
   apiMocks.listBusinessAlerts.mockResolvedValue([]);
   apiMocks.listCustomerActions.mockResolvedValue([]);
+  apiMocks.listCustomerActionComments.mockResolvedValue([customerActionComment]);
   apiMocks.createCustomerAction.mockResolvedValue(customerAction);
+  apiMocks.createCustomerActionComment.mockResolvedValue({
+    ...customerActionComment,
+    comment_id: 9,
+    body: "Verifier le suivi livraison."
+  });
   apiMocks.updateCustomerAction.mockResolvedValue({
     ...customerAction,
     status: "resolved"
@@ -517,6 +536,36 @@ describe("App authentication and permissions", () => {
         })
       )
     );
+  });
+
+  it("lets a member add a follow-up comment to a customer action", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(memberUser);
+    apiMocks.listCustomerActions.mockResolvedValue([customerAction]);
+
+    render(<App />);
+    expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Accueil/ }));
+    await user.click(await screen.findByRole("button", { name: /Suivi \(0\)/ }));
+    expect(
+      await screen.findByText("Transporteur contacte ce matin.")
+    ).toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText("Ajouter une note de suivi..."),
+      "Verifier le suivi livraison."
+    );
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+
+    await waitFor(() =>
+      expect(apiMocks.createCustomerActionComment).toHaveBeenCalledWith(4, {
+        body: "Verifier le suivi livraison."
+      })
+    );
+    expect(
+      await screen.findByText("Verifier le suivi livraison.")
+    ).toBeInTheDocument();
   });
 
   it("shows an upgrade gate for model training outside Business", async () => {
