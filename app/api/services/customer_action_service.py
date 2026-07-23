@@ -1,9 +1,13 @@
+import json
+from datetime import date, timedelta
+
 from app.api.database import get_cursor
 from app.api.schemas import (
     CustomerActionCommentCreate,
     CustomerActionCreate,
     CustomerActionUpdate,
 )
+from app.api.services.insights import TOPIC_LABELS, TOPIC_RECOMMENDATIONS
 
 
 ACTION_STATUSES = {"open", "in_progress", "resolved", "ignored"}
@@ -18,6 +22,189 @@ def _priority_from_alert(alert):
     if severity == "warning":
         return "high"
     return "medium"
+
+
+def _alert_metadata(alert):
+    metadata = (alert or {}).get("metadata") or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except json.JSONDecodeError:
+            metadata = {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _topic_label(topic):
+    if not topic:
+        return "irritant"
+    return TOPIC_LABELS.get(topic, str(topic).replace("_", " ").capitalize())
+
+
+def _due_date_for_priority(priority):
+    days_by_priority = {
+        "critical": 2,
+        "high": 5,
+        "medium": 10,
+        "low": 20,
+    }
+    return date.today() + timedelta(days=days_by_priority.get(priority, 10))
+
+
+def _notes_for_playbook(title, steps, metrics):
+    lines = [title, "", "Checklist"]
+    lines.extend(f"- {step}" for step in steps)
+    lines.extend(["", "Mesure de succes"])
+    lines.extend(f"- {metric}" for metric in metrics)
+    return "\n".join(lines)
+
+
+def _build_customer_action_playbook(alert):
+    if not alert:
+        return {}
+
+    alert_type = alert.get("alert_type")
+    metadata = _alert_metadata(alert)
+    topic = metadata.get("topic")
+    priority = _priority_from_alert(alert)
+    topic_label = _topic_label(topic)
+    message = alert.get("message") or "Signal client detecte."
+
+    if alert_type in {"dominant_irritant", "rising_irritant", "new_irritant"}:
+        recommendation = TOPIC_RECOMMENDATIONS.get(
+            topic,
+            "Qualifier les avis concernes et prioriser les irritants recurrents.",
+        )
+        return {
+            "title": f"Reduire l'irritant {topic_label}",
+            "description": f"{message} Objectif: transformer ce signal en plan de reduction mesurable.",
+            "priority": priority,
+            "owner_name": "Responsable experience client",
+            "due_date": _due_date_for_priority(priority),
+            "notes": _notes_for_playbook(
+                f"Playbook {topic_label}",
+                [
+                    "Isoler les avis representatifs du signal.",
+                    recommendation,
+                    "Identifier le parcours, produit ou equipe concerne.",
+                    "Definir une action corrective et un responsable.",
+                    "Recontroler le signal sur la prochaine analyse.",
+                ],
+                [
+                    "Baisse du volume d'avis associes a cet irritant.",
+                    "Baisse de la part d'avis negatifs sur le prochain run.",
+                ],
+            ),
+        }
+
+    if alert_type in {"negative_share_high", "negative_share_rising"}:
+        return {
+            "title": "Reduire la part d'avis negatifs",
+            "description": f"{message} Objectif: traiter les causes racines et prioriser les clients a risque.",
+            "priority": priority,
+            "owner_name": "Responsable service client",
+            "due_date": _due_date_for_priority(priority),
+            "notes": _notes_for_playbook(
+                "Playbook avis negatifs",
+                [
+                    "Lire les avis les plus recents et les plus critiques.",
+                    "Regrouper les irritants dominants par theme.",
+                    "Identifier les cas clients a recontacter rapidement.",
+                    "Partager les causes racines avec l'equipe operationnelle.",
+                    "Verifier l'evolution du negatif sur le prochain run.",
+                ],
+                [
+                    "Diminution de la part d'avis negatifs.",
+                    "Nombre de cas critiques recontactes.",
+                ],
+            ),
+        }
+
+    if alert_type in {"health_score_low", "health_score_drop"}:
+        return {
+            "title": "Redresser le score sante client",
+            "description": f"{message} Objectif: restaurer les signaux de satisfaction prioritaires.",
+            "priority": priority,
+            "owner_name": "Responsable satisfaction client",
+            "due_date": _due_date_for_priority(priority),
+            "notes": _notes_for_playbook(
+                "Playbook score sante",
+                [
+                    "Comparer les irritants du run avec la derniere analyse.",
+                    "Choisir les deux signaux qui pesent le plus sur le score.",
+                    "Ouvrir une action operationnelle par signal prioritaire.",
+                    "Suivre la correction jusqu'a la prochaine analyse.",
+                ],
+                [
+                    "Hausse du score sante.",
+                    "Reduction du nombre d'alertes critiques.",
+                ],
+            ),
+        }
+
+    if alert_type == "no_company_response":
+        return {
+            "title": "Relancer la reponse aux avis publics",
+            "description": f"{message} Objectif: remettre une boucle de reponse visible pour les clients.",
+            "priority": priority,
+            "owner_name": "Equipe relation client",
+            "due_date": _due_date_for_priority(priority),
+            "notes": _notes_for_playbook(
+                "Playbook reponse entreprise",
+                [
+                    "Identifier les avis negatifs sans reponse.",
+                    "Rediger des reponses courtes, factuelles et personnalisees.",
+                    "Prioriser les avis recents et les cas non resolus.",
+                    "Mesurer le taux de reponse sur le prochain run.",
+                ],
+                [
+                    "Hausse du nombre d'avis avec reponse entreprise.",
+                    "Reduction des avis critiques sans suivi visible.",
+                ],
+            ),
+        }
+
+    if alert_type == "low_ai_confidence":
+        return {
+            "title": "Verifier la qualite des predictions IA",
+            "description": f"{message} Objectif: auditer les cas incertains avant reentrainement.",
+            "priority": priority,
+            "owner_name": "Referent data",
+            "due_date": _due_date_for_priority(priority),
+            "notes": _notes_for_playbook(
+                "Playbook qualite IA",
+                [
+                    "Filtrer les avis a faible score de confiance.",
+                    "Corriger les labels manifestement incoherents.",
+                    "Comparer note, verbatim et sentiment predit.",
+                    "Relancer un reentrainement si le volume corrige est suffisant.",
+                ],
+                [
+                    "Hausse de la confiance moyenne.",
+                    "Baisse des corrections necessaires sur le prochain run.",
+                ],
+            ),
+        }
+
+    return {
+        "title": alert.get("title") or "Traiter le signal client",
+        "description": message,
+        "priority": priority,
+        "owner_name": "Equipe service client",
+        "due_date": _due_date_for_priority(priority),
+        "notes": _notes_for_playbook(
+            "Playbook generique",
+            [
+                "Qualifier le signal et son impact client.",
+                "Identifier les avis ou parcours concernes.",
+                "Definir une action corrective mesurable.",
+                "Recontroler le signal apres correction.",
+            ],
+            [
+                "Signal stabilise ou en baisse.",
+                "Action documentee dans le plan client.",
+            ],
+        ),
+    }
 
 
 def _serialize_action(row):
@@ -87,7 +274,16 @@ def _select_action(cursor, organization_id, action_id):
 def _get_alert(cursor, organization_id, alert_id):
     cursor.execute(
         """
-        SELECT alert_id, organization_id, run_id, company_id, severity, title, message
+        SELECT
+            alert_id,
+            organization_id,
+            run_id,
+            company_id,
+            severity,
+            alert_type,
+            title,
+            message,
+            metadata
         FROM business_alerts
         WHERE organization_id = %s
           AND alert_id = %s;
@@ -197,15 +393,19 @@ def create_customer_action(
         if run_id is not None:
             _get_run(cursor, organization_id, run_id)
 
-        title = data.get("title") or (alert.get("title") if alert else None)
+        playbook = _build_customer_action_playbook(alert)
+
+        title = data.get("title") or playbook.get("title") or (alert.get("title") if alert else None)
         if not title:
             title = "Action client"
 
         description = data.get("description")
+        if description is None:
+            description = playbook.get("description")
         if description is None and alert:
             description = alert.get("message")
 
-        priority = data.get("priority") or _priority_from_alert(alert)
+        priority = data.get("priority") or playbook.get("priority") or _priority_from_alert(alert)
         if priority not in ACTION_PRIORITIES:
             raise ValueError("Priorite d'action invalide.")
 
@@ -242,9 +442,9 @@ def create_customer_action(
                 description,
                 priority,
                 status,
-                data.get("owner_name"),
-                data.get("due_date"),
-                data.get("notes"),
+                data.get("owner_name") or playbook.get("owner_name"),
+                data.get("due_date") or playbook.get("due_date"),
+                data.get("notes") or playbook.get("notes"),
                 actor_user_id,
                 actor_user_id,
                 status,
