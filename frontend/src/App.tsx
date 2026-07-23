@@ -87,6 +87,7 @@ import type {
   CurrentUser,
   CustomerAction,
   CustomerActionComment,
+  CustomerActionImpact,
   CustomerActionPriority,
   CustomerActionUpdate,
   CustomerActionStatus,
@@ -503,6 +504,62 @@ function formatMetricValue(value: number | null | undefined, unit: string | null
     return formatNumber(value, 2);
   }
   return `${formatNumber(value, 0)}${unit ? ` ${unit}` : ""}`;
+}
+
+function formatCustomerActionImpactValue(
+  value: number | null | undefined,
+  unit: string | null
+) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "Non mesure";
+  }
+  if (unit === "/100") {
+    return `${formatNumber(value, 0)} / 100`;
+  }
+  return `${formatNumber(value, unit === "avis" ? 0 : 1)}${
+    unit ? ` ${unit}` : ""
+  }`;
+}
+
+function CustomerActionImpactBlock({ impact }: { impact: CustomerActionImpact }) {
+  const deltaLabel =
+    impact.delta === null || impact.delta === undefined
+      ? null
+      : `${formatSignedNumber(impact.delta, impact.unit === "avis" ? 0 : 1)}${
+          impact.unit ? ` ${impact.unit}` : ""
+        }`;
+
+  return (
+    <div className={`customer-action-impact ${impact.status}`}>
+      <div className="customer-action-impact-header">
+        <span>Impact</span>
+        <strong>{impact.label}</strong>
+      </div>
+      <p>{impact.summary}</p>
+      <div className="customer-action-impact-metrics">
+        <span>{impact.metric_label}</span>
+        {impact.baseline_run_id && impact.comparison_run_id ? (
+          <span>
+            Run #{impact.baseline_run_id} -&gt; Run #{impact.comparison_run_id}
+          </span>
+        ) : null}
+        {impact.baseline_value !== null || impact.comparison_value !== null ? (
+          <span>
+            {formatCustomerActionImpactValue(
+              impact.baseline_value,
+              impact.unit
+            )}{" "}
+            -&gt;{" "}
+            {formatCustomerActionImpactValue(
+              impact.comparison_value,
+              impact.unit
+            )}
+            {deltaLabel ? ` (${deltaLabel})` : ""}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function sentimentTrendTone(row: AnalysisRunTrend["sentiment"][number]) {
@@ -6088,6 +6145,9 @@ function HomeCockpitPanel({
                       <span className="due-soon-pill">A relancer</span>
                     ) : null}
                   </div>
+                  {action.impact ? (
+                    <CustomerActionImpactBlock impact={action.impact} />
+                  ) : null}
                   {isEditing ? (
                     <div className="customer-action-edit-form">
                       <div className="customer-action-edit-grid">

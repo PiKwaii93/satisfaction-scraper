@@ -13,6 +13,11 @@ from app.api.services.insights import TOPIC_LABELS, TOPIC_RECOMMENDATIONS
 ACTION_STATUSES = {"open", "in_progress", "resolved", "ignored"}
 OPEN_ACTION_STATUSES = {"open", "in_progress"}
 ACTION_PRIORITIES = {"low", "medium", "high", "critical"}
+TOPIC_IMPACT_ALERT_TYPES = {"dominant_irritant", "rising_irritant", "new_irritant"}
+NEGATIVE_SHARE_IMPACT_ALERT_TYPES = {"negative_share_high", "negative_share_rising"}
+HEALTH_IMPACT_ALERT_TYPES = {"health_score_low", "health_score_drop"}
+RESPONSE_IMPACT_ALERT_TYPES = {"no_company_response"}
+CONFIDENCE_IMPACT_ALERT_TYPES = {"low_ai_confidence"}
 
 
 def _priority_from_alert(alert):
@@ -207,7 +212,178 @@ def _build_customer_action_playbook(alert):
     }
 
 
-def _serialize_action(row):
+def _normalize_text(value):
+    return (
+        str(value or "")
+        .replace("Ã©", "e")
+        .replace("Ã¨", "e")
+        .replace("Ãª", "e")
+        .replace("Ã ", "a")
+        .strip()
+        .lower()
+    )
+
+
+def _round_metric(value):
+    if value is None:
+        return None
+    return round(float(value), 1)
+
+
+def _metric_value(summary, metric_key, topic=None):
+    if not summary:
+        return None
+
+    kpis = summary.get("kpis") or {}
+    review_count = float(kpis.get("review_count") or 0)
+
+    if metric_key == "negative_share":
+        if review_count <= 0:
+            return 0.0
+        for row in summary.get("sentiment_distribution") or []:
+            label = _normalize_text(row.get("label"))
+            if label in {"negatif", "negative"}:
+                return float(row.get("count") or 0) * 100 / review_count
+        return 0.0
+
+    if metric_key == "health_score":
+        return float((summary.get("business_insights") or {}).get("health_score") or 0)
+
+    if metric_key == "topic_count":
+        for row in summary.get("top_topics") or []:
+            if row.get("topic") == topic:
+                return float(row.get("count") or 0)
+        return 0.0
+
+    if metric_key == "response_rate":
+        if review_count <= 0:
+            return 0.0
+        return float(kpis.get("responded_count") or 0) * 100 / review_count
+
+    if metric_key == "average_confidence":
+        value = float(kpis.get("average_confidence") or 0)
+        return value * 100 if value <= 1 else value
+
+    return None
+
+
+def _impact_status_for_delta(metric_key, delta):
+    if delta is None:
+        return "not_measurable"
+    if abs(float(delta)) < 1:
+        return "stable"
+    if metric_key in {"negative_share", "topic_count"}:
+        return "improved" if delta < 0 else "degraded"
+    return "improved" if delta > 0 else "degraded"
+
+
+def _impact_label(status):
+    labels = {
+        "not_measurable": "A mesurer",
+        "improved": "Amelioration",
+        "stable": "Stable",
+        "degraded": "Degradation",
+    }
+    return labels.get(status, "Stable")
+
+
+def _impact_metric_for_action(alert_type, metadata):
+    if alert_type in TOPIC_IMPACT_ALERT_TYPES:
+        topic = metadata.get("topic")
+        return "topic_count", f"Irritant {_topic_label(topic)}", "avis", topic
+    if alert_type in NEGATIVE_SHARE_IMPACT_ALERT_TYPES:
+        return "negative_share", "Part d'avis negatifs", "pts", None
+    if alert_type in HEALTH_IMPACT_ALERT_TYPES:
+        return "health_score", "Score sante", "/100", None
+    if alert_type in RESPONSE_IMPACT_ALERT_TYPES:
+        return "response_rate", "Taux de reponse entreprise", "pts", None
+    if alert_type in CONFIDENCE_IMPACT_ALERT_TYPES:
+        return "average_confidence", "Confiance IA moyenne", "pts", None
+    return "health_score", "Score sante", "/100", None
+
+
+def _impact_summary(status, metric_label):
+    if status == "not_measurable":
+        return "Relance une analyse de la meme entreprise pour mesurer l'impact."
+    if status == "improved":
+        return f"{metric_label} s'ameliore entre le run d'origine et le run suivant."
+    if status == "degraded":
+        return f"{metric_label} se degrade entre le run d'origine et le run suivant."
+    return f"{metric_label} reste stable entre le run d'origine et le run suivant."
+
+
+def _build_action_impact(cursor, organization_id, row):
+    run_id = row.get("impact_run_id") or row.get("run_id")
+    company_id = row.get("impact_company_id")
+    metadata = _alert_metadata({"metadata": row.get("alert_metadata")})
+    metric_key, metric_label, unit, topic = _impact_metric_for_action(
+        row.get("alert_type"), metadata
+    )
+    base = {
+        "status": "not_measurable",
+        "label": _impact_label("not_measurable"),
+        "summary": _impact_summary("not_measurable", metric_label),
+        "metric_label": metric_label,
+        "unit": unit,
+        "baseline_run_id": run_id,
+        "comparison_run_id": None,
+        "baseline_value": None,
+        "comparison_value": None,
+        "delta": None,
+    }
+    if not run_id or not company_id:
+        return base
+
+    cursor.execute(
+        """
+        SELECT run_id
+        FROM analysis_runs
+        WHERE organization_id = %s
+          AND company_id = %s
+          AND status = 'completed'
+          AND run_id > %s
+        ORDER BY run_id ASC
+        LIMIT 1;
+        """,
+        (organization_id, company_id, run_id),
+    )
+    comparison = cursor.fetchone()
+    if not comparison:
+        return base
+
+    from app.api.services.analysis_service import get_run_summary
+
+    try:
+        baseline_summary = get_run_summary(run_id, organization_id=organization_id)
+        comparison_summary = get_run_summary(
+            comparison["run_id"], organization_id=organization_id
+        )
+    except ValueError:
+        return base
+
+    baseline_value = _round_metric(_metric_value(baseline_summary, metric_key, topic))
+    comparison_value = _round_metric(_metric_value(comparison_summary, metric_key, topic))
+    delta = (
+        _round_metric(comparison_value - baseline_value)
+        if baseline_value is not None and comparison_value is not None
+        else None
+    )
+    status = _impact_status_for_delta(metric_key, delta)
+    return {
+        "status": status,
+        "label": _impact_label(status),
+        "summary": _impact_summary(status, metric_label),
+        "metric_label": metric_label,
+        "unit": unit,
+        "baseline_run_id": run_id,
+        "comparison_run_id": comparison["run_id"],
+        "baseline_value": baseline_value,
+        "comparison_value": comparison_value,
+        "delta": delta,
+    }
+
+
+def _serialize_action(row, impact=None):
     return {
         "action_id": row["action_id"],
         "organization_id": row["organization_id"],
@@ -228,6 +404,7 @@ def _serialize_action(row):
         "created_at": row.get("created_at"),
         "updated_at": row.get("updated_at"),
         "resolved_at": row.get("resolved_at"),
+        "impact": impact,
     }
 
 
@@ -250,6 +427,9 @@ def _select_action(cursor, organization_id, action_id):
             ca.*,
             ba.title AS alert_title,
             ba.alert_type,
+            ba.metadata AS alert_metadata,
+            COALESCE(ca.run_id, ba.run_id) AS impact_run_id,
+            COALESCE(ba.company_id, ar.company_id) AS impact_company_id,
             COALESCE(ca_alert.company_name, ca_run.company_name) AS company_name,
             creator.email AS created_by_email,
             updater.email AS updated_by_email
@@ -268,7 +448,7 @@ def _select_action(cursor, organization_id, action_id):
     row = cursor.fetchone()
     if not row:
         raise ValueError("Action client introuvable.")
-    return _serialize_action(row)
+    return _serialize_action(row, _build_action_impact(cursor, organization_id, row))
 
 
 def _get_alert(cursor, organization_id, alert_id):
@@ -332,6 +512,9 @@ def list_customer_actions(organization_id: int, status="open", limit=30, offset=
                 ca.*,
                 ba.title AS alert_title,
                 ba.alert_type,
+                ba.metadata AS alert_metadata,
+                COALESCE(ca.run_id, ba.run_id) AS impact_run_id,
+                COALESCE(ba.company_id, ar.company_id) AS impact_company_id,
                 COALESCE(ca_alert.company_name, ca_run.company_name) AS company_name,
                 creator.email AS created_by_email,
                 updater.email AS updated_by_email
@@ -358,7 +541,10 @@ def list_customer_actions(organization_id: int, status="open", limit=30, offset=
             """,
             tuple(params),
         )
-        return [_serialize_action(row) for row in cursor.fetchall()]
+        return [
+            _serialize_action(row, _build_action_impact(cursor, organization_id, row))
+            for row in cursor.fetchall()
+        ]
 
 
 def create_customer_action(

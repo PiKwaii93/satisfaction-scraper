@@ -570,6 +570,9 @@ class BusinessAlertStatusUpdate(BaseModel):
 
 CustomerActionPriority = Literal["low", "medium", "high", "critical"]
 CustomerActionStatus = Literal["open", "in_progress", "resolved", "ignored"]
+CustomerActionImpactStatus = Literal[
+    "not_measurable", "improved", "stable", "degraded"
+]
 
 
 class CustomerActionCreate(BaseModel):
@@ -594,6 +597,19 @@ class CustomerActionUpdate(BaseModel):
     notes: str | None = Field(default=None, max_length=2000)
 
 
+class CustomerActionImpact(BaseModel):
+    status: CustomerActionImpactStatus
+    label: str
+    summary: str
+    metric_label: str
+    unit: str | None = None
+    baseline_run_id: int | None = None
+    comparison_run_id: int | None = None
+    baseline_value: float | None = None
+    comparison_value: float | None = None
+    delta: float | None = None
+
+
 class CustomerActionResponse(BaseModel):
     action_id: int
     organization_id: int
@@ -614,6 +630,7 @@ class CustomerActionResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     resolved_at: datetime | None = None
+    impact: CustomerActionImpact | None = None
 
 
 class CustomerActionCommentCreate(BaseModel):

@@ -133,7 +133,8 @@ const customerAction: CustomerAction = {
   updated_by_email: null,
   created_at: null,
   updated_at: null,
-  resolved_at: null
+  resolved_at: null,
+  impact: null
 };
 
 const customerActionComment: CustomerActionComment = {

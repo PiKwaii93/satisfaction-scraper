@@ -1568,6 +1568,71 @@ a {
   gap: 8px;
 }
 
+.customer-action-impact {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #d8dee9;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.customer-action-impact.improved {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.customer-action-impact.stable {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.customer-action-impact.degraded {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.customer-action-impact.not_measurable {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.customer-action-impact-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.customer-action-impact-header strong {
+  color: var(--text);
+}
+
+.customer-action-impact p {
+  margin: 0;
+  color: #475467;
+  font-size: 0.82rem;
+}
+
+.customer-action-impact-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #667085;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.customer-action-impact-metrics span {
+  padding: 3px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
 .overdue-pill {
   padding: 2px 8px;
   border: 1px solid #fecaca;
