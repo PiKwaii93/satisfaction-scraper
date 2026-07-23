@@ -128,16 +128,20 @@ const FEEDBACK_SENTIMENTS = SENTIMENTS.filter(
 const REVIEW_PAGE_SIZES = [30, 60, 120, 500];
 
 const CUSTOMER_ACTION_FILTERS: Array<{
-  value: CustomerActionStatus | "active" | "all";
+  value: CustomerActionStatus | "active" | "overdue" | "due_soon" | "all";
   label: string;
 }> = [
   { value: "active", label: "Actives" },
+  { value: "overdue", label: "En retard" },
+  { value: "due_soon", label: "Echeance proche" },
   { value: "open", label: "A faire" },
   { value: "in_progress", label: "En cours" },
   { value: "resolved", label: "Resolues" },
   { value: "ignored", label: "Ignorees" },
   { value: "all", label: "Toutes" }
 ];
+
+const CUSTOMER_ACTION_DUE_SOON_DAYS = 3;
 
 type OnboardingStep = {
   key: string;
@@ -5845,7 +5849,7 @@ function HomeCockpitPanel({
   const isRefreshing =
     isActionCenterLoading || isBusinessAlertsLoading || isCustomerActionsLoading;
   const [actionStatusFilter, setActionStatusFilter] = useState<
-    CustomerActionStatus | "active" | "all"
+    CustomerActionStatus | "active" | "overdue" | "due_soon" | "all"
   >("active");
   const [editingActionId, setEditingActionId] = useState<number | null>(null);
   const [actionDraft, setActionDraft] = useState<CustomerActionUpdate>({});
@@ -5856,12 +5860,19 @@ function HomeCockpitPanel({
     ["open", "in_progress"].includes(action.status)
   );
   const overdueCount = customerActions.filter(isCustomerActionOverdue).length;
+  const dueSoonCount = customerActions.filter(isCustomerActionDueSoon).length;
   const filteredCustomerActions = customerActions.filter((action) => {
     if (actionStatusFilter === "all") {
       return true;
     }
     if (actionStatusFilter === "active") {
       return ["open", "in_progress"].includes(action.status);
+    }
+    if (actionStatusFilter === "overdue") {
+      return isCustomerActionOverdue(action);
+    }
+    if (actionStatusFilter === "due_soon") {
+      return isCustomerActionDueSoon(action);
     }
     return action.status === actionStatusFilter;
   });
@@ -5989,7 +6000,8 @@ function HomeCockpitPanel({
         <div className="mini-heading">
           <strong>Plan d'action client</strong>
           <span>
-            {activeCustomerActions.length} active(s), {overdueCount} en retard
+            {activeCustomerActions.length} active(s), {overdueCount} en retard,{" "}
+            {dueSoonCount} a relancer
           </span>
         </div>
 
@@ -6029,6 +6041,7 @@ function HomeCockpitPanel({
               const isUpdating = updatingCustomerActionId === action.action_id;
               const isEditing = editingActionId === action.action_id;
               const isOverdue = isCustomerActionOverdue(action);
+              const isDueSoon = isCustomerActionDueSoon(action);
               const comments = customerActionComments[action.action_id] ?? [];
               const commentDraft =
                 customerActionCommentDrafts[action.action_id] ?? "";
@@ -6043,6 +6056,8 @@ function HomeCockpitPanel({
                 <article
                   className={`customer-action-card ${action.priority} ${
                     isOverdue ? "overdue" : ""
+                  } ${
+                    isDueSoon ? "due-soon" : ""
                   }`}
                   key={action.action_id}
                 >
@@ -6069,6 +6084,9 @@ function HomeCockpitPanel({
                       <span>Echeance {formatDate(action.due_date)}</span>
                     ) : null}
                     {isOverdue ? <span className="overdue-pill">En retard</span> : null}
+                    {isDueSoon ? (
+                      <span className="due-soon-pill">A relancer</span>
+                    ) : null}
                   </div>
                   {isEditing ? (
                     <div className="customer-action-edit-form">
@@ -6794,17 +6812,38 @@ function normalizeOptionalField(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
-function isCustomerActionOverdue(action: CustomerAction) {
-  if (
-    !action.due_date ||
-    action.status === "resolved" ||
-    action.status === "ignored"
-  ) {
-    return false;
+function isActiveCustomerAction(action: CustomerAction) {
+  return action.status !== "resolved" && action.status !== "ignored";
+}
+
+function getCustomerActionDueTime(action: CustomerAction) {
+  if (!action.due_date) {
+    return null;
   }
 
   const dueDate = new Date(`${action.due_date}T23:59:59`);
-  return Number.isFinite(dueDate.getTime()) && dueDate.getTime() < Date.now();
+  const dueTime = dueDate.getTime();
+  return Number.isFinite(dueTime) ? dueTime : null;
+}
+
+function isCustomerActionOverdue(action: CustomerAction) {
+  const dueTime = getCustomerActionDueTime(action);
+  if (!isActiveCustomerAction(action) || dueTime === null) {
+    return false;
+  }
+
+  return dueTime < Date.now();
+}
+
+function isCustomerActionDueSoon(action: CustomerAction) {
+  const dueTime = getCustomerActionDueTime(action);
+  if (!isActiveCustomerAction(action) || dueTime === null) {
+    return false;
+  }
+
+  const now = Date.now();
+  const dueSoonLimit = now + CUSTOMER_ACTION_DUE_SOON_DAYS * 24 * 60 * 60 * 1000;
+  return dueTime >= now && dueTime <= dueSoonLimit;
 }
 
 function actionItemIcon(severity: string) {

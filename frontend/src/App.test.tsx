@@ -568,6 +568,45 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
   });
 
+  it("surfaces overdue and due-soon customer actions", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const dueSoonDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    apiMocks.listCustomerActions.mockResolvedValue([
+      {
+        ...customerAction,
+        action_id: 41,
+        title: "Relancer le transporteur",
+        status: "in_progress",
+        due_date: "2000-01-01"
+      },
+      {
+        ...customerAction,
+        action_id: 42,
+        title: "Verifier la promesse SAV",
+        due_date: dueSoonDate
+      }
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Accueil/ }));
+
+    expect(await screen.findByText(/1 en retard, 1 a relancer/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "En retard" }));
+    expect(screen.getByText("Relancer le transporteur")).toBeInTheDocument();
+    expect(screen.queryByText("Verifier la promesse SAV")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Echeance proche" }));
+    expect(screen.getByText("Verifier la promesse SAV")).toBeInTheDocument();
+    expect(screen.queryByText("Relancer le transporteur")).not.toBeInTheDocument();
+    expect(screen.getByText("A relancer")).toBeInTheDocument();
+  });
+
   it("shows an upgrade gate for model training outside Business", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);
