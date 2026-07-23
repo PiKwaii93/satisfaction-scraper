@@ -458,6 +458,20 @@ export type CustomerActionUpdate = {
   notes?: string | null;
 };
 
+export type CustomerActionComment = {
+  comment_id: number;
+  action_id: number;
+  organization_id: number;
+  author_user_id: number | null;
+  author_name: string | null;
+  body: string;
+  created_at: string | null;
+};
+
+export type CustomerActionCommentCreate = {
+  body: string;
+};
+
 export type RunSummary = {
   run: AnalysisRun;
   kpis: {

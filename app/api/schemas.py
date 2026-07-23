@@ -616,5 +616,19 @@ class CustomerActionResponse(BaseModel):
     resolved_at: datetime | None = None
 
 
+class CustomerActionCommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+
+
+class CustomerActionCommentResponse(BaseModel):
+    comment_id: int
+    action_id: int
+    organization_id: int
+    author_user_id: int | None = None
+    author_name: str | None = None
+    body: str
+    created_at: datetime | None = None
+
+
 class ErrorResponse(BaseModel):
     detail: str
