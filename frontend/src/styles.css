@@ -1734,6 +1734,12 @@ a {
   margin: 6px 0 0;
 }
 
+.customer-action-comment .customer-action-timeline-details {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .customer-action-comment-form {
   align-items: end;
   display: grid;

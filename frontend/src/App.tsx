@@ -6296,23 +6296,32 @@ function HomeCockpitPanel({
                       ) : timelineItems.length === 0 ? (
                         <p className="muted">Aucun element de suivi.</p>
                       ) : (
-                        timelineItems.map((item) => (
-                          <article
-                            className={`customer-action-comment ${item.item_type}`}
-                            key={item.item_id}
-                          >
-                            <div className="customer-action-comment-meta">
-                              <span>{customerActionTimelineActor(item)}</span>
-                              <span>
-                                {item.created_at
-                                  ? formatDate(item.created_at)
-                                  : "Date inconnue"}
-                              </span>
-                            </div>
-                            <strong>{customerActionTimelineLabel(item)}</strong>
-                            {item.body ? <p>{item.body}</p> : null}
-                          </article>
-                        ))
+                        timelineItems.map((item) => {
+                          const details = customerActionTimelineDetails(item);
+
+                          return (
+                            <article
+                              className={`customer-action-comment ${item.item_type}`}
+                              key={item.item_id}
+                            >
+                              <div className="customer-action-comment-meta">
+                                <span>{customerActionTimelineActor(item)}</span>
+                                <span>
+                                  {item.created_at
+                                    ? formatDate(item.created_at)
+                                    : "Date inconnue"}
+                                </span>
+                              </div>
+                              <strong>{customerActionTimelineLabel(item)}</strong>
+                              {details.length > 0 ? (
+                                <p className="customer-action-timeline-details">
+                                  {details.join(" - ")}
+                                </p>
+                              ) : null}
+                              {item.body ? <p>{item.body}</p> : null}
+                            </article>
+                          );
+                        })
                       )}
 
                       <div className="customer-action-comment-form">
@@ -6908,7 +6917,29 @@ function customerActionTimelineLabel(item: CustomerActionTimelineItem) {
   if (item.item_type === "comment") {
     return "Note de suivi";
   }
-  return item.summary ?? item.event_type ?? "Evenement de suivi";
+
+  const labels: Record<string, string> = {
+    "customer_action.created": "Action créée",
+    "customer_action.updated": "Action mise à jour",
+    "customer_action.comment_created": "Note ajoutee"
+  };
+  const eventType = item.event_type ?? "";
+  return labels[eventType] ?? "Evenement de suivi";
+}
+
+function customerActionTimelineDetails(item: CustomerActionTimelineItem) {
+  if (item.item_type !== "audit_event" || item.event_type !== "customer_action.updated") {
+    return [];
+  }
+
+  const details = [];
+  if (typeof item.metadata.status === "string") {
+    details.push(`Statut ${formatCustomerActionStatus(item.metadata.status)}`);
+  }
+  if (typeof item.metadata.priority === "string") {
+    details.push(`Priorite ${formatCustomerActionPriority(item.metadata.priority)}`);
+  }
+  return details;
 }
 
 function normalizeOptionalField(value: string | null | undefined) {

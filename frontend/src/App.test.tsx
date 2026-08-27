@@ -200,6 +200,25 @@ const customerActionTimeline: CustomerActionTimelineItem[] = [
     body: "Transporteur contacte ce matin.",
     metadata: {},
     created_at: "2026-08-27T09:00:00Z"
+  },
+  {
+    item_id: "audit-22",
+    item_type: "audit_event",
+    action_id: 4,
+    organization_id: 7,
+    audit_event_id: 22,
+    comment_id: null,
+    event_type: "customer_action.updated",
+    actor_email: "admin@example.test",
+    author_user_id: null,
+    author_name: "admin@example.test",
+    summary: "Action client mise a jour: Traiter les avis negatifs.",
+    body: null,
+    metadata: {
+      status: "resolved",
+      priority: "critical"
+    },
+    created_at: "2026-08-27T10:00:00Z"
   }
 ];
 
@@ -618,7 +637,7 @@ describe("App authentication and permissions", () => {
           summary: "Note de suivi ajoutee.",
           body: "Verifier le suivi livraison.",
           metadata: {},
-          created_at: "2026-08-27T10:00:00Z"
+          created_at: "2026-08-27T11:00:00Z"
         }
       ]);
 
@@ -630,9 +649,12 @@ describe("App authentication and permissions", () => {
     await waitFor(() =>
       expect(apiMocks.listCustomerActionTimeline).toHaveBeenCalledWith(4)
     );
+    expect(await screen.findByText("Action créée")).toBeInTheDocument();
+    expect(screen.getByText("Action mise à jour")).toBeInTheDocument();
+    expect(screen.getByText("Statut Resolue - Priorite Critique")).toBeInTheDocument();
     expect(
-      await screen.findByText("Action client creee: Traiter les avis negatifs.")
-    ).toBeInTheDocument();
+      screen.queryByText("Action client creee: Traiter les avis negatifs.")
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByText("Transporteur contacte ce matin.")
     ).toBeInTheDocument();
