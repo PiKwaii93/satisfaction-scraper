@@ -91,6 +91,27 @@ def sample_customer_action_comment(**overrides):
     return comment
 
 
+def sample_customer_action_timeline_item(**overrides):
+    item = {
+        "item_id": "comment-3",
+        "item_type": "comment",
+        "action_id": 4,
+        "organization_id": 123,
+        "audit_event_id": None,
+        "comment_id": 3,
+        "event_type": "customer_action.comment",
+        "actor_email": "member@satisfaction.local",
+        "author_user_id": 2,
+        "author_name": "Member Demo",
+        "summary": "Note de suivi ajoutee.",
+        "body": "Client relance par le SAV.",
+        "metadata": {},
+        "created_at": None,
+    }
+    item.update(overrides)
+    return item
+
+
 def test_health_is_public(client):
     response = client.get("/health")
 
@@ -1618,6 +1639,74 @@ def test_member_can_list_customer_action_comments(member_client, monkeypatch):
     assert response.status_code == 200
     assert response.json()[0]["body"] == "Client relance par le SAV."
     assert captured == {"action_id": 4, "organization_id": 123, "limit": 5}
+
+
+def test_member_can_list_customer_action_timeline(member_client, monkeypatch):
+    captured = {}
+
+    def fake_list_customer_action_timeline(action_id, organization_id, limit):
+        captured.update(
+            {
+                "action_id": action_id,
+                "organization_id": organization_id,
+                "limit": limit,
+            }
+        )
+        return [
+            sample_customer_action_timeline_item(
+                item_id="audit-12",
+                item_type="audit_event",
+                audit_event_id=12,
+                comment_id=None,
+                event_type="customer_action.created",
+                actor_email="demo@satisfaction.local",
+                author_user_id=None,
+                author_name="demo@satisfaction.local",
+                summary="Action client creee: Traiter les avis negatifs.",
+                body=None,
+            ),
+            sample_customer_action_timeline_item(action_id=action_id),
+        ]
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.list_customer_action_timeline",
+        fake_list_customer_action_timeline,
+    )
+
+    response = member_client.get("/customer-actions/4/timeline?limit=5")
+
+    assert response.status_code == 200
+    assert [item["item_type"] for item in response.json()] == [
+        "audit_event",
+        "comment",
+    ]
+    assert response.json()[1]["body"] == "Client relance par le SAV."
+    assert captured == {"action_id": 4, "organization_id": 123, "limit": 5}
+
+
+def test_customer_action_timeline_isolated_by_organization(member_client, monkeypatch):
+    captured = {}
+
+    def fake_list_customer_action_timeline(action_id, organization_id, limit):
+        captured.update(
+            {
+                "action_id": action_id,
+                "organization_id": organization_id,
+                "limit": limit,
+            }
+        )
+        raise ValueError("Action client introuvable.")
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.list_customer_action_timeline",
+        fake_list_customer_action_timeline,
+    )
+
+    response = member_client.get("/customer-actions/404/timeline")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Action client introuvable."
+    assert captured == {"action_id": 404, "organization_id": 123, "limit": 50}
 
 
 def test_member_can_create_customer_action_comment(member_client, monkeypatch):

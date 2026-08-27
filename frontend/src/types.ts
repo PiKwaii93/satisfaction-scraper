@@ -492,6 +492,25 @@ export type CustomerActionCommentCreate = {
   body: string;
 };
 
+export type CustomerActionTimelineItemType = "audit_event" | "comment";
+
+export type CustomerActionTimelineItem = {
+  item_id: string;
+  item_type: CustomerActionTimelineItemType;
+  action_id: number;
+  organization_id: number;
+  audit_event_id: number | null;
+  comment_id: number | null;
+  event_type: string | null;
+  actor_email: string | null;
+  author_user_id: number | null;
+  author_name: string | null;
+  summary: string | null;
+  body: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string | null;
+};
+
 export type RunSummary = {
   run: AnalysisRun;
   kpis: {

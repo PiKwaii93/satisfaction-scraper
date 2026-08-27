@@ -5,9 +5,11 @@ import App from "./App";
 import type {
   ActionCenter,
   AuthToken,
+  BusinessAlert,
   CurrentUser,
   CustomerAction,
   CustomerActionComment,
+  CustomerActionTimelineItem,
   FeedbackQuality,
   ModelTrainingOverview,
   OrganizationSettings,
@@ -43,6 +45,7 @@ const apiMocks = vi.hoisted(() => ({
   listBusinessAlerts: vi.fn(),
   listCustomerActions: vi.fn(),
   listCustomerActionComments: vi.fn(),
+  listCustomerActionTimeline: vi.fn(),
   listOrganizationAuditEvents: vi.fn(),
   listOrganizationUsers: vi.fn(),
   listPlatformOrganizations: vi.fn(),
@@ -137,6 +140,24 @@ const customerAction: CustomerAction = {
   impact: null
 };
 
+const businessAlert: BusinessAlert = {
+  alert_id: 9,
+  organization_id: 7,
+  run_id: 21,
+  company_id: 3,
+  company_name: "example.com",
+  alert_type: "negative_share_high",
+  severity: "warning",
+  title: "Part d'avis negatifs a surveiller",
+  message: "42% des avis sont negatifs.",
+  status: "open",
+  metadata: {},
+  created_at: null,
+  updated_at: null,
+  acknowledged_at: null,
+  resolved_at: null
+};
+
 const customerActionComment: CustomerActionComment = {
   comment_id: 8,
   action_id: 4,
@@ -146,6 +167,41 @@ const customerActionComment: CustomerActionComment = {
   body: "Transporteur contacte ce matin.",
   created_at: null
 };
+
+const customerActionTimeline: CustomerActionTimelineItem[] = [
+  {
+    item_id: "audit-21",
+    item_type: "audit_event",
+    action_id: 4,
+    organization_id: 7,
+    audit_event_id: 21,
+    comment_id: null,
+    event_type: "customer_action.created",
+    actor_email: "admin@example.test",
+    author_user_id: null,
+    author_name: "admin@example.test",
+    summary: "Action client creee: Traiter les avis negatifs.",
+    body: null,
+    metadata: {},
+    created_at: "2026-08-27T08:00:00Z"
+  },
+  {
+    item_id: "comment-8",
+    item_type: "comment",
+    action_id: 4,
+    organization_id: 7,
+    audit_event_id: null,
+    comment_id: 8,
+    event_type: "customer_action.comment",
+    actor_email: "member@example.test",
+    author_user_id: 2,
+    author_name: "Member Test",
+    summary: "Note de suivi ajoutee.",
+    body: "Transporteur contacte ce matin.",
+    metadata: {},
+    created_at: "2026-08-27T09:00:00Z"
+  }
+];
 
 const trainingOverview: ModelTrainingOverview = {
   production_model: null,
@@ -293,6 +349,7 @@ beforeEach(() => {
   apiMocks.listBusinessAlerts.mockResolvedValue([]);
   apiMocks.listCustomerActions.mockResolvedValue([]);
   apiMocks.listCustomerActionComments.mockResolvedValue([customerActionComment]);
+  apiMocks.listCustomerActionTimeline.mockResolvedValue(customerActionTimeline);
   apiMocks.createCustomerAction.mockResolvedValue(customerAction);
   apiMocks.createCustomerActionComment.mockResolvedValue({
     ...customerActionComment,
@@ -543,12 +600,39 @@ describe("App authentication and permissions", () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(memberUser);
     apiMocks.listCustomerActions.mockResolvedValue([customerAction]);
+    apiMocks.listCustomerActionTimeline
+      .mockResolvedValueOnce(customerActionTimeline)
+      .mockResolvedValueOnce([
+        ...customerActionTimeline,
+        {
+          item_id: "comment-9",
+          item_type: "comment",
+          action_id: 4,
+          organization_id: 7,
+          audit_event_id: null,
+          comment_id: 9,
+          event_type: "customer_action.comment",
+          actor_email: "member@example.test",
+          author_user_id: 2,
+          author_name: "Member Test",
+          summary: "Note de suivi ajoutee.",
+          body: "Verifier le suivi livraison.",
+          metadata: {},
+          created_at: "2026-08-27T10:00:00Z"
+        }
+      ]);
 
     render(<App />);
     expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Accueil/ }));
     await user.click(await screen.findByRole("button", { name: /Suivi \(0\)/ }));
+    await waitFor(() =>
+      expect(apiMocks.listCustomerActionTimeline).toHaveBeenCalledWith(4)
+    );
+    expect(
+      await screen.findByText("Action client creee: Traiter les avis negatifs.")
+    ).toBeInTheDocument();
     expect(
       await screen.findByText("Transporteur contacte ce matin.")
     ).toBeInTheDocument();
@@ -567,6 +651,60 @@ describe("App authentication and permissions", () => {
     expect(
       await screen.findByText("Verifier le suivi livraison.")
     ).toBeInTheDocument();
+    expect(screen.getAllByText("Verifier le suivi livraison.")).toHaveLength(1);
+  });
+
+  it("keeps a created customer action note visible when timeline reload fails", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(memberUser);
+    apiMocks.listCustomerActions.mockResolvedValue([customerAction]);
+    apiMocks.listCustomerActionTimeline
+      .mockResolvedValueOnce(customerActionTimeline)
+      .mockRejectedValueOnce(new Error("Suivi impossible a charger"));
+    apiMocks.createCustomerActionComment.mockResolvedValue({
+      ...customerActionComment,
+      comment_id: 10,
+      body: "Verifier le suivi livraison hors ligne.",
+      created_at: "2026-08-27T10:00:00Z"
+    });
+
+    render(<App />);
+    expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Accueil/ }));
+    await user.click(await screen.findByRole("button", { name: /Suivi \(0\)/ }));
+    const textarea = screen.getByPlaceholderText("Ajouter une note de suivi...");
+    await user.type(textarea, "Verifier le suivi livraison hors ligne.");
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+
+    await waitFor(() =>
+      expect(apiMocks.createCustomerActionComment).toHaveBeenCalledWith(4, {
+        body: "Verifier le suivi livraison hors ligne."
+      })
+    );
+    expect(
+      await screen.findByText("Verifier le suivi livraison hors ligne.")
+    ).toBeInTheDocument();
+    expect(textarea).toHaveValue("");
+  });
+
+  it("creates a customer action from an alert", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listBusinessAlerts.mockResolvedValue([businessAlert]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Accueil/ }));
+    expect(
+      await screen.findByText("Part d'avis negatifs a surveiller")
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Creer action" }));
+
+    await waitFor(() =>
+      expect(apiMocks.createCustomerAction).toHaveBeenCalledWith({ alert_id: 9 })
+    );
   });
 
   it("surfaces overdue and due-soon customer actions", async () => {

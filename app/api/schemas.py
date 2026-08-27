@@ -647,5 +647,22 @@ class CustomerActionCommentResponse(BaseModel):
     created_at: datetime | None = None
 
 
+class CustomerActionTimelineItemResponse(BaseModel):
+    item_id: str
+    item_type: Literal["audit_event", "comment"]
+    action_id: int
+    organization_id: int
+    audit_event_id: int | None = None
+    comment_id: int | None = None
+    event_type: str | None = None
+    actor_email: str | None = None
+    author_user_id: int | None = None
+    author_name: str | None = None
+    summary: str | None = None
+    body: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+
+
 class ErrorResponse(BaseModel):
     detail: str

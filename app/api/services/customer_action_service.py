@@ -420,6 +420,62 @@ def _serialize_comment(row):
     }
 
 
+def _serialize_timeline_audit_event(row):
+    metadata = row.get("metadata") or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except json.JSONDecodeError:
+            metadata = {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    return {
+        "item_id": f"audit-{row['audit_event_id']}",
+        "item_type": "audit_event",
+        "action_id": row["entity_id"],
+        "organization_id": row["organization_id"],
+        "audit_event_id": row["audit_event_id"],
+        "comment_id": None,
+        "event_type": row["event_type"],
+        "actor_email": row.get("actor_email"),
+        "author_user_id": None,
+        "author_name": row.get("actor_email"),
+        "summary": row["summary"],
+        "body": None,
+        "metadata": metadata,
+        "created_at": row.get("created_at"),
+    }
+
+
+def _serialize_timeline_comment(row):
+    return {
+        "item_id": f"comment-{row['comment_id']}",
+        "item_type": "comment",
+        "action_id": row["action_id"],
+        "organization_id": row["organization_id"],
+        "audit_event_id": None,
+        "comment_id": row["comment_id"],
+        "event_type": "customer_action.comment",
+        "actor_email": row.get("author_email"),
+        "author_user_id": row.get("author_user_id"),
+        "author_name": row.get("author_name") or row.get("author_email"),
+        "summary": "Note de suivi ajoutee.",
+        "body": row["body"],
+        "metadata": {},
+        "created_at": row.get("created_at"),
+    }
+
+
+def _timeline_sort_key(item):
+    return (
+        item.get("created_at") is None,
+        item.get("created_at"),
+        item["item_type"],
+        item["item_id"],
+    )
+
+
 def _select_action(cursor, organization_id, action_id):
     cursor.execute(
         """
@@ -717,6 +773,59 @@ def list_customer_action_comments(action_id: int, organization_id: int, limit=30
             (organization_id, action_id, limit),
         )
         return [_serialize_comment(row) for row in cursor.fetchall()]
+
+
+def list_customer_action_timeline(action_id: int, organization_id: int, limit=50):
+    limit = max(1, min(int(limit), 100))
+
+    with get_cursor() as cursor:
+        _select_action(cursor, organization_id, action_id)
+        cursor.execute(
+            """
+            SELECT
+                audit_event_id,
+                organization_id,
+                actor_email,
+                event_type,
+                entity_id,
+                summary,
+                metadata,
+                created_at
+            FROM audit_events
+            WHERE organization_id = %s
+              AND entity_type = 'customer_action'
+              AND entity_id = %s
+              AND event_type <> 'customer_action.comment_created'
+            ORDER BY created_at ASC, audit_event_id ASC
+            LIMIT %s;
+            """,
+            (organization_id, action_id, limit),
+        )
+        items = [
+            _serialize_timeline_audit_event(row)
+            for row in cursor.fetchall()
+        ]
+
+        cursor.execute(
+            """
+            SELECT
+                cac.*,
+                users.full_name AS author_name,
+                users.email AS author_email
+            FROM customer_action_comments cac
+            LEFT JOIN users ON users.user_id = cac.author_user_id
+            WHERE cac.organization_id = %s
+              AND cac.action_id = %s
+            ORDER BY cac.created_at ASC, cac.comment_id ASC
+            LIMIT %s;
+            """,
+            (organization_id, action_id, limit),
+        )
+        items.extend(
+            _serialize_timeline_comment(row)
+            for row in cursor.fetchall()
+        )
+        return sorted(items, key=_timeline_sort_key)[:limit]
 
 
 def create_customer_action_comment(

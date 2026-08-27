@@ -1709,6 +1709,10 @@ a {
   padding: 8px 10px;
 }
 
+.customer-action-comment.audit_event {
+  background: #fff7ed;
+}
+
 .customer-action-comment-meta {
   align-items: center;
   color: var(--muted);
@@ -1717,6 +1721,12 @@ a {
   font-weight: 700;
   gap: 8px;
   justify-content: space-between;
+}
+
+.customer-action-comment strong {
+  display: block;
+  font-size: 0.84rem;
+  margin-top: 6px;
 }
 
 .customer-action-comment p {

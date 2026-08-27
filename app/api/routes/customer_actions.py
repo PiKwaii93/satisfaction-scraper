@@ -6,6 +6,7 @@ from app.api.schemas import (
     CustomerActionCommentResponse,
     CustomerActionCreate,
     CustomerActionResponse,
+    CustomerActionTimelineItemResponse,
     CustomerActionUpdate,
     ErrorResponse,
 )
@@ -14,6 +15,7 @@ from app.api.services.customer_action_service import (
     create_customer_action_comment,
     create_customer_action,
     list_customer_action_comments,
+    list_customer_action_timeline,
     list_customer_actions,
     update_customer_action,
 )
@@ -121,6 +123,26 @@ def update_action(
             },
         )
         return action
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{action_id}/timeline",
+    response_model=list[CustomerActionTimelineItemResponse],
+    summary="Lister la timeline d'une action client",
+)
+def list_action_timeline(
+    action_id: int,
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: AuthenticatedUser = Depends(require_current_user),
+):
+    try:
+        return list_customer_action_timeline(
+            action_id,
+            current_user.organization_id,
+            limit=limit,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

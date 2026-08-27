@@ -14,6 +14,7 @@ import type {
   CustomerActionCommentCreate,
   CustomerActionCreate,
   CustomerActionStatus,
+  CustomerActionTimelineItem,
   CustomerActionUpdate,
   FeedbackQuality,
   ModelTrainingOverview,
@@ -499,6 +500,13 @@ export function listCustomerActionComments(actionId: number, limit = 30) {
   const params = new URLSearchParams({ limit: String(limit) });
   return request<CustomerActionComment[]>(
     `/customer-actions/${actionId}/comments?${params.toString()}`
+  );
+}
+
+export function listCustomerActionTimeline(actionId: number, limit = 50) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<CustomerActionTimelineItem[]>(
+    `/customer-actions/${actionId}/timeline?${params.toString()}`
   );
 }
 
