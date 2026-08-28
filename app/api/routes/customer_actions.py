@@ -73,20 +73,21 @@ def create_action(
             current_user.user_id,
             payload,
         )
-        record_audit_event(
-            organization_id=current_user.organization_id,
-            actor_user=current_user,
-            event_type="customer_action.created",
-            summary=f"Action client creee: {action['title']}.",
-            entity_type="customer_action",
-            entity_id=action["action_id"],
-            metadata={
-                "alert_id": action.get("alert_id"),
-                "run_id": action.get("run_id"),
-                "priority": action.get("priority"),
-                "status": action.get("status"),
-            },
-        )
+        if action.get("_was_created", True):
+            record_audit_event(
+                organization_id=current_user.organization_id,
+                actor_user=current_user,
+                event_type="customer_action.created",
+                summary=f"Action client creee: {action['title']}.",
+                entity_type="customer_action",
+                entity_id=action["action_id"],
+                metadata={
+                    "alert_id": action.get("alert_id"),
+                    "run_id": action.get("run_id"),
+                    "priority": action.get("priority"),
+                    "status": action.get("status"),
+                },
+            )
         return action
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

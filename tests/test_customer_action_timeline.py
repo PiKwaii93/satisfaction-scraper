@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pytest
 
+from app.api.schemas import CustomerActionCreate
 from app.api.services import customer_action_service as service
 
 
@@ -122,6 +123,70 @@ class FakeCursorContext:
         return False
 
 
+class ExistingActionCursor:
+    def __init__(self, alert_exists=True):
+        self.alert_exists = alert_exists
+        self.executed = []
+        self.row = None
+        self.rows = []
+
+    def execute(self, query, params):
+        self.executed.append((query, params))
+        if "FROM business_alerts" in query:
+            self.row = (
+                {
+                    "alert_id": params[1],
+                    "organization_id": params[0],
+                    "run_id": 21,
+                    "company_id": 3,
+                    "severity": "warning",
+                    "alert_type": "negative_share_high",
+                    "title": "Part d'avis negatifs a surveiller",
+                    "message": "42% des avis sont negatifs.",
+                    "metadata": {},
+                }
+                if self.alert_exists
+                else None
+            )
+        elif "SELECT action_id" in query and "FROM customer_actions" in query:
+            self.row = {"action_id": 4}
+        elif "FROM customer_actions ca" in query:
+            organization_id, action_id = params
+            self.row = {
+                "action_id": action_id,
+                "organization_id": organization_id,
+                "alert_id": 9,
+                "run_id": 21,
+                "company_name": "demo-company.fr",
+                "alert_title": "Part d'avis negatifs a surveiller",
+                "alert_type": "negative_share_high",
+                "alert_metadata": {},
+                "impact_run_id": 21,
+                "impact_company_id": 3,
+                "title": "Traiter les avis negatifs",
+                "description": "Verifier les avis critiques.",
+                "priority": "high",
+                "status": "open",
+                "owner_name": None,
+                "due_date": None,
+                "notes": None,
+                "created_by_email": "admin@example.test",
+                "updated_by_email": None,
+                "created_at": datetime(2026, 8, 27, 7, 0),
+                "updated_at": datetime(2026, 8, 27, 7, 0),
+                "resolved_at": None,
+            }
+        else:
+            self.row = None
+            self.rows = []
+
+    def fetchone(self):
+        return self.row
+
+    def fetchall(self):
+        return self.rows
+
+
 def test_list_customer_action_timeline_merges_audit_events_and_comments(monkeypatch):
     cursor = FakeCursor()
 
@@ -153,3 +218,42 @@ def test_list_customer_action_timeline_requires_action_in_organization(monkeypat
 
     assert len(cursor.executed) == 1
     assert cursor.executed[0][1] == (999, 4)
+
+
+def test_create_customer_action_reuses_existing_alert_action_without_insert(
+    monkeypatch,
+):
+    cursor = ExistingActionCursor()
+
+    monkeypatch.setattr(service, "_build_action_impact", lambda cursor, org, row: None)
+    monkeypatch.setattr(service, "get_cursor", lambda commit=False: FakeCursorContext(cursor))
+
+    action = service.create_customer_action(
+        123,
+        1,
+        CustomerActionCreate(alert_id=9),
+    )
+
+    assert action["action_id"] == 4
+    assert action["_was_created"] is False
+    assert not any("INSERT INTO customer_actions" in query for query, _ in cursor.executed)
+    assert cursor.executed[0][1] == (123, 9)
+    assert cursor.executed[1][1] == (123, 9)
+    assert cursor.executed[2][1] == (123, 4)
+
+
+def test_create_customer_action_requires_alert_in_current_organization(monkeypatch):
+    cursor = ExistingActionCursor(alert_exists=False)
+
+    monkeypatch.setattr(service, "_build_action_impact", lambda cursor, org, row: None)
+    monkeypatch.setattr(service, "get_cursor", lambda commit=False: FakeCursorContext(cursor))
+
+    with pytest.raises(ValueError, match="Alerte introuvable pour cette organisation"):
+        service.create_customer_action(
+            999,
+            1,
+            CustomerActionCreate(alert_id=9),
+        )
+
+    assert len(cursor.executed) == 1
+    assert cursor.executed[0][1] == (999, 9)

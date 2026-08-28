@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -9,6 +9,7 @@ import type {
   CurrentUser,
   CustomerAction,
   CustomerActionComment,
+  CustomerActionImpact,
   CustomerActionTimelineItem,
   FeedbackQuality,
   ModelTrainingOverview,
@@ -156,6 +157,32 @@ const businessAlert: BusinessAlert = {
   updated_at: null,
   acknowledged_at: null,
   resolved_at: null
+};
+
+const notMeasurableImpact: CustomerActionImpact = {
+  status: "not_measurable",
+  label: "A mesurer",
+  summary: "Relance une analyse de la meme entreprise pour mesurer l'impact.",
+  metric_label: "Part d'avis negatifs",
+  unit: "pts",
+  baseline_run_id: 21,
+  comparison_run_id: null,
+  baseline_value: null,
+  comparison_value: null,
+  delta: null
+};
+
+const measuredImpact: CustomerActionImpact = {
+  status: "improved",
+  label: "Amelioration",
+  summary: "Part d'avis negatifs s'ameliore entre le run d'origine et le run suivant.",
+  metric_label: "Part d'avis negatifs",
+  unit: "pts",
+  baseline_run_id: 21,
+  comparison_run_id: 24,
+  baseline_value: 42,
+  comparison_value: 31,
+  delta: -11
 };
 
 const customerActionComment: CustomerActionComment = {
@@ -658,6 +685,9 @@ describe("App authentication and permissions", () => {
     expect(
       await screen.findByText("Transporteur contacte ce matin.")
     ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Demarrer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Resoudre" })).not.toBeInTheDocument();
 
     await user.type(
       screen.getByPlaceholderText("Ajouter une note de suivi..."),
@@ -727,6 +757,196 @@ describe("App authentication and permissions", () => {
     await waitFor(() =>
       expect(apiMocks.createCustomerAction).toHaveBeenCalledWith({ alert_id: 9 })
     );
+  });
+
+  it("validates the customer action workflow from alert to resolved impact", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const createdAction: CustomerAction = {
+      ...customerAction,
+      impact: notMeasurableImpact
+    };
+    const inProgressAction: CustomerAction = {
+      ...createdAction,
+      status: "in_progress",
+      updated_by_email: "admin@example.test"
+    };
+    const criticalAction: CustomerAction = {
+      ...inProgressAction,
+      priority: "critical"
+    };
+    const resolvedAction: CustomerAction = {
+      ...criticalAction,
+      status: "resolved",
+      resolved_at: "2026-08-27T12:00:00Z",
+      impact: measuredImpact
+    };
+    const noteBody = "Controle transporteur planifie.";
+    const noteItem: CustomerActionTimelineItem = {
+      item_id: "comment-12",
+      item_type: "comment",
+      action_id: 4,
+      organization_id: 7,
+      audit_event_id: null,
+      comment_id: 12,
+      event_type: "customer_action.comment",
+      actor_email: null,
+      author_user_id: 1,
+      author_name: "Admin Test",
+      summary: "Note de suivi ajoutee.",
+      body: noteBody,
+      metadata: {},
+      created_at: "2026-08-27T09:00:00Z"
+    };
+    const startedEvent: CustomerActionTimelineItem = {
+      ...customerActionTimeline[2],
+      item_id: "audit-31",
+      audit_event_id: 31,
+      metadata: { status: "in_progress", priority: "high" },
+      created_at: "2026-08-27T10:00:00Z"
+    };
+    const priorityEvent: CustomerActionTimelineItem = {
+      ...customerActionTimeline[2],
+      item_id: "audit-32",
+      audit_event_id: 32,
+      metadata: { status: "in_progress", priority: "critical" },
+      created_at: "2026-08-27T11:00:00Z"
+    };
+    const resolvedEvent: CustomerActionTimelineItem = {
+      ...customerActionTimeline[2],
+      item_id: "audit-33",
+      audit_event_id: 33,
+      metadata: { status: "resolved", priority: "critical" },
+      created_at: "2026-08-27T12:00:00Z"
+    };
+    const createdTimeline = [customerActionTimeline[0]];
+    const timelineWithNote = [...createdTimeline, noteItem];
+    const timelineStarted = [...timelineWithNote, startedEvent];
+    const timelinePriority = [...timelineStarted, priorityEvent];
+    const timelineResolved = [...timelinePriority, resolvedEvent];
+
+    apiMocks.listBusinessAlerts.mockResolvedValue([businessAlert]);
+    apiMocks.listCustomerActions
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([createdAction])
+      .mockRejectedValueOnce(new Error("Liste actions indisponible"))
+      .mockResolvedValueOnce([criticalAction])
+      .mockResolvedValueOnce([resolvedAction]);
+    apiMocks.createCustomerAction.mockResolvedValue(createdAction);
+    apiMocks.createCustomerActionComment.mockResolvedValue({
+      ...customerActionComment,
+      comment_id: 12,
+      author_user_id: 1,
+      author_name: "Admin Test",
+      body: noteBody,
+      created_at: "2026-08-27T09:00:00Z"
+    });
+    apiMocks.updateCustomerAction
+      .mockResolvedValueOnce(inProgressAction)
+      .mockResolvedValueOnce(criticalAction)
+      .mockResolvedValueOnce(resolvedAction);
+    apiMocks.listCustomerActionTimeline
+      .mockResolvedValueOnce(createdTimeline)
+      .mockResolvedValueOnce(timelineWithNote)
+      .mockResolvedValueOnce(timelineStarted)
+      .mockResolvedValueOnce(timelinePriority)
+      .mockResolvedValueOnce(timelineResolved);
+
+    async function actionCard() {
+      const title = await screen.findByText("Traiter les avis negatifs");
+      const card = title.closest("article");
+      expect(card).not.toBeNull();
+      return within(card as HTMLElement);
+    }
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Accueil/ }));
+    expect(
+      await screen.findByText("Part d'avis negatifs a surveiller")
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Creer action" }));
+    await waitFor(() =>
+      expect(apiMocks.createCustomerAction).toHaveBeenCalledWith({ alert_id: 9 })
+    );
+
+    let currentAction = await actionCard();
+    expect(currentAction.getByText("A mesurer")).toBeInTheDocument();
+    expect(
+      currentAction.getByText(
+        "Relance une analyse de la meme entreprise pour mesurer l'impact."
+      )
+    ).toBeInTheDocument();
+
+    await user.click(currentAction.getByRole("button", { name: /Suivi/ }));
+    await waitFor(() =>
+      expect(apiMocks.listCustomerActionTimeline).toHaveBeenCalledWith(4)
+    );
+    expect(await screen.findByText("Action créée")).toBeInTheDocument();
+
+    currentAction = await actionCard();
+    await user.type(
+      currentAction.getByPlaceholderText("Ajouter une note de suivi..."),
+      noteBody
+    );
+    await user.click(currentAction.getByRole("button", { name: "Ajouter" }));
+    await waitFor(() =>
+      expect(apiMocks.createCustomerActionComment).toHaveBeenCalledWith(4, {
+        body: noteBody
+      })
+    );
+    expect(await screen.findByText(noteBody)).toBeInTheDocument();
+    expect(screen.getAllByText(noteBody)).toHaveLength(1);
+
+    currentAction = await actionCard();
+    await user.click(currentAction.getByRole("button", { name: "Demarrer" }));
+    await waitFor(() =>
+      expect(apiMocks.updateCustomerAction).toHaveBeenCalledWith(4, {
+        status: "in_progress"
+      })
+    );
+    expect((await actionCard()).getByText("En cours")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Statut En cours - Priorite Haute")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Action impossible/)).not.toBeInTheDocument();
+
+    currentAction = await actionCard();
+    await user.click(currentAction.getByRole("button", { name: "Modifier" }));
+    await user.selectOptions(currentAction.getByLabelText("Priorite"), "critical");
+    await user.click(currentAction.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(apiMocks.updateCustomerAction).toHaveBeenLastCalledWith(
+        4,
+        expect.objectContaining({ priority: "critical" })
+      )
+    );
+    expect((await actionCard()).getByText("Critique")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Statut En cours - Priorite Critique")
+    ).toBeInTheDocument();
+
+    currentAction = await actionCard();
+    await user.click(currentAction.getByRole("button", { name: "Resoudre" }));
+    await waitFor(() =>
+      expect(apiMocks.updateCustomerAction).toHaveBeenLastCalledWith(4, {
+        status: "resolved"
+      })
+    );
+    await user.click(screen.getByRole("button", { name: "Resolues" }));
+
+    currentAction = await actionCard();
+    expect(currentAction.getByText("Resolue")).toBeInTheDocument();
+    expect(currentAction.getByText("Amelioration")).toBeInTheDocument();
+    expect(currentAction.getByText("Run #21 -> Run #24")).toBeInTheDocument();
+    expect(
+      currentAction.getByText(/42,0 pts.*31,0 pts.*-11,0 pts/)
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Statut Resolue - Priorite Critique")
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(noteBody)).toHaveLength(1);
   });
 
   it("surfaces overdue and due-soon customer actions", async () => {

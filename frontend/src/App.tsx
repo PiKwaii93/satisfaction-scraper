@@ -1490,6 +1490,35 @@ export default function App() {
     }
   }
 
+  function upsertCustomerAction(action: CustomerAction) {
+    setCustomerActions((current) => {
+      if (current.some((item) => item.action_id === action.action_id)) {
+        return current.map((item) =>
+          item.action_id === action.action_id ? action : item
+        );
+      }
+      return [action, ...current];
+    });
+  }
+
+  async function refreshCustomerActionContextAfterMutation(successLabel: string) {
+    const results = await Promise.allSettled([
+      refreshCustomerActions(),
+      refreshBusinessAlerts(),
+      refreshActionCenter()
+    ]);
+    const failedRefresh = results.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    if (failedRefresh) {
+      setCustomerActionsError(
+        failedRefresh.reason instanceof Error
+          ? `${successLabel}, mais l'actualisation a échoué : ${failedRefresh.reason.message}`
+          : `${successLabel}, mais l'actualisation a échoué.`
+      );
+    }
+  }
+
   async function refreshOrganizationUsers() {
     setIsOrganizationUsersLoading(true);
     try {
@@ -2530,12 +2559,10 @@ export default function App() {
     setCustomerActionsError(null);
 
     try {
-      await createCustomerAction({ alert_id: alert.alert_id });
-      await Promise.all([
-        refreshCustomerActions(),
-        refreshBusinessAlerts(),
-        refreshActionCenter()
-      ]);
+      const action = await createCustomerAction({ alert_id: alert.alert_id });
+      upsertCustomerAction(action);
+      await refreshCustomerActionContextAfterMutation("Action créée");
+      upsertCustomerAction(action);
       await refreshAdminAuditEvents();
     } catch (err) {
       setCustomerActionsError(
@@ -2566,12 +2593,10 @@ export default function App() {
     setCustomerActionsError(null);
 
     try {
-      await updateCustomerAction(actionId, payload);
-      await Promise.all([
-        refreshCustomerActions(),
-        refreshBusinessAlerts(),
-        refreshActionCenter()
-      ]);
+      const action = await updateCustomerAction(actionId, payload);
+      upsertCustomerAction(action);
+      await refreshCustomerActionContextAfterMutation("Action mise à jour");
+      upsertCustomerAction(action);
       if (customerActionTimelineItems[actionId]) {
         await refreshCustomerActionTimeline(actionId);
       }

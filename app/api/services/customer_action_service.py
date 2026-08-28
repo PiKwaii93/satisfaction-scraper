@@ -627,7 +627,9 @@ def create_customer_action(
             )
             existing = cursor.fetchone()
             if existing:
-                return _select_action(cursor, organization_id, existing["action_id"])
+                action = _select_action(cursor, organization_id, existing["action_id"])
+                action["_was_created"] = False
+                return action
 
             if run_id is None:
                 run_id = alert.get("run_id")
@@ -693,7 +695,9 @@ def create_customer_action(
             ),
         )
         action_id = cursor.fetchone()["action_id"]
-        return _select_action(cursor, organization_id, action_id)
+        action = _select_action(cursor, organization_id, action_id)
+        action["_was_created"] = True
+        return action
 
 
 def update_customer_action(

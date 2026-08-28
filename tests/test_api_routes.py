@@ -1784,6 +1784,31 @@ def test_admin_can_create_customer_action(authenticated_client, monkeypatch):
     }
 
 
+def test_admin_reuses_existing_customer_action_without_creation_audit(
+    authenticated_client, monkeypatch
+):
+    audit_events = []
+
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.create_customer_action",
+        lambda organization_id, actor_user_id, payload: sample_customer_action(
+            alert_id=payload.alert_id,
+            _was_created=False,
+        ),
+    )
+    monkeypatch.setattr(
+        "app.api.routes.customer_actions.record_audit_event",
+        lambda **kwargs: audit_events.append(kwargs),
+    )
+
+    response = authenticated_client.post("/customer-actions", json={"alert_id": 9})
+
+    assert response.status_code == 201
+    assert response.json()["alert_id"] == 9
+    assert "_was_created" not in response.json()
+    assert audit_events == []
+
+
 def test_member_cannot_create_customer_action(member_client):
     response = member_client.post("/customer-actions", json={"alert_id": 9})
 
