@@ -1491,6 +1491,34 @@ a {
   font-weight: 800;
 }
 
+.customer-action-triage {
+  display: grid;
+  gap: 14px;
+}
+
+.customer-action-triage-section {
+  display: grid;
+  gap: 8px;
+}
+
+.customer-action-triage-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.customer-action-triage-heading strong {
+  color: var(--text);
+}
+
+.customer-action-triage-heading span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .customer-action-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1566,6 +1594,15 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.customer-action-missing-meta {
+  color: #b45309;
+}
+
+.customer-action-source {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .customer-action-impact {

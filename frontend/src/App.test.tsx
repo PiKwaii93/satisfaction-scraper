@@ -949,6 +949,126 @@ describe("App authentication and permissions", () => {
     expect(screen.getAllByText(noteBody)).toHaveLength(1);
   });
 
+  it("organizes active customer actions into exclusive triage sections", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const dueSoonDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const laterDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const actions: CustomerAction[] = [
+      {
+        ...customerAction,
+        action_id: 51,
+        title: "Retard basse priorite",
+        priority: "low",
+        owner_name: "Support",
+        due_date: "2000-01-01",
+        updated_at: "2026-08-20T08:00:00Z"
+      },
+      {
+        ...customerAction,
+        action_id: 52,
+        title: "Critique recente",
+        priority: "critical",
+        owner_name: "Qualite",
+        due_date: null,
+        updated_at: "2026-08-27T08:00:00Z"
+      },
+      {
+        ...customerAction,
+        action_id: 53,
+        title: "Action en cours non urgente",
+        status: "in_progress",
+        priority: "medium",
+        owner_name: "SAV",
+        due_date: laterDate
+      },
+      {
+        ...customerAction,
+        action_id: 54,
+        title: "Action a planifier",
+        priority: "medium",
+        owner_name: null,
+        due_date: null,
+        alert_title: "Retours livraison repetes"
+      },
+      {
+        ...customerAction,
+        action_id: 55,
+        title: "Echeance proche moyenne",
+        priority: "medium",
+        owner_name: "Operations",
+        due_date: dueSoonDate
+      },
+      {
+        ...customerAction,
+        action_id: 56,
+        title: "Critique ancienne",
+        priority: "critical",
+        owner_name: "Qualite",
+        due_date: null,
+        updated_at: "2026-08-26T08:00:00Z"
+      },
+      {
+        ...customerAction,
+        action_id: 57,
+        title: "Retard critique",
+        priority: "critical",
+        owner_name: "Support",
+        due_date: "2000-01-05",
+        updated_at: "2026-08-19T08:00:00Z"
+      }
+    ];
+    apiMocks.listCustomerActions.mockResolvedValue(actions);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Accueil/ }));
+
+    const nowSection = await screen.findByRole("region", {
+      name: "À traiter maintenant"
+    });
+    const followSection = screen.getByRole("region", { name: "À suivre" });
+    const planSection = screen.getByRole("region", { name: "À planifier" });
+
+    expect(within(nowSection).getByText("Retard critique")).toBeInTheDocument();
+    expect(
+      within(followSection).getByText("Action en cours non urgente")
+    ).toBeInTheDocument();
+    expect(within(planSection).getByText("Action a planifier")).toBeInTheDocument();
+
+    const nowTitles = Array.from(
+      nowSection.querySelectorAll(".customer-action-card-header strong")
+    ).map((element) => element.textContent);
+    expect(nowTitles).toEqual([
+      "Retard critique",
+      "Retard basse priorite",
+      "Echeance proche moyenne",
+      "Critique recente",
+      "Critique ancienne"
+    ]);
+
+    for (const action of actions) {
+      expect(screen.getAllByText(action.title)).toHaveLength(1);
+    }
+    expect(within(planSection).getByText("Sans responsable")).toBeInTheDocument();
+    expect(within(planSection).getByText("Aucune échéance")).toBeInTheDocument();
+    expect(
+      within(planSection).getByText("Alerte : Retours livraison repetes")
+    ).toBeInTheDocument();
+
+    const planCard = within(planSection)
+      .getByText("Action a planifier")
+      .closest(".customer-action-card") as HTMLElement;
+    expect(within(planCard).getByRole("button", { name: /Suivi/ })).toBeEnabled();
+    expect(within(planCard).getByRole("button", { name: "Modifier" })).toBeEnabled();
+    expect(within(planCard).getByRole("button", { name: "Demarrer" })).toBeEnabled();
+    expect(within(planCard).getByRole("button", { name: "Resoudre" })).toBeEnabled();
+  });
+
   it("surfaces overdue and due-soon customer actions", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);
@@ -977,8 +1097,14 @@ describe("App authentication and permissions", () => {
     await user.click(screen.getByRole("button", { name: /Accueil/ }));
 
     expect(await screen.findByText(/1 en retard, 1 a relancer/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "À traiter maintenant" })
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "En retard" }));
+    expect(
+      screen.queryByRole("region", { name: "À traiter maintenant" })
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Relancer le transporteur")).toBeInTheDocument();
     expect(screen.queryByText("Verifier la promesse SAV")).not.toBeInTheDocument();
 

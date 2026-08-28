@@ -143,6 +143,14 @@ const CUSTOMER_ACTION_FILTERS: Array<{
 ];
 
 const CUSTOMER_ACTION_DUE_SOON_DAYS = 3;
+const CUSTOMER_ACTION_PRIORITY_RANK: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3
+};
+
+type CustomerActionTriageSectionKey = "now" | "follow" | "plan";
 
 type OnboardingStep = {
   key: string;
@@ -5984,6 +5992,29 @@ function HomeCockpitPanel({
     }
     return action.status === actionStatusFilter;
   });
+  const activeCustomerActionTriageSections = [
+    {
+      key: "now",
+      title: "À traiter maintenant",
+      actions: activeCustomerActions
+        .filter((action) => getCustomerActionTriageSection(action) === "now")
+        .sort(compareCustomerActionsForTriage)
+    },
+    {
+      key: "follow",
+      title: "À suivre",
+      actions: activeCustomerActions
+        .filter((action) => getCustomerActionTriageSection(action) === "follow")
+        .sort(compareCustomerActionsForTriage)
+    },
+    {
+      key: "plan",
+      title: "À planifier",
+      actions: activeCustomerActions
+        .filter((action) => getCustomerActionTriageSection(action) === "plan")
+        .sort(compareCustomerActionsForTriage)
+    }
+  ];
 
   function startEditAction(action: CustomerAction) {
     setEditingActionId(action.action_id);
@@ -6021,6 +6052,281 @@ function HomeCockpitPanel({
       }
       return next;
     });
+  }
+
+  function renderCustomerActionCard(action: CustomerAction) {
+    const isUpdating = updatingCustomerActionId === action.action_id;
+    const isEditing = editingActionId === action.action_id;
+    const isOverdue = isCustomerActionOverdue(action);
+    const isDueSoon = isCustomerActionDueSoon(action);
+    const timelineItems = customerActionTimelineItems[action.action_id] ?? [];
+    const commentDraft = customerActionCommentDrafts[action.action_id] ?? "";
+    const timelineExpanded = expandedTimelineActionIds.has(action.action_id);
+    const timelineLoading = Boolean(
+      loadingCustomerActionTimeline[action.action_id]
+    );
+    const alertLabel = customerActionAlertLabel(action);
+
+    return (
+      <article
+        className={`customer-action-card ${action.priority} ${
+          isOverdue ? "overdue" : ""
+        } ${isDueSoon ? "due-soon" : ""}`}
+        key={action.action_id}
+      >
+        <div className="customer-action-card-header">
+          <div>
+            <strong>{action.title}</strong>
+            <span>
+              {action.company_name ?? "Entreprise"}{" "}
+              {action.run_id ? `- Run #${action.run_id}` : ""}
+            </span>
+          </div>
+          <span className={`alert-severity ${customerActionSeverity(action.priority)}`}>
+            {formatCustomerActionPriority(action.priority)}
+          </span>
+        </div>
+        {action.description ? <p>{action.description}</p> : null}
+        {action.notes ? <p className="customer-action-note">{action.notes}</p> : null}
+        <div className="customer-action-meta">
+          <span>{formatCustomerActionStatus(action.status)}</span>
+          {action.owner_name ? (
+            <span>{action.owner_name}</span>
+          ) : isActiveCustomerAction(action) ? (
+            <span className="customer-action-missing-meta">Sans responsable</span>
+          ) : null}
+          {action.due_date ? (
+            <span>Échéance {formatDate(action.due_date)}</span>
+          ) : isActiveCustomerAction(action) ? (
+            <span className="customer-action-missing-meta">Aucune échéance</span>
+          ) : null}
+          {alertLabel ? (
+            <span className="customer-action-source">Alerte : {alertLabel}</span>
+          ) : null}
+          {isOverdue ? <span className="overdue-pill">En retard</span> : null}
+          {isDueSoon ? <span className="due-soon-pill">A relancer</span> : null}
+        </div>
+        {action.impact ? <CustomerActionImpactBlock impact={action.impact} /> : null}
+        {isEditing ? (
+          <div className="customer-action-edit-form">
+            <div className="customer-action-edit-grid">
+              <label>
+                <span>Responsable</span>
+                <input
+                  onChange={(event) =>
+                    setActionDraft((draft) => ({
+                      ...draft,
+                      owner_name: event.target.value
+                    }))
+                  }
+                  placeholder="SAV, operation, prenom..."
+                  value={actionDraft.owner_name ?? ""}
+                />
+              </label>
+              <label>
+                <span>Echeance</span>
+                <input
+                  onChange={(event) =>
+                    setActionDraft((draft) => ({
+                      ...draft,
+                      due_date: event.target.value
+                    }))
+                  }
+                  type="date"
+                  value={actionDraft.due_date ?? ""}
+                />
+              </label>
+              <label>
+                <span>Priorite</span>
+                <select
+                  onChange={(event) =>
+                    setActionDraft((draft) => ({
+                      ...draft,
+                      priority: event.target.value as CustomerActionPriority
+                    }))
+                  }
+                  value={actionDraft.priority ?? action.priority}
+                >
+                  <option value="low">Basse</option>
+                  <option value="medium">Moyenne</option>
+                  <option value="high">Haute</option>
+                  <option value="critical">Critique</option>
+                </select>
+              </label>
+              <label>
+                <span>Statut</span>
+                <select
+                  onChange={(event) =>
+                    setActionDraft((draft) => ({
+                      ...draft,
+                      status: event.target.value as CustomerActionStatus
+                    }))
+                  }
+                  value={actionDraft.status ?? action.status}
+                >
+                  <option value="open">A faire</option>
+                  <option value="in_progress">En cours</option>
+                  <option value="resolved">Resolue</option>
+                  <option value="ignored">Ignoree</option>
+                </select>
+              </label>
+            </div>
+            <label className="customer-action-note-field">
+              <span>Notes</span>
+              <textarea
+                onChange={(event) =>
+                  setActionDraft((draft) => ({
+                    ...draft,
+                    notes: event.target.value
+                  }))
+                }
+                placeholder="Prochaine action, retour client, contexte..."
+                rows={3}
+                value={actionDraft.notes ?? ""}
+              />
+            </label>
+            <div className="business-alert-actions">
+              <button
+                className="primary-action compact-action"
+                disabled={isUpdating}
+                onClick={() => saveActionEdit(action.action_id)}
+                type="button"
+              >
+                Enregistrer
+              </button>
+              <button
+                className="secondary-action compact-action"
+                disabled={isUpdating}
+                onClick={() => {
+                  setEditingActionId(null);
+                  setActionDraft({});
+                }}
+                type="button"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        ) : null}
+        <div className="customer-action-comments-toggle">
+          <button
+            className="secondary-action compact-action"
+            onClick={() => toggleActionTimeline(action.action_id)}
+            type="button"
+          >
+            <MessageSquare size={14} />
+            {timelineExpanded ? "Masquer suivi" : `Suivi (${timelineItems.length})`}
+          </button>
+        </div>
+
+        {timelineExpanded ? (
+          <div className="customer-action-comments">
+            {timelineLoading ? (
+              <p className="muted">Chargement du suivi...</p>
+            ) : timelineItems.length === 0 ? (
+              <p className="muted">Aucun element de suivi.</p>
+            ) : (
+              timelineItems.map((item) => {
+                const details = customerActionTimelineDetails(item);
+
+                return (
+                  <article
+                    className={`customer-action-comment ${item.item_type}`}
+                    key={item.item_id}
+                  >
+                    <div className="customer-action-comment-meta">
+                      <span>{customerActionTimelineActor(item)}</span>
+                      <span>
+                        {item.created_at
+                          ? formatDate(item.created_at)
+                          : "Date inconnue"}
+                      </span>
+                    </div>
+                    <strong>{customerActionTimelineLabel(item)}</strong>
+                    {details.length > 0 ? (
+                      <p className="customer-action-timeline-details">
+                        {details.join(" - ")}
+                      </p>
+                    ) : null}
+                    {item.body ? <p>{item.body}</p> : null}
+                  </article>
+                );
+              })
+            )}
+
+            <div className="customer-action-comment-form">
+              <textarea
+                onChange={(event) =>
+                  onCustomerActionCommentDraftChange(
+                    action.action_id,
+                    event.target.value
+                  )
+                }
+                placeholder="Ajouter une note de suivi..."
+                rows={2}
+                value={commentDraft}
+              />
+              <button
+                className="secondary-action compact-action"
+                disabled={!commentDraft.trim() || isUpdating}
+                onClick={() => onAddCustomerActionComment(action.action_id)}
+                type="button"
+              >
+                {isUpdating ? (
+                  <Loader2 className="spin" size={14} />
+                ) : (
+                  <Send size={14} />
+                )}
+                Ajouter
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {canManage ? (
+          <div className="business-alert-actions">
+            <button
+              className="secondary-action compact-action"
+              disabled={isUpdating}
+              onClick={() => startEditAction(action)}
+              type="button"
+            >
+              Modifier
+            </button>
+            {action.status === "open" ? (
+              <button
+                className="secondary-action compact-action"
+                disabled={isUpdating}
+                onClick={() =>
+                  onUpdateCustomerActionStatus(action.action_id, "in_progress")
+                }
+                type="button"
+              >
+                {isUpdating ? (
+                  <Loader2 className="spin" size={14} />
+                ) : (
+                  <Play size={14} />
+                )}
+                Demarrer
+              </button>
+            ) : null}
+            {action.status !== "resolved" ? (
+              <button
+                className="secondary-action compact-action"
+                disabled={isUpdating}
+                onClick={() =>
+                  onUpdateCustomerActionStatus(action.action_id, "resolved")
+                }
+                type="button"
+              >
+                <CheckCircle2 size={14} />
+                Resoudre
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
+    );
   }
 
   return (
@@ -6143,289 +6449,29 @@ function HomeCockpitPanel({
             <strong>Aucune action pour ce filtre.</strong>
             <span>Cree une action depuis une alerte metier ou change le filtre.</span>
           </div>
+        ) : actionStatusFilter === "active" ? (
+          <div className="customer-action-triage">
+            {activeCustomerActionTriageSections.map((section) =>
+              section.actions.length > 0 ? (
+                <section
+                  aria-label={section.title}
+                  className="customer-action-triage-section"
+                  key={section.key}
+                >
+                  <div className="customer-action-triage-heading">
+                    <strong>{section.title}</strong>
+                    <span>{section.actions.length} action(s)</span>
+                  </div>
+                  <div className="customer-action-grid">
+                    {section.actions.map(renderCustomerActionCard)}
+                  </div>
+                </section>
+              ) : null
+            )}
+          </div>
         ) : (
           <div className="customer-action-grid">
-            {filteredCustomerActions.map((action) => {
-              const isUpdating = updatingCustomerActionId === action.action_id;
-              const isEditing = editingActionId === action.action_id;
-              const isOverdue = isCustomerActionOverdue(action);
-              const isDueSoon = isCustomerActionDueSoon(action);
-              const timelineItems =
-                customerActionTimelineItems[action.action_id] ?? [];
-              const commentDraft =
-                customerActionCommentDrafts[action.action_id] ?? "";
-              const timelineExpanded = expandedTimelineActionIds.has(
-                action.action_id
-              );
-              const timelineLoading = Boolean(
-                loadingCustomerActionTimeline[action.action_id]
-              );
-
-              return (
-                <article
-                  className={`customer-action-card ${action.priority} ${
-                    isOverdue ? "overdue" : ""
-                  } ${
-                    isDueSoon ? "due-soon" : ""
-                  }`}
-                  key={action.action_id}
-                >
-                  <div className="customer-action-card-header">
-                    <div>
-                      <strong>{action.title}</strong>
-                      <span>
-                        {action.company_name ?? "Entreprise"}{" "}
-                        {action.run_id ? `- Run #${action.run_id}` : ""}
-                      </span>
-                    </div>
-                    <span className={`alert-severity ${customerActionSeverity(action.priority)}`}>
-                      {formatCustomerActionPriority(action.priority)}
-                    </span>
-                  </div>
-                  {action.description ? <p>{action.description}</p> : null}
-                  {action.notes ? (
-                    <p className="customer-action-note">{action.notes}</p>
-                  ) : null}
-                  <div className="customer-action-meta">
-                    <span>{formatCustomerActionStatus(action.status)}</span>
-                    {action.owner_name ? <span>{action.owner_name}</span> : null}
-                    {action.due_date ? (
-                      <span>Echeance {formatDate(action.due_date)}</span>
-                    ) : null}
-                    {isOverdue ? <span className="overdue-pill">En retard</span> : null}
-                    {isDueSoon ? (
-                      <span className="due-soon-pill">A relancer</span>
-                    ) : null}
-                  </div>
-                  {action.impact ? (
-                    <CustomerActionImpactBlock impact={action.impact} />
-                  ) : null}
-                  {isEditing ? (
-                    <div className="customer-action-edit-form">
-                      <div className="customer-action-edit-grid">
-                        <label>
-                          <span>Responsable</span>
-                          <input
-                            onChange={(event) =>
-                              setActionDraft((draft) => ({
-                                ...draft,
-                                owner_name: event.target.value
-                              }))
-                            }
-                            placeholder="SAV, operation, prenom..."
-                            value={actionDraft.owner_name ?? ""}
-                          />
-                        </label>
-                        <label>
-                          <span>Echeance</span>
-                          <input
-                            onChange={(event) =>
-                              setActionDraft((draft) => ({
-                                ...draft,
-                                due_date: event.target.value
-                              }))
-                            }
-                            type="date"
-                            value={actionDraft.due_date ?? ""}
-                          />
-                        </label>
-                        <label>
-                          <span>Priorite</span>
-                          <select
-                            onChange={(event) =>
-                              setActionDraft((draft) => ({
-                                ...draft,
-                                priority: event.target.value as CustomerActionPriority
-                              }))
-                            }
-                            value={actionDraft.priority ?? action.priority}
-                          >
-                            <option value="low">Basse</option>
-                            <option value="medium">Moyenne</option>
-                            <option value="high">Haute</option>
-                            <option value="critical">Critique</option>
-                          </select>
-                        </label>
-                        <label>
-                          <span>Statut</span>
-                          <select
-                            onChange={(event) =>
-                              setActionDraft((draft) => ({
-                                ...draft,
-                                status: event.target.value as CustomerActionStatus
-                              }))
-                            }
-                            value={actionDraft.status ?? action.status}
-                          >
-                            <option value="open">A faire</option>
-                            <option value="in_progress">En cours</option>
-                            <option value="resolved">Resolue</option>
-                            <option value="ignored">Ignoree</option>
-                          </select>
-                        </label>
-                      </div>
-                      <label className="customer-action-note-field">
-                        <span>Notes</span>
-                        <textarea
-                          onChange={(event) =>
-                            setActionDraft((draft) => ({
-                              ...draft,
-                              notes: event.target.value
-                            }))
-                          }
-                          placeholder="Prochaine action, retour client, contexte..."
-                          rows={3}
-                          value={actionDraft.notes ?? ""}
-                        />
-                      </label>
-                      <div className="business-alert-actions">
-                        <button
-                          className="primary-action compact-action"
-                          disabled={isUpdating}
-                          onClick={() => saveActionEdit(action.action_id)}
-                          type="button"
-                        >
-                          Enregistrer
-                        </button>
-                        <button
-                          className="secondary-action compact-action"
-                          disabled={isUpdating}
-                          onClick={() => {
-                            setEditingActionId(null);
-                            setActionDraft({});
-                          }}
-                          type="button"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="customer-action-comments-toggle">
-                    <button
-                      className="secondary-action compact-action"
-                      onClick={() => toggleActionTimeline(action.action_id)}
-                      type="button"
-                    >
-                      <MessageSquare size={14} />
-                      {timelineExpanded
-                        ? "Masquer suivi"
-                        : `Suivi (${timelineItems.length})`}
-                    </button>
-                  </div>
-
-                  {timelineExpanded ? (
-                    <div className="customer-action-comments">
-                      {timelineLoading ? (
-                        <p className="muted">Chargement du suivi...</p>
-                      ) : timelineItems.length === 0 ? (
-                        <p className="muted">Aucun element de suivi.</p>
-                      ) : (
-                        timelineItems.map((item) => {
-                          const details = customerActionTimelineDetails(item);
-
-                          return (
-                            <article
-                              className={`customer-action-comment ${item.item_type}`}
-                              key={item.item_id}
-                            >
-                              <div className="customer-action-comment-meta">
-                                <span>{customerActionTimelineActor(item)}</span>
-                                <span>
-                                  {item.created_at
-                                    ? formatDate(item.created_at)
-                                    : "Date inconnue"}
-                                </span>
-                              </div>
-                              <strong>{customerActionTimelineLabel(item)}</strong>
-                              {details.length > 0 ? (
-                                <p className="customer-action-timeline-details">
-                                  {details.join(" - ")}
-                                </p>
-                              ) : null}
-                              {item.body ? <p>{item.body}</p> : null}
-                            </article>
-                          );
-                        })
-                      )}
-
-                      <div className="customer-action-comment-form">
-                        <textarea
-                          onChange={(event) =>
-                            onCustomerActionCommentDraftChange(
-                              action.action_id,
-                              event.target.value
-                            )
-                          }
-                          placeholder="Ajouter une note de suivi..."
-                          rows={2}
-                          value={commentDraft}
-                        />
-                        <button
-                          className="secondary-action compact-action"
-                          disabled={!commentDraft.trim() || isUpdating}
-                          onClick={() => onAddCustomerActionComment(action.action_id)}
-                          type="button"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="spin" size={14} />
-                          ) : (
-                            <Send size={14} />
-                          )}
-                          Ajouter
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {canManage ? (
-                    <div className="business-alert-actions">
-                      <button
-                        className="secondary-action compact-action"
-                        disabled={isUpdating}
-                        onClick={() => startEditAction(action)}
-                        type="button"
-                      >
-                        Modifier
-                      </button>
-                      {action.status === "open" ? (
-                        <button
-                          className="secondary-action compact-action"
-                          disabled={isUpdating}
-                          onClick={() =>
-                            onUpdateCustomerActionStatus(
-                              action.action_id,
-                              "in_progress"
-                            )
-                          }
-                          type="button"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="spin" size={14} />
-                          ) : (
-                            <Play size={14} />
-                          )}
-                          Demarrer
-                        </button>
-                      ) : null}
-                      {action.status !== "resolved" ? (
-                        <button
-                          className="secondary-action compact-action"
-                          disabled={isUpdating}
-                          onClick={() =>
-                            onUpdateCustomerActionStatus(action.action_id, "resolved")
-                          }
-                          type="button"
-                        >
-                          <CheckCircle2 size={14} />
-                          Resoudre
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
+            {filteredCustomerActions.map(renderCustomerActionCard)}
           </div>
         )}
       </div>
@@ -7004,6 +7050,84 @@ function isCustomerActionDueSoon(action: CustomerAction) {
   const now = Date.now();
   const dueSoonLimit = now + CUSTOMER_ACTION_DUE_SOON_DAYS * 24 * 60 * 60 * 1000;
   return dueTime >= now && dueTime <= dueSoonLimit;
+}
+
+function getCustomerActionTriageSection(
+  action: CustomerAction
+): CustomerActionTriageSectionKey {
+  if (
+    isCustomerActionOverdue(action) ||
+    action.priority === "critical" ||
+    isCustomerActionDueSoon(action)
+  ) {
+    return "now";
+  }
+
+  if (action.status === "in_progress") {
+    return "follow";
+  }
+
+  return "plan";
+}
+
+function getCustomerActionUrgencyRank(action: CustomerAction) {
+  if (isCustomerActionOverdue(action)) {
+    return 0;
+  }
+  if (isCustomerActionDueSoon(action)) {
+    return 1;
+  }
+  return 2;
+}
+
+function getCustomerActionPriorityRank(priority: string) {
+  return CUSTOMER_ACTION_PRIORITY_RANK[priority] ?? CUSTOMER_ACTION_PRIORITY_RANK.low;
+}
+
+function getCustomerActionUpdatedTime(action: CustomerAction) {
+  if (!action.updated_at) {
+    return 0;
+  }
+
+  const updatedTime = new Date(action.updated_at).getTime();
+  return Number.isFinite(updatedTime) ? updatedTime : 0;
+}
+
+function compareCustomerActionsForTriage(
+  first: CustomerAction,
+  second: CustomerAction
+) {
+  const urgencyDiff =
+    getCustomerActionUrgencyRank(first) - getCustomerActionUrgencyRank(second);
+  if (urgencyDiff !== 0) {
+    return urgencyDiff;
+  }
+
+  const priorityDiff =
+    getCustomerActionPriorityRank(first.priority) -
+    getCustomerActionPriorityRank(second.priority);
+  if (priorityDiff !== 0) {
+    return priorityDiff;
+  }
+
+  const firstDueTime = getCustomerActionDueTime(first) ?? Number.MAX_SAFE_INTEGER;
+  const secondDueTime = getCustomerActionDueTime(second) ?? Number.MAX_SAFE_INTEGER;
+  const dueDiff = firstDueTime - secondDueTime;
+  if (dueDiff !== 0) {
+    return dueDiff;
+  }
+
+  const updatedDiff =
+    getCustomerActionUpdatedTime(second) - getCustomerActionUpdatedTime(first);
+  if (updatedDiff !== 0) {
+    return updatedDiff;
+  }
+
+  return first.action_id - second.action_id;
+}
+
+function customerActionAlertLabel(action: CustomerAction) {
+  return action.alert_title ?? action.alert_type;
 }
 
 function actionItemIcon(severity: string) {
