@@ -3854,9 +3854,45 @@ tbody tr:last-child td {
   line-height: 1.5;
 }
 
+.empty-run-state .state-context,
+.failed-state .state-context {
+  font-weight: 700;
+}
+
+.state-guidance-list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: inherit;
+}
+
+.state-guidance-list li {
+  line-height: 1.45;
+}
+
 .execution-log {
   margin-bottom: 16px;
   padding: 16px;
+}
+
+.run-log-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.run-log-summary span,
+.run-log-summary small {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #f9fafb;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
 }
 
 .event-list {

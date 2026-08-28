@@ -469,6 +469,40 @@ function formatDuration(seconds: number | null | undefined) {
     : `${minutes} min`;
 }
 
+function emptyRunGuidance(run: AnalysisRun) {
+  if (run.source === "csv") {
+    return {
+      title: "Import terminé, aucun avis exploitable",
+      message:
+        "Le fichier CSV a bien été traité, mais aucune ligne n'a permis de produire un rapport exploitable.",
+      guidance: [
+        "Vérifie que la colonne Texte est bien mappée sur les verbatims.",
+        "Relance un import avec au moins une ligne contenant un avis exploitable."
+      ]
+    };
+  }
+
+  return {
+    title: "Analyse terminée, aucun avis exploitable",
+    message:
+      "Trustpilot a été interrogé, mais aucun avis exploitable n'a été récupéré pour cette analyse.",
+    guidance: [
+      "Vérifie l'entreprise, le domaine ou l'URL Trustpilot utilisés.",
+      "Essaie davantage de pages par note si la page contient peu d'avis."
+    ]
+  };
+}
+
+function runLogEmptyMessage(status: AnalysisRun["status"]) {
+  if (status === "failed" || status === "empty") {
+    return "Aucun événement journalisé pour ce run. Le message affiché au-dessus reste la référence.";
+  }
+  if (status === "pending" || status === "running") {
+    return "Aucun événement pour le moment. Le journal se mettra à jour pendant l'exécution.";
+  }
+  return "Aucun événement pour ce run.";
+}
+
 function formatTopic(value: string | null | undefined) {
   const normalizedValue = value?.replaceAll("_", " ").trim().toLowerCase();
   if (!normalizedValue) return "Sujet";
@@ -4154,7 +4188,7 @@ export default function App() {
             )}
 
             {selectedRun.status === "empty" && (
-              <EmptyRunState message={selectedRun.error_message} />
+              <EmptyRunState run={selectedRun} />
             )}
 
             {selectedRun.status === "failed" && (
@@ -4166,7 +4200,7 @@ export default function App() {
               />
             )}
 
-            <RunEventLog events={runEvents} />
+            <RunEventLog events={runEvents} runStatus={selectedRun.status} />
 
             {selectedRun.status === "completed" && summary && (
               <div className="report-grid">
@@ -4329,16 +4363,25 @@ function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
   return <span className={`status-badge ${status}`}>{labels[status]}</span>;
 }
 
-function EmptyRunState({ message }: { message: string | null }) {
+function EmptyRunState({ run }: { run: AnalysisRun }) {
+  const details = emptyRunGuidance(run);
+  const backendMessage = run.error_message?.trim();
   return (
     <section className="empty-run-state">
       <AlertTriangle size={28} />
       <div>
-        <h3>Aucun avis recupere</h3>
-        <p>
-          {message ||
-            "Trustpilot n'a retourne aucun avis exploitable pour cette analyse. Essaie une URL plus precise, moins de filtres ou davantage de pages."}
+        <h3>{details.title}</h3>
+        <p>{details.message}</p>
+        {backendMessage ? <p>{backendMessage}</p> : null}
+        <p className="state-context">
+          Ce run n'est pas en échec technique, mais il ne contient pas assez de
+          données exploitables pour afficher les KPI et irritants.
         </p>
+        <ul className="state-guidance-list">
+          {details.guidance.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -4360,10 +4403,18 @@ function FailedRunState({
       <AlertTriangle size={28} />
       <div>
         <h3>Analyse échouée</h3>
+        <p className="state-context">
+          Le run a bien été créé, mais l'exécution s'est arrêtée avant de produire
+          un rapport.
+        </p>
         <p>
           {errorMessage?.trim() ||
             "Le worker n'a pas pu terminer cette analyse. Consulte le journal d'exécution pour identifier l'étape bloquante."}
         </p>
+        <ul className="state-guidance-list">
+          <li>Consulte le journal d'exécution pour repérer l'étape bloquante.</li>
+          <li>Corrige la source ou le fichier si le message indique une donnée invalide.</li>
+        </ul>
         {!canRetry && (
           <p className="permission-hint">
             Mode lecture seule: seul un administrateur peut relancer ce run.
@@ -8152,7 +8203,17 @@ const eventStepLabels: Record<string, string> = {
   failed: "Echec"
 };
 
-function RunEventLog({ events }: { events: AnalysisRunEvent[] }) {
+function RunEventLog({
+  events,
+  runStatus
+}: {
+  events: AnalysisRunEvent[];
+  runStatus: AnalysisRun["status"];
+}) {
+  const latestEvent = events[events.length - 1] ?? null;
+  const errorCount = events.filter((event) => event.level === "error").length;
+  const warningCount = events.filter((event) => event.level === "warning").length;
+
   return (
     <section className="execution-log">
       <div className="section-heading">
@@ -8161,26 +8222,42 @@ function RunEventLog({ events }: { events: AnalysisRunEvent[] }) {
       </div>
 
       {events.length === 0 ? (
-        <p className="muted">Aucun evenement pour le moment.</p>
+        <p className="muted">{runLogEmptyMessage(runStatus)}</p>
       ) : (
-        <ol className="event-list">
-          {events.map((event) => (
-            <li className={`event-item ${event.level}`} key={event.event_id}>
-              <span className="event-dot" aria-hidden="true" />
-              <div>
-                <div className="event-meta">
-                  <strong>
-                    {event.step
-                      ? eventStepLabels[event.step] ?? event.step.replaceAll("_", " ")
-                      : "Evenement"}
-                  </strong>
-                  <span>{formatDate(event.created_at)}</span>
+        <>
+          <div className="run-log-summary">
+            <span>{events.length} événement(s)</span>
+            {errorCount > 0 ? <span>{errorCount} erreur(s)</span> : null}
+            {warningCount > 0 ? <span>{warningCount} avertissement(s)</span> : null}
+            {latestEvent ? (
+              <small>
+                Dernière étape :{" "}
+                {latestEvent.step
+                  ? eventStepLabels[latestEvent.step] ??
+                    latestEvent.step.replaceAll("_", " ")
+                  : "Événement"}
+              </small>
+            ) : null}
+          </div>
+          <ol className="event-list">
+            {events.map((event) => (
+              <li className={`event-item ${event.level}`} key={event.event_id}>
+                <span className="event-dot" aria-hidden="true" />
+                <div>
+                  <div className="event-meta">
+                    <strong>
+                      {event.step
+                        ? eventStepLabels[event.step] ?? event.step.replaceAll("_", " ")
+                        : "Evenement"}
+                    </strong>
+                    <span>{formatDate(event.created_at)}</span>
+                  </div>
+                  <p>{event.message}</p>
                 </div>
-                <p>{event.message}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
     </section>
   );

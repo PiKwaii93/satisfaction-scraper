@@ -897,6 +897,227 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
   });
 
+  it("clarifies an empty Trustpilot run without presenting it as failed", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([
+      makeAnalysisRun({
+        status: "empty",
+        error_message: null
+      })
+    ]);
+    apiMocks.getRunEvents.mockResolvedValue([
+      {
+        event_id: 1,
+        run_id: 21,
+        level: "warning",
+        step: "scrape_complete",
+        message: "Aucun avis recupere pour cette URL.",
+        created_at: "2026-08-27T08:00:00Z"
+      }
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(
+      await screen.findByText("Analyse terminée, aucun avis exploitable")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Trustpilot a été interrogé, mais aucun avis exploitable n'a été récupéré pour cette analyse."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Ce run n'est pas en échec technique, mais il ne contient pas assez de données exploitables pour afficher les KPI et irritants."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 événement(s)")).toBeInTheDocument();
+    expect(screen.getByText("1 avertissement(s)")).toBeInTheDocument();
+    expect(screen.getByText(/Dernière étape : Scraping/)).toBeInTheDocument();
+    expect(screen.queryByText("Analyse échouée")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Relancer l'analyse" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("clarifies an empty CSV import with CSV-specific guidance", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([
+      makeAnalysisRun({
+        source: "csv",
+        status: "empty",
+        company_name: "Client CSV",
+        trustpilot_slug: "client-csv",
+        error_message: null
+      })
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(
+      await screen.findByText("Import terminé, aucun avis exploitable")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Le fichier CSV a bien été traité, mais aucune ligne n'a permis de produire un rapport exploitable."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Vérifie que la colonne Texte est bien mappée sur les verbatims.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Trustpilot a été interrogé, mais aucun avis exploitable n'a été récupéré pour cette analyse."
+      )
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a non-misleading empty journal state", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([
+      makeAnalysisRun({
+        status: "empty",
+        error_message: null
+      })
+    ]);
+    apiMocks.getRunEvents.mockResolvedValue([]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(
+      await screen.findByText("Analyse terminée, aucun avis exploitable")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Aucun événement journalisé pour ce run. Le message affiché au-dessus reste la référence."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("0 événement(s)")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 erreur(s)")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 avertissement(s)")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dernière étape/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the backend message alongside empty run guidance", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([
+      makeAnalysisRun({
+        status: "empty",
+        error_message: "Aucun verbatim exploitable apres import."
+      })
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(
+      await screen.findByText("Analyse terminée, aucun avis exploitable")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Aucun verbatim exploitable apres import.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Trustpilot a été interrogé, mais aucun avis exploitable n'a été récupéré pour cette analyse."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Ce run n'est pas en échec technique, mais il ne contient pas assez de données exploitables pour afficher les KPI et irritants."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("lets an admin retry a failed analysis run", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const failedRun = makeAnalysisRun({
+      status: "failed",
+      error_message: "Timeout Trustpilot."
+    });
+    const runningRun = makeAnalysisRun({
+      status: "running",
+      error_message: null
+    });
+    apiMocks.listRuns
+      .mockResolvedValueOnce([failedRun])
+      .mockResolvedValueOnce([runningRun]);
+    apiMocks.getRunEvents.mockResolvedValue([
+      {
+        event_id: 1,
+        run_id: 21,
+        level: "info",
+        step: "queued",
+        message: "Run planifie.",
+        created_at: "2026-08-27T08:00:00Z"
+      },
+      {
+        event_id: 2,
+        run_id: 21,
+        level: "error",
+        step: "failed",
+        message: "Timeout Trustpilot.",
+        created_at: "2026-08-27T08:02:00Z"
+      }
+    ]);
+    apiMocks.executeRun.mockResolvedValue(runningRun);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(await screen.findByText("Analyse échouée")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Le run a bien été créé, mais l'exécution s'est arrêtée avant de produire un rapport."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Timeout Trustpilot.").length).toBeGreaterThan(0);
+    expect(screen.getByText("2 événement(s)")).toBeInTheDocument();
+    expect(screen.getByText("1 erreur(s)")).toBeInTheDocument();
+    expect(screen.getByText(/Dernière étape : Echec/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Relancer l'analyse" }));
+    await waitFor(() => expect(apiMocks.executeRun).toHaveBeenCalledWith(21));
+    expect(await screen.findByText("Analyse en cours")).toBeInTheDocument();
+    expect(screen.getAllByText("running").length).toBeGreaterThan(0);
+  });
+
+  it("keeps failed analysis retry read-only for a member", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(memberUser);
+    apiMocks.listRuns.mockResolvedValue([
+      makeAnalysisRun({
+        status: "failed",
+        error_message: "Acces Trustpilot impossible."
+      })
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await user.click(
+      await screen.findByRole("button", { name: /example\.com.*Run #21/i })
+    );
+
+    expect(await screen.findByText("Analyse échouée")).toBeInTheDocument();
+    expect(
+      screen.getByText("Mode lecture seule: seul un administrateur peut relancer ce run.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Relancer l'analyse" })).toBeDisabled();
+  });
+
   it("blocks analysis creation when the plan run limit is reached", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);
