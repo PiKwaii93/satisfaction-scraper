@@ -235,6 +235,8 @@ const SOURCE_LABELS: Record<AnalysisSource, string> = {
   trustpilot: "Trustpilot",
   csv: "CSV"
 };
+const DEFAULT_TRUSTPILOT_COMPANY_INPUT =
+  "https://fr.trustpilot.com/review/www.darty.com";
 
 const DEFAULT_REVIEW_SOURCES: ReviewSource[] = [
   {
@@ -422,6 +424,10 @@ function hasCsvColumnMapping(mapping: CsvColumnMapping) {
   return CSV_MAPPING_FIELDS.some((field) => Boolean(mapping[field.key]));
 }
 
+function hasRequiredCsvColumnMapping(mapping: CsvColumnMapping) {
+  return Boolean(mapping.verbatim?.trim());
+}
+
 function compactCsvColumnMapping(mapping: CsvColumnMapping) {
   return CSV_MAPPING_FIELDS.reduce<CsvColumnMapping>((compactMapping, field) => {
     const column = mapping[field.key];
@@ -430,6 +436,21 @@ function compactCsvColumnMapping(mapping: CsvColumnMapping) {
     }
     return compactMapping;
   }, {});
+}
+
+function analysisSourceChoiceDescription(sourceId: string) {
+  if (sourceId === "trustpilot") {
+    return "Analyse les avis publics d'une entreprise ou d'une page Trustpilot.";
+  }
+  if (sourceId === "csv") {
+    return "Importe tes propres avis depuis un fichier CSV.";
+  }
+  return null;
+}
+
+function isTrustpilotDemoCompanyInput(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+  return normalizedValue === DEFAULT_TRUSTPILOT_COMPANY_INPUT.toLowerCase();
 }
 
 function formatDuration(seconds: number | null | undefined) {
@@ -1416,9 +1437,7 @@ export default function App() {
   const [runEvents, setRunEvents] = useState<AnalysisRunEvent[]>([]);
   const [sentimentFilter, setSentimentFilter] =
     useState<SentimentLabel | "Tous">("Tous");
-  const [company, setCompany] = useState(
-    "https://fr.trustpilot.com/review/www.darty.com"
-  );
+  const [company, setCompany] = useState(DEFAULT_TRUSTPILOT_COMPANY_INPUT);
   const [sourceMode, setSourceMode] = useState<AnalysisSource>("trustpilot");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvColumnMapping, setCsvColumnMapping] =
@@ -1444,8 +1463,24 @@ export default function App() {
   const [isTrainingSubmitting, setIsTrainingSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function refreshRuns(selectLatest = false) {
-    const nextRuns = await listRuns();
+  function upsertRun(run: AnalysisRun) {
+    setRuns((currentRuns) => {
+      if (currentRuns.some((currentRun) => currentRun.run_id === run.run_id)) {
+        return currentRuns.map((currentRun) =>
+          currentRun.run_id === run.run_id ? run : currentRun
+        );
+      }
+      return [run, ...currentRuns];
+    });
+  }
+
+  async function refreshRuns(selectLatest = false, fallbackRun?: AnalysisRun) {
+    const listedRuns = await listRuns();
+    const nextRuns =
+      fallbackRun &&
+      !listedRuns.some((listedRun) => listedRun.run_id === fallbackRun.run_id)
+        ? [fallbackRun, ...listedRuns]
+        : listedRuns;
     setRuns(nextRuns);
     if (selectLatest && nextRuns.length > 0) {
       setSelectedRunId(nextRuns[0].run_id);
@@ -1547,6 +1582,9 @@ export default function App() {
       setOrganizationDefaultSource(settings.default_source);
       setOrganizationDefaultPages(settings.default_pages_per_star);
       setSourceMode(settings.default_source);
+      if (settings.default_source === "csv") {
+        setCompany("");
+      }
       setPagesPerStar(settings.default_pages_per_star);
     } finally {
       setIsOrganizationSettingsLoading(false);
@@ -2306,6 +2344,9 @@ export default function App() {
       setPagesPerStar(config.pagesPerStar);
     }
     if (sourceId === "csv") {
+      if (isTrustpilotDemoCompanyInput(company)) {
+        setCompany("");
+      }
       const source = reviewSources.find(
         (reviewSource) => reviewSource.source_id === "csv"
       );
@@ -2315,7 +2356,7 @@ export default function App() {
         loadCsvPreview(
           csvFile,
           hasCsvColumnMapping(profileMapping) ? profileMapping : null,
-          !hasCsvColumnMapping(profileMapping)
+          !hasRequiredCsvColumnMapping(profileMapping)
         ).catch((err: Error) => setCsvPreviewError(err.message));
       }
     }
@@ -2825,7 +2866,7 @@ export default function App() {
     await loadCsvPreview(
       file,
       hasCsvColumnMapping(profileMapping) ? profileMapping : null,
-      !hasCsvColumnMapping(profileMapping)
+      !hasRequiredCsvColumnMapping(profileMapping)
     );
   }
 
@@ -3015,9 +3056,25 @@ export default function App() {
               pages_per_star: pagesPerStar,
               execute_immediately: true
             });
+      upsertRun(run);
       setSelectedRunId(run.run_id);
-      await Promise.all([refreshRuns(), refreshActionCenter(), refreshOrganizationUsage()]);
-      await refreshAdminAuditEvents();
+      const refreshResults = await Promise.allSettled([
+        refreshRuns(false, run),
+        refreshActionCenter(),
+        refreshOrganizationUsage(),
+        refreshAdminAuditEvents()
+      ]);
+      const failedRefresh = refreshResults.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      if (failedRefresh) {
+        setSelectedRunId(run.run_id);
+        setError(
+          failedRefresh.reason instanceof Error
+            ? `Analyse lancée, mais l'actualisation des données a échoué : ${failedRefresh.reason.message}`
+            : "Analyse lancée, mais l'actualisation des données a échoué."
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -3424,7 +3481,10 @@ export default function App() {
               onSubmit={handleSubmit}
             >
           <div className="analysis-form-heading">
-            <span>Nouvelle analyse</span>
+            <div>
+              <span>Nouvelle analyse</span>
+              <small>{analysisSourceChoiceDescription(sourceMode)}</small>
+            </div>
             <strong>{SOURCE_LABELS[sourceMode]}</strong>
           </div>
           {!canManageWorkspace && (
@@ -3542,16 +3602,16 @@ export default function App() {
                   </div>
                   <div className="csv-profile-actions">
                     <span>
-                      {hasCsvColumnMapping(csvColumnMapping)
-                        ? "Mapping pret a etre reutilise par l'organisation."
-                        : "Aucun profil CSV sauvegarde pour le moment."}
+                      {hasRequiredCsvColumnMapping(csvColumnMapping)
+                        ? "Mapping prêt à être réutilisé par l'organisation."
+                        : "Sélectionne la colonne Texte pour obtenir un mapping prêt."}
                     </span>
                     <button
                       className="secondary-button compact"
                       disabled={
                         !canManageWorkspace ||
                         !csvPreview ||
-                        !hasCsvColumnMapping(csvColumnMapping) ||
+                        !hasRequiredCsvColumnMapping(csvColumnMapping) ||
                         updatingReviewSourceId === "csv"
                       }
                       onClick={handleCsvProfileSave}
@@ -3969,14 +4029,24 @@ export default function App() {
         )}
 
         {activeView === "analyses" && !selectedRun && !isLoading && (
-          <div className="empty-state">
-            <BarChart3 size={32} />
-            <h2>Choisis ou lance une analyse</h2>
-            <p>
-              Le rapport entreprise apparaitra ici avec les KPI, irritants et avis
-              prioritaires.
-            </p>
-          </div>
+          runs.length === 0 ? (
+            <FirstRunEmptyState
+              canManage={canManageWorkspace}
+              onSelectSource={(sourceId) => {
+                handleReviewSourceSelect(sourceId);
+                scrollToWorkspaceSection("new_analysis", 50);
+              }}
+            />
+          ) : (
+            <div className="empty-state">
+              <BarChart3 size={32} />
+              <h2>Choisis ou lance une analyse</h2>
+              <p>
+                Le rapport entreprise apparaitra ici avec les KPI, irritants et avis
+                prioritaires.
+              </p>
+            </div>
+          )
         )}
 
         {activeView === "analyses" && selectedRun && (
@@ -4313,6 +4383,53 @@ function FailedRunState({
   );
 }
 
+function FirstRunEmptyState({
+  canManage,
+  onSelectSource
+}: {
+  canManage: boolean;
+  onSelectSource: (sourceId: AnalysisSource) => void;
+}) {
+  return (
+    <div className="empty-state first-run-empty-state">
+      <BarChart3 size={32} />
+      <h2>Aucune analyse lancée</h2>
+      <p>
+        Lance une première analyse pour générer les KPI, irritants, alertes et avis
+        prioritaires de cet espace client.
+      </p>
+      <div className="first-run-source-grid">
+        <button
+          className="first-run-source-option"
+          disabled={!canManage}
+          onClick={() => onSelectSource("trustpilot")}
+          type="button"
+        >
+          <Search size={18} />
+          <span>
+            <strong>Trustpilot</strong>
+            <small>
+              Analyse les avis provenant d'une entreprise ou d'une page Trustpilot.
+            </small>
+          </span>
+        </button>
+        <button
+          className="first-run-source-option"
+          disabled={!canManage}
+          onClick={() => onSelectSource("csv")}
+          type="button"
+        >
+          <FileText size={18} />
+          <span>
+            <strong>CSV</strong>
+            <small>Importe tes propres avis ou données client depuis un fichier.</small>
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function WorkspaceHeader({ item }: { item: WorkspaceNavItem }) {
   const Icon = item.icon;
 
@@ -4445,7 +4562,7 @@ function SourcesWorkspacePanel({
   const plannedSources = sources.filter((source) => source.status === "planned");
   const csvSource = sources.find((source) => source.source_id === "csv");
   const csvMapping = getCsvSourceConfig(csvSource).columnMapping;
-  const hasCsvProfile = hasCsvColumnMapping(csvMapping);
+  const hasCsvProfile = hasRequiredCsvColumnMapping(csvMapping);
 
   useEffect(() => {
     setSourceConfigDrafts((currentDrafts) => {
@@ -4647,9 +4764,9 @@ function SourcesWorkspacePanel({
                     <div className="connector-config-summary">
                       <span>Profil de mapping</span>
                       <strong>
-                        {hasCsvColumnMapping(sourceCsvMapping)
-                          ? "Mapping sauvegarde"
-                          : "Aucun mapping sauvegarde"}
+                        {hasRequiredCsvColumnMapping(sourceCsvMapping)
+                          ? "Mapping sauvegardé"
+                          : "Mapping Texte requis"}
                       </strong>
                       <small>
                         Configure le mapping pendant le controle avant import CSV.
@@ -4848,6 +4965,7 @@ function ReviewSourcesPanel({
             isAnalysisSource(source.source_id);
           const isSelected = source.source_id === currentSource;
           const isUpdating = updatingSourceId === source.source_id;
+          const choiceDescription = analysisSourceChoiceDescription(source.source_id);
 
           return (
             <div
@@ -4865,6 +4983,7 @@ function ReviewSourcesPanel({
                   <strong>{source.label}</strong>
                   <small>{source.category}</small>
                   <span>{source.primary_action ?? source.setup_hint ?? "Connecteur a configurer"}</span>
+                  {choiceDescription ? <span>{choiceDescription}</span> : null}
                   {source.last_error ? <em>{source.last_error}</em> : null}
                 </span>
                 <span className={`source-status ${source.status}`}>

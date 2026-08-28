@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type {
   ActionCenter,
+  AnalysisRun,
   AuthToken,
   BusinessAlert,
   CurrentUser,
@@ -366,6 +367,28 @@ const reviewSources: ReviewSource[] = [
   }
 ];
 
+function makeAnalysisRun(overrides: Partial<AnalysisRun> = {}): AnalysisRun {
+  const source = overrides.source ?? "trustpilot";
+  return {
+    run_id: 21,
+    company_id: 4,
+    company_name: source === "csv" ? "Client CSV" : "example.com",
+    trustpilot_slug: source === "csv" ? "client-csv" : "example.com",
+    source,
+    status: "pending",
+    pages_per_star: 1,
+    stars_requested: [1, 2, 3, 4, 5],
+    total_reviews: 0,
+    celery_task_id: null,
+    created_at: null,
+    started_at: null,
+    finished_at: null,
+    execution_duration_seconds: null,
+    error_message: null,
+    ...overrides
+  };
+}
+
 function configureAuthenticatedSession(user: CurrentUser) {
   apiMocks.hasAuthToken.mockReturnValue(true);
   apiMocks.getCurrentUser.mockResolvedValue(user);
@@ -388,8 +411,10 @@ function configureAuthenticatedSession(user: CurrentUser) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Element.prototype.scrollIntoView = vi.fn();
   apiMocks.hasAuthToken.mockReturnValue(false);
   apiMocks.listRuns.mockResolvedValue([]);
+  apiMocks.getRunEvents.mockResolvedValue([]);
   apiMocks.getFeedbackQuality.mockResolvedValue(feedbackQuality);
   apiMocks.getModelTrainingOverview.mockResolvedValue(trainingOverview);
   apiMocks.listBusinessAlerts.mockResolvedValue([]);
@@ -463,30 +488,131 @@ describe("App authentication and permissions", () => {
     expect(
       screen.getByText(/Mode lecture seule: demande a un administrateur/)
     ).toBeInTheDocument();
+    const heading = await screen.findByRole("heading", {
+      name: "Aucune analyse lancée"
+    });
+    const emptyState = heading.closest(".first-run-empty-state");
+    expect(emptyState).not.toBeNull();
+    expect(
+      within(emptyState as HTMLElement).getByRole("button", { name: /Trustpilot/ })
+    ).toBeDisabled();
+    expect(
+      within(emptyState as HTMLElement).getByRole("button", { name: /CSV/ })
+    ).toBeDisabled();
     expect(screen.getByLabelText("Entreprise ou URL Trustpilot")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Lancer l'analyse" })).toBeDisabled();
+  });
+
+  it("shows a clear empty state and source choice for a first analysis", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    const heading = await screen.findByRole("heading", {
+      name: "Aucune analyse lancée"
+    });
+    const emptyState = heading.closest(".first-run-empty-state");
+    expect(emptyState).not.toBeNull();
+    const withinEmptyState = within(emptyState as HTMLElement);
+
+    expect(
+      withinEmptyState.getByText(/Lance une première analyse pour générer les KPI/)
+    ).toBeInTheDocument();
+    const trustpilotOption = withinEmptyState.getByRole("button", {
+      name: /Trustpilot/
+    });
+    const csvOption = withinEmptyState.getByRole("button", { name: /CSV/ });
+    expect(trustpilotOption).toBeEnabled();
+    expect(csvOption).toBeEnabled();
+    expect(
+      within(trustpilotOption).getByText(
+        "Analyse les avis provenant d'une entreprise ou d'une page Trustpilot."
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(csvOption).getByText(
+        "Importe tes propres avis ou données client depuis un fichier."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "Analyse les avis publics d'une entreprise ou d'une page Trustpilot."
+      ).length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Importe tes propres avis depuis un fichier CSV.")
+        .length
+    ).toBeGreaterThan(0);
+  });
+
+  it("keeps only legitimate Trustpilot user input when switching to CSV", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+
+    function firstRunEmptyState() {
+      const heading = screen.getByRole("heading", {
+        name: "Aucune analyse lancée"
+      });
+      const emptyState = heading.closest(".first-run-empty-state");
+      expect(emptyState).not.toBeNull();
+      return within(emptyState as HTMLElement);
+    }
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await screen.findByRole("heading", { name: "Aucune analyse lancée" });
+
+    await user.click(firstRunEmptyState().getByRole("button", { name: /CSV/ }));
+    expect(screen.getByLabelText("Entreprise a analyser")).toHaveValue("");
+
+    await user.click(firstRunEmptyState().getByRole("button", { name: /Trustpilot/ }));
+    const trustpilotInput = screen.getByLabelText("Entreprise ou URL Trustpilot");
+    await user.type(
+      trustpilotInput,
+      "https://fr.trustpilot.com/review/acme.example"
+    );
+
+    await user.click(firstRunEmptyState().getByRole("button", { name: /CSV/ }));
+    expect(screen.getByLabelText("Entreprise a analyser")).toHaveValue(
+      "https://fr.trustpilot.com/review/acme.example"
+    );
+  });
+
+  it("sends the onboarding first-analysis CTA to the analyses form", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+
+    const onboardingPanel = screen
+      .getByText("Parcours de configuration")
+      .closest(".onboarding-panel");
+    expect(onboardingPanel).not.toBeNull();
+    await user.click(
+      within(onboardingPanel as HTMLElement).getByRole("button", {
+        name: "Nouvelle analyse"
+      })
+    );
+
+    const analysisInput = screen.getByLabelText("Entreprise ou URL Trustpilot");
+    expect(analysisInput).toBeInTheDocument();
+    expect(document.getElementById("new_analysis")).toContainElement(
+      analysisInput
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Aucune analyse lancée" })
+    ).toBeInTheDocument();
   });
 
   it("lets an admin launch a Trustpilot analysis", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);
-    apiMocks.createRun.mockResolvedValue({
-      run_id: 21,
-      company_id: 4,
-      company_name: "example.com",
-      trustpilot_slug: "example.com",
-      source: "trustpilot",
-      status: "pending",
-      pages_per_star: 1,
-      stars_requested: [1, 2, 3, 4, 5],
-      total_reviews: 0,
-      celery_task_id: null,
-      created_at: null,
-      started_at: null,
-      finished_at: null,
-      execution_duration_seconds: null,
-      error_message: null
-    });
+    apiMocks.createRun.mockResolvedValue(makeAnalysisRun());
 
     render(<App />);
     expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
@@ -505,6 +631,96 @@ describe("App authentication and permissions", () => {
         execute_immediately: true
       })
     );
+    expect(
+      await screen.findByRole("button", { name: /example\.com.*Run #21/i })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a created Trustpilot run visible when run refresh fails", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("Historique indisponible"));
+    apiMocks.createRun.mockResolvedValue(makeAnalysisRun());
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await screen.findByRole("heading", { name: "Aucune analyse lancée" });
+    const companyInput = screen.getByLabelText("Entreprise ou URL Trustpilot");
+    await user.clear(companyInput);
+    await user.type(companyInput, "https://fr.trustpilot.com/review/example.com");
+    await user.click(screen.getByRole("button", { name: "Lancer l'analyse" }));
+
+    expect(
+      await screen.findByText(
+        "Analyse lancée, mais l'actualisation des données a échoué : Historique indisponible"
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /example\.com.*Run #21/i })
+    ).toBeInTheDocument();
+  });
+
+  it("does not duplicate a created run after a successful refresh", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const createdRun = makeAnalysisRun();
+    apiMocks.listRuns.mockResolvedValueOnce([]).mockResolvedValueOnce([createdRun]);
+    apiMocks.createRun.mockResolvedValue(createdRun);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await screen.findByRole("heading", { name: "Aucune analyse lancée" });
+    const companyInput = screen.getByLabelText("Entreprise ou URL Trustpilot");
+    await user.clear(companyInput);
+    await user.type(companyInput, "https://fr.trustpilot.com/review/example.com");
+    await user.click(screen.getByRole("button", { name: "Lancer l'analyse" }));
+
+    await screen.findByRole("button", { name: /example\.com.*Run #21/i });
+    await waitFor(() => expect(apiMocks.listRuns).toHaveBeenCalledTimes(2));
+    const historyPanel = screen.getByText("Historique").closest(".run-panel");
+    expect(historyPanel).not.toBeNull();
+    await waitFor(() =>
+      expect(
+        within(historyPanel as HTMLElement).getAllByRole("button", {
+          name: /Run #21/i
+        })
+      ).toHaveLength(1)
+    );
+  });
+
+  it("keeps polling a newly created active run", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const pendingRun = makeAnalysisRun({ status: "pending" });
+    const runningRun = makeAnalysisRun({ status: "running", total_reviews: 3 });
+    apiMocks.listRuns
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([runningRun]);
+    apiMocks.createRun.mockResolvedValue(pendingRun);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await screen.findByRole("heading", { name: "Aucune analyse lancée" });
+    const companyInput = screen.getByLabelText("Entreprise ou URL Trustpilot");
+    await user.clear(companyInput);
+    await user.type(companyInput, "https://fr.trustpilot.com/review/example.com");
+    await user.click(screen.getByRole("button", { name: "Lancer l'analyse" }));
+
+    expect(
+      await screen.findByRole("button", { name: /example\.com.*Run #21/i })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("pending").length).toBeGreaterThan(0);
+    await waitFor(
+      () => expect(apiMocks.listRuns.mock.calls.length).toBeGreaterThanOrEqual(3),
+      { timeout: 4500 }
+    );
+    expect(screen.getAllByText("running").length).toBeGreaterThan(0);
   });
 
   it("lets an admin save the Trustpilot source defaults", async () => {
@@ -579,6 +795,22 @@ describe("App authentication and permissions", () => {
     });
     await user.upload(screen.getByLabelText("Fichier CSV d'avis"), file);
     await screen.findByText("Controle avant import");
+    expect(
+      screen.getByText("Mapping prêt à être réutilisé par l'organisation.")
+    ).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Texte *"), "");
+    await waitFor(() =>
+      expect(
+        screen.getByText("Sélectionne la colonne Texte pour obtenir un mapping prêt.")
+      ).toBeInTheDocument()
+    );
+    expect(screen.getByRole("button", { name: "Enregistrer ce mapping" })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText("Texte *"), "commentaire");
+    await waitFor(() =>
+      expect(
+        screen.getByText("Mapping prêt à être réutilisé par l'organisation.")
+      ).toBeInTheDocument()
+    );
     await user.click(screen.getByRole("button", { name: "Enregistrer ce mapping" }));
 
     await waitFor(() =>
@@ -592,6 +824,77 @@ describe("App authentication and permissions", () => {
         }
       })
     );
+  });
+
+  it("keeps an imported CSV run visible when run refresh fails", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const createdRun = makeAnalysisRun({
+      run_id: 31,
+      company_name: "Client CSV",
+      source: "csv",
+      trustpilot_slug: "client-csv"
+    });
+    apiMocks.listRuns
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("Historique CSV indisponible"));
+    apiMocks.previewCsvFile.mockResolvedValue({
+      review_count: 1,
+      skipped_rows: 0,
+      detected_columns: {
+        verbatim: "commentaire",
+        rating: "note"
+      },
+      available_columns: ["commentaire", "note", "client"],
+      preview_reviews: [
+        {
+          row_number: 1,
+          rating: 5,
+          author: "",
+          date: "",
+          company_responded: false,
+          verbatim: "Produit conforme"
+        }
+      ],
+      error_message: null
+    });
+    apiMocks.uploadCsvRun.mockResolvedValue(createdRun);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    const heading = await screen.findByRole("heading", {
+      name: "Aucune analyse lancée"
+    });
+    const emptyState = heading.closest(".first-run-empty-state");
+    expect(emptyState).not.toBeNull();
+    await user.click(within(emptyState as HTMLElement).getByRole("button", { name: /CSV/ }));
+    expect(screen.getByLabelText("Entreprise a analyser")).toHaveValue("");
+
+    await user.type(screen.getByLabelText("Entreprise a analyser"), "Client CSV");
+    const file = new File(["commentaire,note\nProduit conforme,5\n"], "avis.csv", {
+      type: "text/csv"
+    });
+    await user.upload(screen.getByLabelText("Fichier CSV d'avis"), file);
+    await screen.findByText("Controle avant import");
+    await user.click(screen.getByRole("button", { name: "Importer le CSV" }));
+
+    await waitFor(() =>
+      expect(apiMocks.uploadCsvRun).toHaveBeenCalledWith(
+        "Client CSV",
+        file,
+        expect.objectContaining({ verbatim: "commentaire" })
+      )
+    );
+    expect(
+      await screen.findByText(
+        "Analyse lancée, mais l'actualisation des données a échoué : Historique CSV indisponible"
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Client CSV.*Run #31/i })
+    ).toBeInTheDocument();
   });
 
   it("blocks analysis creation when the plan run limit is reached", async () => {

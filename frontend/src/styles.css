@@ -829,6 +829,18 @@ a {
   font-weight: 800;
 }
 
+.analysis-form-heading div {
+  display: grid;
+  gap: 3px;
+}
+
+.analysis-form-heading small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .analysis-form-heading strong {
   padding: 4px 8px;
   border-radius: 999px;
@@ -3711,6 +3723,63 @@ tbody tr:last-child td {
 .empty-state p,
 .muted {
   color: var(--muted);
+}
+
+.first-run-empty-state {
+  align-content: center;
+  place-items: stretch;
+}
+
+.first-run-empty-state > svg,
+.first-run-empty-state > h2,
+.first-run-empty-state > p {
+  justify-self: center;
+}
+
+.first-run-empty-state > p {
+  max-width: 680px;
+}
+
+.first-run-source-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  margin: 18px auto 0;
+}
+
+.first-run-source-option {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  text-align: left;
+}
+
+.first-run-source-option:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.first-run-source-option svg {
+  color: #1d4ed8;
+}
+
+.first-run-source-option span {
+  display: grid;
+  gap: 4px;
+}
+
+.first-run-source-option small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .processing-state {
