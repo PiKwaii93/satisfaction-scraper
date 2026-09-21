@@ -257,6 +257,74 @@ installer `requirements-dev.txt`, definir `DB_HOST`, `DB_PORT`, `DB_USER`,
 `python -m pytest -q tests`. Les tests de migration creent, utilisent et
 suppriment leurs propres bases sur ce serveur de test.
 
+### Deploiement sur une VM de test existante
+
+Le workflow manuel `Deploy test VM` prend le SHA exact de `main` et refuse de
+deployer si le run CI automatique de ce SHA n'a pas reussi. Il prepare une VM
+Linux existante avec `deploy/prepare-test-vm.yml`, transfere une archive Git
+dans `~/satisfaction-test/releases/<SHA>`, puis lance Compose avec le nom de
+projet stable `satisfaction-test`. Les volumes PostgreSQL, MLflow et imports
+restent ainsi en place entre les revisions. Le fichier de configuration est
+stocke hors Git dans `~/satisfaction-test/shared/test.env` (mode 600).
+
+Prerequis : VM Ubuntu 24.04 (4 vCPU, 8 Go de RAM, 50 Go de disque recommandes),
+Docker Engine et le plugin `docker compose` installes, utilisateur SSH autorise
+a utiliser Docker sans `sudo`, `tar` et `curl`. Le playbook verifie Docker et
+Compose puis cree les repertoires de maniere idempotente ; il ne cree pas de VM
+et n'installe pas Docker. Le seul port entrant necessaire est SSH (22). Compose
+lie PostgreSQL 5432, Redis 6379, MLflow 5000, API 8000 et frontend 5173 a
+`127.0.0.1` sur la VM. Pour consulter l'application, ouvrir un tunnel :
+
+```bash
+ssh -L 5173:127.0.0.1:5173 -L 8000:127.0.0.1:8000 utilisateur@hote
+```
+
+Configurer l'environnement GitHub `test` avec les secrets `TEST_HOST`,
+`TEST_USER`, `TEST_SSH_KEY`, `TEST_SSH_KNOWN_HOSTS` (cle hote SSH verifiee) et
+`TEST_ENV_FILE` (contenu du fichier Compose, jamais versionne). Ce dernier
+doit au minimum definir `DB_USER`, `DB_NAME`, `DB_PASSWORD`, `JWT_SECRET_KEY`,
+`DEMO_ADMIN_PASSWORD`, `PLATFORM_ADMIN_PASSWORD` et `API_KEY`. Utiliser des
+valeurs de test propres a la VM, differentes des valeurs de demonstration.
+Ne pas y mettre de variable `*_HOST_PORT` pour ouvrir les services : le script
+de deploiement impose l'interface loopback. Le frontend et les liens utilisent
+`localhost` via le tunnel SSH.
+
+Premier deploiement : versionner et pousser les fichiers de ce chantier sur
+`main`, preparer la VM et ses acces SSH/Docker, creer les secrets ci-dessus,
+verifier que la CI automatique de ce nouveau SHA a reussi, puis lancer
+manuellement `Deploy test VM` sur la branche `main` dans GitHub Actions. Le
+resume du job donne le SHA, l'heure UTC, l'environnement et le resultat des
+healthchecks. Sur la VM, `~/satisfaction-test/current.sha` indique le SHA
+valide et `previous.sha` le precedent. Le script construit les images avant
+de mettre a jour les conteneurs, attend les sondes Compose et teste `/health`
+ainsi que la page frontend. Il n'enregistre le nouveau SHA qu'apres succes.
+En cas d'echec, il tente de reactiver l'ancienne revision et laisse le job en
+echec ; aucune reussite n'est annoncee sans healthcheck. Au tout premier
+deploiement, aucun SHA precedent n'existe encore pour un rollback automatique.
+
+```bash
+gh workflow run deploy-test.yml --ref main
+```
+
+Rollback manuel vers le SHA precedent, depuis la VM :
+
+```bash
+cd ~/satisfaction-test
+current=$(cat current.sha)
+bash "releases/$current/deploy/test-deploy.sh" rollback
+```
+
+Le rollback reconstruit les images de l'ancienne revision, relance les services
+applicatifs et verifie les healthchecks sans supprimer les volumes ni restaurer
+la base. Aucun downgrade Alembic n'est effectue. **Limite :** l'API applique
+les migrations au demarrage ; si une nouvelle migration rend l'ancien code
+incompatible avec le schema, le rollback applicatif peut echouer. Une telle
+migration exige une procedure de donnees separee avant deploiement. Cette
+strategie a un seul ensemble de conteneurs : une breve interruption reste
+possible pendant leur remplacement. Ne pas changer `DB_PASSWORD` d'une base
+existante via un simple redeploiement : le volume PostgreSQL conserve son mot
+de passe initial.
+
 URLs utiles :
 
 | Service | URL |

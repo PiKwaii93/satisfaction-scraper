@@ -1,0 +1,24 @@
+---
+- name: Prepare an existing Linux test VM
+  hosts: all
+  gather_facts: true
+  vars:
+    deploy_root: "{{ ansible_env.HOME }}/satisfaction-test"
+  tasks:
+    - name: Check Docker access for the SSH user
+      ansible.builtin.command: docker info
+      changed_when: false
+
+    - name: Check Docker Compose availability
+      ansible.builtin.command: docker compose version
+      changed_when: false
+
+    - name: Create deployment directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ deploy_root }}", mode: "0750" }
+        - { path: "{{ deploy_root }}/releases", mode: "0750" }
+        - { path: "{{ deploy_root }}/shared", mode: "0700" }

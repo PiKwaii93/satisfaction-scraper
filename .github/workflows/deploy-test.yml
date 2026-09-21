@@ -1,0 +1,105 @@
+name: Deploy test VM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: satisfaction-test-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy-test:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: test
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TEST_HOST: ${{ secrets.TEST_HOST }}
+      TEST_USER: ${{ secrets.TEST_USER }}
+      TEST_SSH_KEY: ${{ secrets.TEST_SSH_KEY }}
+      TEST_SSH_KNOWN_HOSTS: ${{ secrets.TEST_SSH_KNOWN_HOSTS }}
+      TEST_ENV_FILE: ${{ secrets.TEST_ENV_FILE }}
+    steps:
+      - name: Checkout the exact revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify SHA and successful push CI
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          test "$sha" = "$GITHUB_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$sha&event=push&per_page=20" \
+            | jq -e --arg sha "$sha" '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length > 0' >/dev/null
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Configure verified SSH access
+        shell: bash
+        run: |
+          set -euo pipefail
+          for value in "$TEST_HOST" "$TEST_USER" "$TEST_SSH_KEY" "$TEST_SSH_KNOWN_HOSTS" "$TEST_ENV_FILE"; do
+            test -n "$value" || { echo 'A required test secret is missing' >&2; exit 1; }
+          done
+          [[ "$TEST_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$TEST_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$TEST_SSH_KEY" > "$HOME/.ssh/test_vm_key"
+          printf '%s\n' "$TEST_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/test_vm_key" "$HOME/.ssh/known_hosts"
+
+      - name: Prepare existing VM with Ansible
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install 'ansible-core>=2.16,<2.19'
+          ANSIBLE_HOST_KEY_CHECKING=True ansible-playbook \
+            -i "$TEST_HOST," -u "$TEST_USER" \
+            --private-key "$HOME/.ssh/test_vm_key" \
+            deploy/prepare-test-vm.yml
+
+      - name: Upload test configuration and immutable Git archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha='${{ steps.verify.outputs.sha }}'
+          target="$TEST_USER@$TEST_HOST"
+          printf '%s\n' "$TEST_ENV_FILE" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/test_vm_key" "$target" \
+            'umask 077; cat > "$HOME/satisfaction-test/shared/test.env.tmp" && chmod 600 "$HOME/satisfaction-test/shared/test.env.tmp" && mv "$HOME/satisfaction-test/shared/test.env.tmp" "$HOME/satisfaction-test/shared/test.env"'
+          git archive --format=tar HEAD | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/test_vm_key" "$target" \
+            "set -eu; release=\"\$HOME/satisfaction-test/releases/$sha\"; mkdir -p \"\$release\"; tar -xf - -C \"\$release\"; printf '%s\\n' '$sha' > \"\$release/.source_sha\""
+
+      - name: Deploy and check API and frontend
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha='${{ steps.verify.outputs.sha }}'
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/test_vm_key" "$TEST_USER@$TEST_HOST" \
+            "bash satisfaction-test/releases/$sha/deploy/test-deploy.sh deploy $sha"
+          deployed="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$HOME/.ssh/test_vm_key" "$TEST_USER@$TEST_HOST" 'cat "$HOME/satisfaction-test/current.sha"')"
+          test "$deployed" = "$sha"
+          echo "deployed_sha=$deployed" >> "$GITHUB_OUTPUT"
+          echo 'health=passed' >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Test VM deployment'
+            echo "- Requested SHA: $GITHUB_SHA"
+            echo "- Deployed SHA: ${{ steps.deploy.outputs.deployed_sha || 'not validated' }}"
+            echo "- Time (UTC): $(date -u +'%Y-%m-%d %H:%M:%S')"
+            echo '- Environment: test'
+            echo "- Healthcheck: ${{ steps.deploy.outputs.health || 'not passed' }}"
+            echo "- Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
