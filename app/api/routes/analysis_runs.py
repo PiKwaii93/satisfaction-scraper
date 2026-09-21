@@ -135,7 +135,15 @@ def create_run(
     require_source_available(current_user.organization_id, payload.source)
     try:
         estimated_reviews = (
-            len(payload.stars) * payload.pages_per_star * REVIEWS_PER_TRUSTPILOT_PAGE_ESTIMATE
+            len(payload.stars)
+            * payload.pages_per_star
+            * REVIEWS_PER_TRUSTPILOT_PAGE_ESTIMATE
+            if payload.collection_mode == "sampled"
+            else (
+                payload.max_pages * REVIEWS_PER_TRUSTPILOT_PAGE_ESTIMATE
+                if payload.max_pages is not None
+                else None
+            )
         )
         assert_can_create_analysis(
             current_user.organization_id,
@@ -151,7 +159,9 @@ def create_run(
             entity_id=run["run_id"],
             metadata={
                 "source": run["source"],
+                "collection_mode": run["collection_mode"],
                 "pages_per_star": run["pages_per_star"],
+                "max_pages": run["max_pages"],
             },
         )
     except ActiveAnalysisRunError as exc:

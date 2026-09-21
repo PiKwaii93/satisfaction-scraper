@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
+import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.database import ensure_product_schema
+from app.api.database import ensure_product_schema, get_cursor
 from app.api.routes.analysis_runs import router as analysis_runs_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.customer_actions import router as customer_actions_router
@@ -67,6 +68,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/"),
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://frontend:5173",
@@ -93,4 +95,13 @@ app.include_router(platform_router)
     summary="Verifier la disponibilite de l'API",
 )
 def health_check():
-    return {"status": "ok"}
+    try:
+        with get_cursor() as cursor:
+            cursor.execute("SELECT 1 AS healthy;")
+            cursor.fetchone()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="PostgreSQL indisponible.",
+        ) from exc
+    return {"status": "ok", "database": "ok"}

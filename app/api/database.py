@@ -64,6 +64,11 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "company_name",
         "trustpilot_slug",
         "source_url",
+        "domain",
+        "trustscore",
+        "total_review_count",
+        "rating_distribution",
+        "metadata_collected_at",
         "created_at",
         "updated_at",
     },
@@ -75,6 +80,15 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "status",
         "stars_requested",
         "pages_per_star",
+        "collection_mode",
+        "max_pages",
+        "pages_requested",
+        "pages_processed",
+        "pages_succeeded",
+        "pages_failed",
+        "reviews_extracted",
+        "unique_reviews",
+        "stop_reason",
         "total_reviews",
         "reviews_json_path",
         "predictions_csv_path",
@@ -105,6 +119,9 @@ PRODUCT_SCHEMA_REQUIREMENTS = {
         "review_date",
         "verbatim",
         "company_responded",
+        "source_review_id",
+        "review_url",
+        "company_reply_text",
         "created_at",
     },
     "sentiment_predictions": {
@@ -261,6 +278,19 @@ PRODUCT_INDEX_REQUIREMENTS = {
     },
 }
 
+PRODUCT_FOREIGN_KEY_REQUIREMENTS = {
+    "companies": {
+        (("organization_id",), "organizations", ("organization_id",)),
+    },
+    "analysis_runs": {
+        (("company_id",), "companies", ("company_id",)),
+        (("organization_id",), "organizations", ("organization_id",)),
+    },
+    "model_training_runs": {
+        (("organization_id",), "organizations", ("organization_id",)),
+    },
+}
+
 
 class SchemaMigrationError(RuntimeError):
     """Raised when an unversioned database cannot be baselined safely."""
@@ -352,6 +382,23 @@ def _validate_existing_product_schema(connection):
         missing_indexes = sorted(required_indexes - existing_indexes)
         if missing_indexes:
             errors.append(f"{table_name}: index {', '.join(missing_indexes)}")
+
+    for table_name, required_foreign_keys in PRODUCT_FOREIGN_KEY_REQUIREMENTS.items():
+        existing_foreign_keys = {
+            (
+                tuple(foreign_key.get("constrained_columns") or ()),
+                foreign_key.get("referred_table"),
+                tuple(foreign_key.get("referred_columns") or ()),
+            )
+            for foreign_key in inspector.get_foreign_keys(table_name)
+        }
+        missing_foreign_keys = required_foreign_keys - existing_foreign_keys
+        for columns, referred_table, referred_columns in sorted(missing_foreign_keys):
+            errors.append(
+                f"{table_name}: cle etrangere "
+                f"{', '.join(columns)} -> "
+                f"{referred_table}.{', '.join(referred_columns)}"
+            )
 
     if errors:
         raise SchemaMigrationError(

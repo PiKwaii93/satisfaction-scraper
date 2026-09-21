@@ -179,7 +179,7 @@ Le projet est developpe sous Windows/PowerShell, mais les services tournent dans
 Depuis la racine du repo :
 
 ```powershell
-docker-compose up -d --build postgres_db mlflow redis celery_worker api frontend
+docker-compose up -d --build postgres_db mlflow redis model_bootstrap api celery_worker frontend
 ```
 
 Verifier les services :
@@ -188,6 +188,74 @@ Verifier les services :
 docker-compose ps
 Invoke-RestMethod http://localhost:8000/health
 ```
+
+Pour un premier demarrage, copier `.env.example` vers `.env` et adapter les
+identifiants, secrets et ports exposes si necessaire. Compose lit directement
+ces variables. `DB_HOST=postgres_db` et `MLFLOW_TRACKING_URI=http://mlflow:5000`
+designent les services internes ; les ports `*_HOST_PORT` ne changent que les
+acces depuis la machine hote. `DATABASE_URL` n'est pas utilise par l'API : elle
+assemble sa connexion depuis `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et
+`DB_PASSWORD`.
+
+Le demarrage attend PostgreSQL, Redis et MLflow, puis le job `model_bootstrap`.
+L'API applique les migrations jusqu'au head Alembic et initialise les comptes
+de demonstration. Le bootstrap enregistre le pickle versionne dans MLflow
+seulement si l'alias `sentiment_model@production` est absent. Il verifie d'abord
+l'empreinte dans `app/models/sentiment_model.sha256`, puis charge le modele par
+son URI MLflow. Si l'alias existe deja, il verifie son chargement et ne cree
+aucune version. Il n'entraine jamais le modele. `/health` teste la connexion
+PostgreSQL par `SELECT 1` ; Redis et MLflow sont controles par leurs sondes
+Compose au demarrage.
+
+Pour demontrer un cold start sans utiliser les volumes locaux habituels, choisir
+un nom de projet distinct et des ports hote libres :
+
+```powershell
+$env:POSTGRES_HOST_PORT="15432"
+$env:MLFLOW_HOST_PORT="15000"
+$env:REDIS_HOST_PORT="16379"
+$env:API_HOST_PORT="18000"
+$env:FRONTEND_HOST_PORT="15173"
+$env:VITE_API_BASE_URL="http://localhost:18000"
+$env:FRONTEND_BASE_URL="http://localhost:15173"
+docker-compose -p satisfaction_coldstart up -d --build postgres_db mlflow redis model_bootstrap api celery_worker frontend
+docker-compose -p satisfaction_coldstart ps
+docker-compose -p satisfaction_coldstart run --rm --no-deps api alembic current
+Invoke-RestMethod http://localhost:18000/health
+
+# Reprise sur les memes volumes : le bootstrap ne cree pas de nouvelle version.
+docker-compose -p satisfaction_coldstart stop
+docker-compose -p satisfaction_coldstart up -d postgres_db mlflow redis model_bootstrap api celery_worker frontend
+
+# Seulement pour ce projet temporaire, apres verification du nom de projet.
+docker-compose -p satisfaction_coldstart down -v
+```
+
+Le frontend Vite lit `VITE_API_BASE_URL` lors du lancement. Adapter aussi
+`FRONTEND_BASE_URL` pour les liens d'invitation et l'origine du frontend si
+necessaire. Un test CSV doit utiliser l'API et le worker du meme projet : leurs
+fichiers d'import sont partages dans le volume `api_data`.
+
+### Validation reproductible
+
+Une seule commande construit et demarre un projet Compose isole, execute les
+tests backend (dont les migrations sur des bases temporaires), les tests et le
+build frontend, puis rejoue le parcours HTTP CSV jusqu'au run `completed` et a
+sa synthese. Le script fixe des ports de test distincts, affiche `PASS` ou
+l'etape en echec et supprime uniquement son projet Compose temporaire :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-repro.ps1
+```
+
+La CI lance automatiquement `python -m pytest -q tests`, les tests frontend et
+le build. Le job `e2e-smoke` de la CI se lance manuellement et execute la
+meme commande isolee, car le build des images et MLflow allongent ce controle.
+Pour les tests backend hors Docker, disposer d'un PostgreSQL de test distinct,
+installer `requirements-dev.txt`, definir `DB_HOST`, `DB_PORT`, `DB_USER`,
+`DB_PASSWORD`, `DB_NAME` et `DEMO_ADMIN_PASSWORD`, puis lancer
+`python -m pytest -q tests`. Les tests de migration creent, utilisent et
+suppriment leurs propres bases sur ce serveur de test.
 
 URLs utiles :
 

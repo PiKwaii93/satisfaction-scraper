@@ -1,146 +1,195 @@
+x-backend-environment: &backend-environment
+  DB_HOST: ${DB_HOST:-postgres_db}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_USER: ${DB_USER:-admin}
+  DB_PASSWORD: ${DB_PASSWORD:-password123}
+  DB_NAME: ${DB_NAME:-satisfaction_client}
+  MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+
 services:
   postgres_db:
     image: postgres:15-alpine
-    container_name: satisfaction_db
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: satisfaction_client
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
+      POSTGRES_DB: ${DB_NAME:-satisfaction_client}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   mlflow:
     image: ghcr.io/mlflow/mlflow
-    container_name: satisfaction_mlflow
-    ports:
-      - "5000:5000"
-    environment:
-      - BACKEND_STORE_URI=sqlite:////mlflow/mlflow.db
-      - ARTIFACT_ROOT=/mlflow/artifacts
     command: >
       mlflow server --host 0.0.0.0 --port 5000
       --backend-store-uri sqlite:////mlflow/mlflow.db
       --default-artifact-root /mlflow/artifacts
       --allowed-hosts "*" --cors-allowed-origins "*"
+    ports:
+      - "${MLFLOW_HOST_PORT:-5000}:5000"
     volumes:
       - mlflow_data:/mlflow
       - mlflow_artifacts:/mlflow/artifacts
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   redis:
     image: redis:7-alpine
-    container_name: satisfaction_redis
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  model_bootstrap:
+    build: .
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MODEL_BOOTSTRAP_PATH: ${MODEL_BOOTSTRAP_PATH:-/app/app/models/sentiment_model.pkl}
+      MODEL_BOOTSTRAP_SHA256_PATH: ${MODEL_BOOTSTRAP_SHA256_PATH:-/app/app/models/sentiment_model.sha256}
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    command: python scripts/bootstrap_mlflow_model.py
+    restart: "no"
 
   worker:
     build: .
-    container_name: satisfaction_worker
     depends_on:
-      - postgres_db
-      - mlflow
+      postgres_db:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      model_bootstrap:
+        condition: service_completed_successfully
     volumes:
-      - .:/app
       - mlflow_artifacts:/mlflow/artifacts
+      - api_data:/app/data/api_runs
     environment:
-      - DB_HOST=postgres_db
-      - DB_USER=admin
-      - DB_PASSWORD=password123
-      - DB_NAME=satisfaction_client
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      <<: *backend-environment
     command: python app/main.py
 
   celery_worker:
     build: .
-    container_name: satisfaction_celery_worker
     depends_on:
-      - postgres_db
-      - mlflow
-      - redis
+      postgres_db:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      model_bootstrap:
+        condition: service_completed_successfully
     volumes:
-      - .:/app
       - mlflow_artifacts:/mlflow/artifacts
+      - api_data:/app/data/api_runs
     environment:
-      - DB_HOST=postgres_db
-      - DB_USER=admin
-      - DB_PASSWORD=password123
-      - DB_NAME=satisfaction_client
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      <<: *backend-environment
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      FEEDBACK_SAMPLE_WEIGHT: ${FEEDBACK_SAMPLE_WEIGHT:-6}
     command: celery -A app.api.celery_app.celery_app worker --loglevel=info --concurrency=1
 
   api:
     build: .
-    container_name: satisfaction_api
     depends_on:
-      - postgres_db
-      - mlflow
-      - redis
+      postgres_db:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      model_bootstrap:
+        condition: service_completed_successfully
     volumes:
-      - .:/app
       - mlflow_artifacts:/mlflow/artifacts
+      - api_data:/app/data/api_runs
     environment:
-      - DB_HOST=postgres_db
-      - DB_USER=admin
-      - DB_PASSWORD=password123
-      - DB_NAME=satisfaction_client
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - API_KEY=dev-satisfaction-key
-      - JWT_SECRET_KEY=dev-satisfaction-jwt-secret-change-me-32-bytes
-      - JWT_EXPIRE_MINUTES=1440
-      - DEMO_ORG_NAME=Demo Satisfaction Client
-      - DEMO_ADMIN_EMAIL=demo@satisfaction.local
-      - DEMO_ADMIN_PASSWORD=demo-password
-      - DEMO_ADMIN_NAME=Admin Demo
-      - PLATFORM_ADMIN_EMAIL=platform@satisfaction.local
-      - PLATFORM_ADMIN_PASSWORD=platform-password
-      - PLATFORM_ADMIN_NAME=Admin Plateforme
+      <<: *backend-environment
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      API_KEY: ${API_KEY:-dev-satisfaction-key}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-satisfaction-jwt-secret-change-me-32-bytes}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
+      DEMO_ORG_NAME: ${DEMO_ORG_NAME:-Demo Satisfaction Client}
+      DEMO_ORG_SLUG: ${DEMO_ORG_SLUG:-demo}
+      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-demo@satisfaction.local}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-demo-password}
+      DEMO_ADMIN_NAME: ${DEMO_ADMIN_NAME:-Admin Demo}
+      PLATFORM_ORG_NAME: ${PLATFORM_ORG_NAME:-Plateforme Satisfaction}
+      PLATFORM_ORG_SLUG: ${PLATFORM_ORG_SLUG:-platform}
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-platform@satisfaction.local}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-platform-password}
+      PLATFORM_ADMIN_NAME: ${PLATFORM_ADMIN_NAME:-Admin Plateforme}
+      INVITATION_EXPIRE_DAYS: ${INVITATION_EXPIRE_DAYS:-7}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      FEEDBACK_SAMPLE_WEIGHT: ${FEEDBACK_SAMPLE_WEIGHT:-6}
     ports:
-      - "8000:8000"
-    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+      - "${API_HOST_PORT:-8000}:8000"
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: satisfaction_frontend
     depends_on:
-      - api
-    volumes:
-      - ./frontend:/app/frontend
-      - frontend_node_modules:/app/frontend/node_modules
+      api:
+        condition: service_healthy
     environment:
-      - VITE_API_BASE_URL=http://localhost:8000
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
-      - "5173:5173"
+      - "${FRONTEND_HOST_PORT:-5173}:5173"
     command: npm run dev -- --host 0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:5173 >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   dashboard:
     build: .
-    container_name: satisfaction_dashboard
     depends_on:
-      - postgres_db
-      - mlflow
-    volumes:
-      - .:/app
+      postgres_db:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      model_bootstrap:
+        condition: service_completed_successfully
     environment:
-      - DB_HOST=postgres_db
-      - DB_USER=admin
-      - DB_PASSWORD=password123
-      - DB_NAME=satisfaction_client
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      <<: *backend-environment
     ports:
-      - "8501:8501"
+      - "${DASHBOARD_HOST_PORT:-8501}:8501"
     command: streamlit run app/dashboard.py
 
 volumes:
   postgres_data:
   mlflow_data:
   mlflow_artifacts:
-  frontend_node_modules:
+  api_data:

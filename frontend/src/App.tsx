@@ -653,6 +653,22 @@ function benchmarkReportFileName(comparison: RunsComparison) {
   return `rapport_benchmark_runs_${runSlug || "selection"}.pdf`;
 }
 
+const LEGACY_BUSINESS_KPI_WARNING =
+  "Mode de collecte historique non déterminé : les KPI décrivent uniquement le corpus enregistré et ne doivent pas être interprétés comme représentatifs.";
+
+function businessKpiWarning(run: AnalysisRun) {
+  if (run.is_representative_for_business_kpis === true) {
+    return null;
+  }
+  return run.business_kpi_warning || LEGACY_BUSINESS_KPI_WARNING;
+}
+
+function corpusScopedLabel(label: string, run: AnalysisRun) {
+  return run.is_representative_for_business_kpis === true
+    ? label
+    : `${label} du corpus`;
+}
+
 function distributionRows<T extends string | number>(
   rows: DistributionRow<T>[],
   items: Array<{ label: string; key: T }>
@@ -681,6 +697,7 @@ function reviewExcerpt(review: SummaryReview) {
 
 function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
   const insights = summary.business_insights;
+  const scopeWarning = businessKpiWarning(summary.run);
   const createdAt = new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "long",
     timeStyle: "short"
@@ -895,6 +912,13 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
       color: #475467;
       font-size: 13px;
     }
+    .scope-warning {
+      background: #fff7e6;
+      border: 1px solid #f2c66d;
+      border-radius: 8px;
+      color: #6b4800;
+      padding: 12px;
+    }
     @media print {
       body {
         background: #ffffff;
@@ -918,11 +942,17 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
         <p>${SOURCE_LABELS[run.source]} - Run #${run.run_id} - Rapport généré le ${escapeHtml(createdAt)}</p>
       </div>
       <div class="score">
-        <span>Score santé</span>
+        <span>${escapeHtml(corpusScopedLabel("Score santé", summary.run))}</span>
         <strong>${insights.health_score}</strong>
         <span>Risque ${escapeHtml(formatRisk(insights.risk_level))}</span>
       </div>
     </header>
+
+    ${
+      scopeWarning
+        ? `<section class="scope-warning"><strong>Portée des KPI</strong><p>${escapeHtml(scopeWarning)}</p></section>`
+        : ""
+    }
 
     <section>
       <h2>Synthèse exécutive</h2>
@@ -931,7 +961,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
 
     <section class="grid">
       <div class="kpi"><span>Avis analysés</span><strong>${summary.kpis.review_count}</strong></div>
-      <div class="kpi"><span>Note moyenne</span><strong>${formatNumber(summary.kpis.average_rating)} / 5</strong></div>
+      <div class="kpi"><span>${escapeHtml(corpusScopedLabel("Note moyenne", summary.run))}</span><strong>${formatNumber(summary.kpis.average_rating)} / 5</strong></div>
       <div class="kpi"><span>Confiance IA</span><strong>${formatNumber(summary.kpis.average_confidence, 2)}</strong></div>
       <div class="kpi"><span>Réponses entreprise</span><strong>${summary.kpis.responded_count ?? 0}</strong></div>
     </section>
@@ -954,7 +984,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
 
     <section class="two-cols">
       <div class="box">
-        <h2>Sentiment global</h2>
+        <h2>${escapeHtml(corpusScopedLabel("Sentiment", summary.run))}</h2>
         <table>
           <tbody>
             ${distributionRows(summary.sentiment_distribution, [
@@ -975,7 +1005,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
     </section>
 
     <section>
-      <h2>Avis critiques représentatifs</h2>
+      <h2>Exemples d'avis critiques</h2>
       <div class="review-list">${criticalReviews || "<p>Aucun avis critique détecté.</p>"}</div>
     </section>
 
@@ -991,7 +1021,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
 
     <section class="limits">
       <h2>Limites de lecture</h2>
-      <p>Ce rapport repose sur les avis collectés lors du run, les verbatims disponibles et le modèle de sentiment actuellement déployé. Les recommandations doivent être relues avec le contexte métier avant arbitrage opérationnel.</p>
+      <p>Ce rapport repose sur les avis collectés lors du run, les verbatims disponibles et le modèle de sentiment actuellement déployé. Les recommandations et KPI portent sur ce corpus et doivent être relus avec le contexte métier avant arbitrage opérationnel.</p>
     </section>
   </main>
 </body>
@@ -1059,6 +1089,9 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
   const bestHealth = comparison.highlights.best_health;
   const highestRisk = comparison.highlights.highest_negative_rate;
   const mostReviews = comparison.highlights.most_reviews;
+  const scopedCompanies = comparison.companies.filter(
+    (company) => company.is_representative_for_business_kpis !== true
+  );
   const sharedPriority = comparison.highlights.shared_priority;
 
   const avgHealth =
@@ -1200,6 +1233,13 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
       color: #b42318;
       font-weight: 800;
     }
+    .scope-warning {
+      background: #fff7e6;
+      border: 1px solid #f2c66d;
+      border-radius: 8px;
+      color: #6b4800;
+      padding: 12px;
+    }
     @media print {
       body {
         background: #ffffff;
@@ -1231,13 +1271,19 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
       </div>
     </header>
 
+    ${
+      scopedCompanies.length > 0
+        ? `<section class="scope-warning"><strong>Portée du benchmark</strong><p>${scopedCompanies.length} run(s) ne sont pas représentatifs pour les KPI métier. Les écarts affichés décrivent uniquement les corpus analysés.</p></section>`
+        : ""
+    }
+
     <section>
       <h2>Synthèse benchmark</h2>
       <p>
         Le benchmark compare ${comparison.companies.length} entreprises et ${totalReviews}
         avis analysés. ${
           bestHealth
-            ? `${escapeHtml(bestHealth.company_name)} obtient le meilleur score santé (${bestHealth.health_score}).`
+            ? `${escapeHtml(bestHealth.company_name)} obtient le meilleur score sur les corpus comparés (${bestHealth.health_score}).`
             : "Aucun meilleur score n'est disponible."
         } ${
           highestRisk
@@ -1251,7 +1297,7 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
 
     <section class="grid">
       <div class="kpi">
-        <span>Meilleur score santé</span>
+        <span>${scopedCompanies.length > 0 ? "Meilleur score du corpus" : "Meilleur score santé"}</span>
         <strong>${bestHealth ? bestHealth.health_score : "-"}</strong>
         <span>${bestHealth ? escapeHtml(bestHealth.company_name) : "Non disponible"}</span>
       </div>
@@ -4204,6 +4250,7 @@ export default function App() {
 
             {selectedRun.status === "completed" && summary && (
               <div className="report-grid">
+                <BusinessKpiScopeNotice run={summary.run} />
                 <section className="kpi-strip">
                   <Kpi
                     label="Avis analysés"
@@ -4211,7 +4258,7 @@ export default function App() {
                     helper={`${summary.kpis.text_count ?? 0} verbatims`}
                   />
                   <Kpi
-                    label="Note moyenne"
+                    label={corpusScopedLabel("Note moyenne", summary.run)}
                     value={`${formatNumber(summary.kpis.average_rating)} / 5`}
                     helper={`Source ${SOURCE_LABELS[selectedRun.source]}`}
                   />
@@ -4227,7 +4274,18 @@ export default function App() {
                   />
                 </section>
 
-                <DecisionPanel insights={summary.business_insights} />
+                <CompletedReportReadout
+                  linkedAlerts={businessAlerts.filter(
+                    (alert) => alert.run_id === selectedRun.run_id
+                  )}
+                  onOpenCockpit={() => setActiveView("home")}
+                  summary={summary}
+                />
+
+                <DecisionPanel
+                  insights={summary.business_insights}
+                  run={summary.run}
+                />
 
                 <TrendPanel
                   error={trendError}
@@ -4237,7 +4295,7 @@ export default function App() {
 
                 <section className="insight-section">
                   <div className="section-heading">
-                    <h3>Sentiment global</h3>
+                    <h3>{corpusScopedLabel("Sentiment", summary.run)}</h3>
                     <BarChart3 size={18} />
                   </div>
                   <SentimentBars rows={summary.sentiment_distribution} />
@@ -4245,7 +4303,7 @@ export default function App() {
 
                 <section className="insight-section">
                   <div className="section-heading">
-                    <h3>Répartition par note</h3>
+                    <h3>{corpusScopedLabel("Répartition par note", summary.run)}</h3>
                     <TableProperties size={18} />
                   </div>
                   <RatingBars rows={summary.rating_distribution} />
@@ -4264,7 +4322,10 @@ export default function App() {
                     <h3>Avis critiques</h3>
                     <AlertTriangle size={18} />
                   </div>
-                  <ReviewCards reviews={summary.critical_reviews} />
+                  <ReviewCards
+                    emptyMessage="Aucun avis critique détecté dans ce run."
+                    reviews={summary.critical_reviews}
+                  />
                 </section>
 
                 <section className="insight-section">
@@ -4272,7 +4333,10 @@ export default function App() {
                     <h3>Note vs texte</h3>
                     <CheckCircle2 size={18} />
                   </div>
-                  <ReviewCards reviews={summary.rating_text_mismatches} />
+                  <ReviewCards
+                    emptyMessage="Aucun décalage note/texte détecté dans ce run."
+                    reviews={summary.rating_text_mismatches}
+                  />
                 </section>
 
                 <section className="insight-section wide">
@@ -7794,6 +7858,23 @@ function formatTrainingStatus(status: ModelTrainingRun["status"]) {
   return labels[status];
 }
 
+function BusinessKpiScopeNotice({ run }: { run: AnalysisRun }) {
+  const warning = businessKpiWarning(run);
+  if (!warning) {
+    return null;
+  }
+
+  return (
+    <section className="business-kpi-scope-warning insight-section wide" role="status">
+      <AlertTriangle size={20} />
+      <div>
+        <strong>Portée limitée des KPI métier</strong>
+        <p>{warning}</p>
+      </div>
+    </section>
+  );
+}
+
 function BenchmarkPanel({
   comparison,
   onClose,
@@ -7803,6 +7884,9 @@ function BenchmarkPanel({
   onClose: () => void;
   onExportReport: () => void;
 }) {
+  const scopedCompanies = comparison.companies.filter(
+    (company) => company.is_representative_for_business_kpis !== true
+  );
   return (
     <section className="benchmark-report insight-section wide">
       <div className="section-heading benchmark-heading">
@@ -7825,9 +7909,22 @@ function BenchmarkPanel({
         </div>
       </div>
 
+      {scopedCompanies.length > 0 ? (
+        <section className="business-kpi-scope-warning" role="status">
+          <AlertTriangle size={20} />
+          <div>
+            <strong>Benchmark limité aux corpus collectés</strong>
+            <p>
+              {scopedCompanies.length} run(s) ne sont pas représentatifs pour les KPI
+              métier. Les écarts affichés décrivent les corpus analysés.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       <div className="benchmark-highlight-grid">
         <BenchmarkHighlight
-          label="Meilleur score santé"
+          label={scopedCompanies.length > 0 ? "Meilleur score du corpus" : "Meilleur score santé"}
           company={comparison.highlights.best_health}
           value={(company) => String(company.health_score)}
           helper={(company) => `Risque ${formatRisk(company.risk_level)}`}
@@ -7864,8 +7961,8 @@ function BenchmarkPanel({
           <thead>
             <tr>
               <th>Entreprise</th>
-              <th>Score santé</th>
-              <th>Note moyenne</th>
+              <th>{scopedCompanies.length > 0 ? "Score du corpus" : "Score santé"}</th>
+              <th>{scopedCompanies.length > 0 ? "Note du corpus" : "Note moyenne"}</th>
               <th>Négatif</th>
               <th>Positif</th>
               <th>Irritants propres</th>
@@ -7962,6 +8059,12 @@ function TrendPanel({
   isLoading: boolean;
   trend: AnalysisRunTrend | null;
 }) {
+  const hasScopedKpis = Boolean(
+    trend &&
+      (trend.current_run.is_representative_for_business_kpis !== true ||
+        (trend.previous_run &&
+          trend.previous_run.is_representative_for_business_kpis !== true))
+  );
   const topicGroups = [
     { title: "En hausse", rows: trend?.rising_topics ?? [], tone: "negative" },
     { title: "En baisse", rows: trend?.falling_topics ?? [], tone: "positive" },
@@ -7978,6 +8081,16 @@ function TrendPanel({
         </div>
         <BarChart3 size={18} />
       </div>
+
+      {hasScopedKpis ? (
+        <div className="business-kpi-scope-warning compact" role="status">
+          <AlertTriangle size={18} />
+          <p>
+            Cette évolution compare les corpus collectés. Elle ne mesure pas une
+            évolution représentative de l'ensemble des clients.
+          </p>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="loading-line compact-loading">
@@ -8060,7 +8173,13 @@ function TrendPanel({
   );
 }
 
-function DecisionPanel({ insights }: { insights: BusinessInsights }) {
+function DecisionPanel({
+  insights,
+  run
+}: {
+  insights: BusinessInsights;
+  run: AnalysisRun;
+}) {
   return (
     <section className="decision-panel insight-section wide">
       <div className="decision-header">
@@ -8070,7 +8189,7 @@ function DecisionPanel({ insights }: { insights: BusinessInsights }) {
           <p>{insights.executive_summary}</p>
         </div>
         <div className={`health-meter risk-${insights.risk_level}`}>
-          <span>Score santé</span>
+          <span>{corpusScopedLabel("Score santé", run)}</span>
           <strong>{insights.health_score}</strong>
           <small>Risque {formatRisk(insights.risk_level)}</small>
         </div>
@@ -8098,11 +8217,15 @@ function DecisionPanel({ insights }: { insights: BusinessInsights }) {
             <CheckCircle2 size={16} />
             <h4>Actions suivantes</h4>
           </div>
-          <ol className="action-list">
-            {insights.next_actions.map((action) => (
-              <li key={action}>{action}</li>
-            ))}
-          </ol>
+          {insights.next_actions.length === 0 ? (
+            <p className="muted">Aucune action suivante proposée pour ce rapport.</p>
+          ) : (
+            <ol className="action-list">
+              {insights.next_actions.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
+            </ol>
+          )}
         </div>
 
         <div className="decision-block">
@@ -8119,6 +8242,113 @@ function DecisionPanel({ insights }: { insights: BusinessInsights }) {
             <h4>Points de vigilance</h4>
           </div>
           <WatchpointList watchpoints={insights.watchpoints} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CompletedReportReadout({
+  linkedAlerts,
+  onOpenCockpit,
+  summary
+}: {
+  linkedAlerts: BusinessAlert[];
+  onOpenCockpit: () => void;
+  summary: RunSummary;
+}) {
+  const insights = summary.business_insights;
+  const topPriority = insights.priorities.reduce<BusinessPriority | null>(
+    (selectedPriority, priority) =>
+      !selectedPriority || priority.rank < selectedPriority.rank
+        ? priority
+        : selectedPriority,
+    null
+  );
+  const nextAction = insights.next_actions[0] ?? null;
+  const firstLinkedAlert = linkedAlerts[0] ?? null;
+
+  return (
+    <section className="completed-report-readout insight-section wide">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">Première lecture</span>
+          <h3>Ce rapport est exploitable</h3>
+          {topPriority ? (
+            <p>
+              Commence par le signal classé prioritaire dans la synthèse, vérifie
+              les alertes ouvertes liées, puis transforme le constat en action client
+              si nécessaire.
+            </p>
+          ) : (
+            <p>
+              Lis les KPI, la synthèse et les avis disponibles pour confirmer ce qui
+              mérite une action.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="report-readout-grid">
+        <div className="report-readout-block">
+          <span>{topPriority ? "Signal principal" : "Lecture du rapport"}</span>
+          {topPriority ? (
+            <>
+              <strong>{topPriority.title}</strong>
+              <p>{topPriority.impact}</p>
+            </>
+          ) : (
+            <>
+              <strong>Aucune priorité critique détectée</strong>
+              <p>Lis les irritants et les avis analysés pour confirmer le prochain sujet.</p>
+            </>
+          )}
+        </div>
+
+        <div className="report-readout-block">
+          <span>Prochaine action</span>
+          {nextAction ? (
+            <>
+              <strong>{nextAction}</strong>
+              <p>Cette recommandation vient de la synthèse décisionnelle du rapport.</p>
+            </>
+          ) : (
+            <>
+              <strong>Aucune action suivante proposée</strong>
+              <p>Le rapport ne remonte pas de recommandation actionnable automatique.</p>
+            </>
+          )}
+        </div>
+
+        <div className="report-readout-block">
+          <span>Alertes liées</span>
+          {firstLinkedAlert ? (
+            <>
+              <div className="linked-alert-chip">
+                <strong>{firstLinkedAlert.title}</strong>
+                <em className={`alert-severity ${firstLinkedAlert.severity}`}>
+                  {formatAlertSeverity(firstLinkedAlert.severity)}
+                </em>
+              </div>
+              <p>
+                {linkedAlerts.length} alerte(s) ouverte(s) rattachée(s) à ce run
+                dans le cockpit.
+              </p>
+              <button
+                className="secondary-action compact-action"
+                onClick={onOpenCockpit}
+                type="button"
+              >
+                <ListChecks size={16} />
+                Ouvrir le cockpit
+              </button>
+            </>
+          ) : (
+            <>
+              <strong>Aucune alerte ouverte liée à ce run</strong>
+              <p>Les alertes ouvertes générées par les runs apparaissent dans le cockpit.</p>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -8321,7 +8551,12 @@ function RatingBars({ rows }: { rows: DistributionRow<number>[] }) {
 function TopicBars({ rows }: { rows: DistributionRow[] }) {
   const total = Math.max(...rows.map((row) => row.count), 1);
   if (rows.length === 0) {
-    return <p className="muted">Aucun irritant détecté.</p>;
+    return (
+      <p className="muted">
+        Aucun irritant détecté dans ce run. Consulte la synthèse et les avis
+        analysés pour confirmer les signaux faibles.
+      </p>
+    );
   }
   return (
     <div className="topic-grid">
@@ -8363,9 +8598,15 @@ function BarRow({
   );
 }
 
-function ReviewCards({ reviews }: { reviews: SummaryReview[] }) {
+function ReviewCards({
+  emptyMessage = "Aucun cas détecté.",
+  reviews
+}: {
+  emptyMessage?: string;
+  reviews: SummaryReview[];
+}) {
   if (reviews.length === 0) {
-    return <p className="muted">Aucun cas détecté.</p>;
+    return <p className="muted">{emptyMessage}</p>;
   }
 
   return (

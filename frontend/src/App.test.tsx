@@ -16,7 +16,9 @@ import type {
   ModelTrainingOverview,
   OrganizationSettings,
   OrganizationUsage,
-  ReviewSource
+  Review,
+  ReviewSource,
+  RunSummary
 } from "./types";
 
 const apiMocks = vi.hoisted(() => ({
@@ -376,8 +378,19 @@ function makeAnalysisRun(overrides: Partial<AnalysisRun> = {}): AnalysisRun {
     trustpilot_slug: source === "csv" ? "client-csv" : "example.com",
     source,
     status: "pending",
+    collection_mode: "representative",
+    max_pages: 25,
     pages_per_star: 1,
     stars_requested: [1, 2, 3, 4, 5],
+    pages_requested: 25,
+    pages_processed: 5,
+    pages_succeeded: 5,
+    pages_failed: 0,
+    reviews_extracted: 12,
+    unique_reviews: 12,
+    stop_reason: "natural_end",
+    is_representative_for_business_kpis: true,
+    business_kpi_warning: null,
     total_reviews: 0,
     celery_task_id: null,
     created_at: null,
@@ -385,6 +398,133 @@ function makeAnalysisRun(overrides: Partial<AnalysisRun> = {}): AnalysisRun {
     finished_at: null,
     execution_duration_seconds: null,
     error_message: null,
+    ...overrides
+  };
+}
+
+function makeSummaryReview(
+  overrides: Partial<RunSummary["critical_reviews"][number]> = {}
+): RunSummary["critical_reviews"][number] {
+  return {
+    review_id: 301,
+    rating: 1,
+    author_name: "Client presse",
+    verbatim: "La livraison est arrivee trop tard et sans information claire.",
+    sentiment_label: "Négatif",
+    sentiment_score: -0.82,
+    ...overrides
+  };
+}
+
+function makeBusinessInsights(
+  overrides: Partial<RunSummary["business_insights"]> = {}
+): RunSummary["business_insights"] {
+  return {
+    health_score: 58,
+    risk_level: "modere",
+    executive_summary:
+      "Les avis exploitables montrent un risque concentre sur les delais de livraison.",
+    priorities: [
+      {
+        rank: 1,
+        topic: "livraison",
+        title: "Retards de livraison",
+        severity: "elevee",
+        negative_reviews: 4,
+        share_of_reviews: 33.3,
+        impact: "Les retards concentrent les avis negatifs les plus recents.",
+        recommendation: "Prioriser le suivi transporteur sur les commandes en retard.",
+        examples: [
+          {
+            review_id: 301,
+            rating: 1,
+            sentiment_label: "Négatif",
+            sentiment_score: -0.82,
+            verbatim: "La livraison est arrivee trop tard."
+          }
+        ]
+      }
+    ],
+    strengths: [
+      {
+        topic: "produit",
+        title: "Produit conforme",
+        positive_reviews: 3,
+        recommendation: "Conserver la qualite percue du produit.",
+        examples: []
+      }
+    ],
+    watchpoints: [
+      {
+        title: "Reponses clients",
+        message: "Peu de reponses entreprise sur les avis negatifs.",
+        level: "warning"
+      }
+    ],
+    next_actions: ["Contacter le transporteur sur les commandes en retard"],
+    critical_review_count: 2,
+    ...overrides
+  };
+}
+
+function makeRunSummary(overrides: Partial<RunSummary> = {}): RunSummary {
+  const run =
+    overrides.run ??
+    makeAnalysisRun({
+      status: "completed",
+      total_reviews: 12,
+      execution_duration_seconds: 96
+    });
+  return {
+    run,
+    kpis: {
+      review_count: 12,
+      average_rating: 3.4,
+      average_confidence: 0.88,
+      responded_count: 2,
+      text_count: 10,
+      feedback_count: 0
+    },
+    sentiment_distribution: [
+      { label: "Négatif", count: 4 },
+      { label: "Neutre", count: 3 },
+      { label: "Positif", count: 5 }
+    ],
+    rating_distribution: [
+      { rating: 1, count: 1 },
+      { rating: 2, count: 3 },
+      { rating: 3, count: 3 },
+      { rating: 4, count: 2 },
+      { rating: 5, count: 3 }
+    ],
+    top_topics: [{ topic: "livraison", count: 4 }],
+    critical_reviews: [makeSummaryReview()],
+    rating_text_mismatches: [
+      makeSummaryReview({
+        review_id: 302,
+        rating: 5,
+        verbatim: "La note est haute mais le texte critique la livraison."
+      })
+    ],
+    business_insights: makeBusinessInsights(),
+    ...overrides
+  };
+}
+
+function makeReview(overrides: Partial<Review> = {}): Review {
+  return {
+    review_id: 301,
+    rating: 1,
+    author_name: "Client presse",
+    raw_date: "2026-08-27",
+    verbatim: "La livraison est arrivee trop tard et sans information claire.",
+    company_responded: false,
+    sentiment_label: "Négatif",
+    sentiment_score: -0.82,
+    corrected_label: null,
+    feedback_comment: null,
+    feedback_updated_at: null,
+    topics: ["livraison"],
     ...overrides
   };
 }
@@ -1037,6 +1177,210 @@ describe("App authentication and permissions", () => {
         "Ce run n'est pas en échec technique, mais il ne contient pas assez de données exploitables pour afficher les KPI et irritants."
       )
     ).toBeInTheDocument();
+  });
+
+  it("surfaces the Première lecture priority and linked alert path for a completed report", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const completedRun = makeAnalysisRun({
+      status: "completed",
+      total_reviews: 12,
+      execution_duration_seconds: 96
+    });
+    const rankOnePriority = makeBusinessInsights().priorities[0];
+    const rankTwoPriority = {
+      ...rankOnePriority,
+      rank: 2,
+      topic: "support",
+      title: "Support de second rang",
+      impact: "Le support apparait apres la livraison dans le classement API.",
+      recommendation: "Relire les avis support apres le sujet livraison."
+    };
+    apiMocks.listRuns.mockResolvedValue([completedRun]);
+    apiMocks.getSummary.mockResolvedValue(
+      makeRunSummary({
+        run: completedRun,
+        business_insights: makeBusinessInsights({
+          priorities: [rankTwoPriority, rankOnePriority]
+        })
+      })
+    );
+    apiMocks.getReviews.mockResolvedValue({
+      run_id: completedRun.run_id,
+      total: 1,
+      limit: 30,
+      offset: 0,
+      reviews: [makeReview()]
+    });
+    apiMocks.getRunTrend.mockRejectedValue(new Error("Aucun run precedent"));
+    apiMocks.listBusinessAlerts.mockResolvedValue([
+      {
+        ...businessAlert,
+        run_id: completedRun.run_id,
+        title: "Retards livraison critiques",
+        severity: "critical"
+      },
+      {
+        ...businessAlert,
+        alert_id: 10,
+        run_id: 999,
+        title: "Alerte d'un autre run"
+      }
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    const readoutHeading = await screen.findByRole("heading", {
+      name: "Ce rapport est exploitable"
+    });
+    const readout = readoutHeading.closest(".completed-report-readout");
+    expect(readout).not.toBeNull();
+    const withinReadout = within(readout as HTMLElement);
+
+    expect(withinReadout.getByText("Signal principal")).toBeInTheDocument();
+    expect(withinReadout.getByText("Retards de livraison")).toBeInTheDocument();
+    expect(
+      withinReadout.getByText("Contacter le transporteur sur les commandes en retard")
+    ).toBeInTheDocument();
+    expect(
+      withinReadout.getByText("Retards livraison critiques")
+    ).toBeInTheDocument();
+    expect(
+      withinReadout.queryByText("Support de second rang")
+    ).not.toBeInTheDocument();
+    expect(
+      withinReadout.queryByText("Alerte d'un autre run")
+    ).not.toBeInTheDocument();
+    expect(
+      withinReadout.getByText("1 alerte(s) ouverte(s) rattachée(s) à ce run dans le cockpit.")
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Avis analysés").length).toBeGreaterThan(0);
+    expect(screen.getByText("10 verbatims")).toBeInTheDocument();
+    expect(screen.getByText("Priorités recommandées")).toBeInTheDocument();
+    expect(screen.queryByText("Portée limitée des KPI métier")).not.toBeInTheDocument();
+
+    await user.click(
+      withinReadout.getByRole("button", { name: "Ouvrir le cockpit" })
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Priorites operationnelles" })
+    ).toBeInTheDocument();
+  });
+
+  it("scopes sampled run KPIs to the collected corpus while keeping text analysis visible", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const warning =
+      "Échantillon analytique équilibré par étoiles : les KPI de note et de distribution décrivent uniquement les avis collectés.";
+    const completedRun = makeAnalysisRun({
+      status: "completed",
+      collection_mode: "sampled",
+      stop_reason: "user_limit",
+      total_reviews: 12,
+      is_representative_for_business_kpis: false,
+      business_kpi_warning: warning
+    });
+    apiMocks.listRuns.mockResolvedValue([completedRun]);
+    apiMocks.getSummary.mockResolvedValue(
+      makeRunSummary({ run: completedRun })
+    );
+    apiMocks.getReviews.mockResolvedValue({
+      run_id: completedRun.run_id,
+      total: 1,
+      limit: 30,
+      offset: 0,
+      reviews: [makeReview()]
+    });
+    apiMocks.getRunTrend.mockRejectedValue(new Error("Aucun run precedent"));
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    expect(await screen.findByText("Portée limitée des KPI métier")).toBeInTheDocument();
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    expect(screen.getByText("Note moyenne du corpus")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Sentiment du corpus" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Irritants détectés" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Première lecture neutral without priority in a completed report", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const completedRun = makeAnalysisRun({
+      status: "completed",
+      total_reviews: 3
+    });
+    apiMocks.listRuns.mockResolvedValue([completedRun]);
+    apiMocks.getSummary.mockResolvedValue(
+      makeRunSummary({
+        run: completedRun,
+        top_topics: [],
+        critical_reviews: [],
+        rating_text_mismatches: [],
+        business_insights: makeBusinessInsights({
+          priorities: [],
+          next_actions: [],
+          strengths: [],
+          watchpoints: []
+        })
+      })
+    );
+    apiMocks.getReviews.mockResolvedValue({
+      run_id: completedRun.run_id,
+      total: 1,
+      limit: 30,
+      offset: 0,
+      reviews: [makeReview()]
+    });
+    apiMocks.getRunTrend.mockRejectedValue(new Error("Aucun run precedent"));
+    apiMocks.listBusinessAlerts.mockResolvedValue([]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    const readoutHeading = await screen.findByRole("heading", {
+      name: "Ce rapport est exploitable"
+    });
+    const readout = readoutHeading.closest(".completed-report-readout");
+    expect(readout).not.toBeNull();
+    const withinReadout = within(readout as HTMLElement);
+    expect(withinReadout.getByText("Lecture du rapport")).toBeInTheDocument();
+    expect(withinReadout.queryByText("Signal principal")).not.toBeInTheDocument();
+    expect(
+      withinReadout.getByText(
+        "Lis les KPI, la synthèse et les avis disponibles pour confirmer ce qui mérite une action."
+      )
+    ).toBeInTheDocument();
+    expect(
+      withinReadout.queryByText(/signal classé prioritaire/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Aucune alerte ouverte liée à ce run")
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Aucune priorité critique détectée").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Aucune action suivante proposée pour ce rapport.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Aucun irritant détecté dans ce run. Consulte la synthèse et les avis analysés pour confirmer les signaux faibles."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Aucun avis critique détecté dans ce run.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Aucun décalage note/texte détecté dans ce run.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("La livraison est arrivee trop tard et sans information claire.")).toBeInTheDocument();
   });
 
   it("lets an admin retry a failed analysis run", async () => {

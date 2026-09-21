@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import pickle
@@ -8,7 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -51,6 +52,12 @@ TARGET_TO_LABEL = {value: key for key, value in LABEL_TO_TARGET.items()}
 TARGET_NAMES = [TARGET_TO_LABEL[i] for i in sorted(TARGET_TO_LABEL)]
 MANUAL_DATASET_SOURCE = "manual_annotations"
 FEEDBACK_DATASET_SOURCE = "review_feedback"
+EVALUATION_KEY_COLUMN = "_evaluation_key"
+MLFLOW_CLASS_NAMES = {
+    0: "negatif",
+    1: "neutre",
+    2: "positif",
+}
 
 
 def get_feedback_sample_weight():
@@ -427,6 +434,237 @@ def normalize_verbatim_for_dedupe(value):
     return re.sub(r"\s+", " ", str(value or "").strip().lower())
 
 
+def normalize_rating_for_dedupe(value):
+    if pd.isna(value):
+        return "NA"
+
+    try:
+        numeric_rating = float(value)
+    except (TypeError, ValueError):
+        return str(value).strip().lower()
+
+    if numeric_rating.is_integer():
+        return str(int(numeric_rating))
+    return format(numeric_rating, "g")
+
+
+def build_evaluation_keys(df):
+    return (
+        df["verbatim"].map(normalize_verbatim_for_dedupe)
+        + "|"
+        + df["rating"].map(normalize_rating_for_dedupe)
+    )
+
+
+def deduplicate_training_dataframe(df):
+    df = df.copy()
+    df[EVALUATION_KEY_COLUMN] = build_evaluation_keys(df)
+    duplicate_mask = df[EVALUATION_KEY_COLUMN].duplicated(keep=False)
+    duplicate_group_count = int(df.loc[duplicate_mask, EVALUATION_KEY_COLUMN].nunique())
+
+    df["_dedupe_source_priority"] = (
+        df.get("dataset_source", pd.Series(index=df.index, dtype="object"))
+        .fillna("")
+        .eq(FEEDBACK_DATASET_SOURCE)
+        .astype(int)
+    )
+    df["_dedupe_original_order"] = np.arange(len(df))
+    before_deduplication = len(df)
+    df = (
+        df.sort_values(
+            [EVALUATION_KEY_COLUMN, "_dedupe_source_priority", "_dedupe_original_order"],
+            kind="stable",
+        )
+        .drop_duplicates(subset=[EVALUATION_KEY_COLUMN], keep="last")
+        .sort_values("_dedupe_original_order", kind="stable")
+        .drop(columns=["_dedupe_source_priority", "_dedupe_original_order"])
+        .reset_index(drop=True)
+    )
+    removed_count = before_deduplication - len(df)
+    df.attrs["deduplication"] = {
+        "rows_before": int(before_deduplication),
+        "rows_after": int(len(df)),
+        "removed_rows": int(removed_count),
+        "duplicate_groups": int(duplicate_group_count),
+    }
+
+    if removed_count:
+        print(
+            "[+] Déduplication globale avant split: "
+            f"{removed_count} ligne(s) retirée(s) dans "
+            f"{duplicate_group_count} groupe(s)."
+        )
+
+    return df
+
+
+def split_training_dataframe(df, test_size=0.2, random_state=42):
+    df = df.copy()
+    if EVALUATION_KEY_COLUMN not in df.columns:
+        df[EVALUATION_KEY_COLUMN] = build_evaluation_keys(df)
+
+    duplicate_count = int(df[EVALUATION_KEY_COLUMN].duplicated().sum())
+    if duplicate_count:
+        raise ValueError(
+            "Le dataset doit être dédupliqué avant le split "
+            f"({duplicate_count} clé(s) dupliquée(s) restante(s))."
+        )
+
+    train_df, test_df = train_test_split(
+        df,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=df["target"],
+    )
+    common_keys = set(train_df[EVALUATION_KEY_COLUMN]).intersection(
+        test_df[EVALUATION_KEY_COLUMN]
+    )
+    if common_keys:
+        raise AssertionError(
+            "Contamination train/test détectée: "
+            f"{len(common_keys)} clé(s) commune(s)."
+        )
+
+    return train_df.copy(), test_df.copy()
+
+
+def compute_training_dataset_hash(df):
+    hasher = hashlib.sha256()
+    hash_columns = [
+        "id",
+        "verbatim",
+        "rating",
+        "target",
+        "dataset_source",
+        "sample_weight",
+    ]
+    available_columns = [column for column in hash_columns if column in df.columns]
+    hasher.update(("columns=" + ",".join(available_columns) + "\n").encode("utf-8"))
+
+    for row in df[available_columns].itertuples(index=False, name=None):
+        normalized_row = []
+        for value in row:
+            if pd.isna(value):
+                normalized_row.append(None)
+            elif isinstance(value, (np.integer, np.floating)):
+                normalized_row.append(value.item())
+            else:
+                normalized_row.append(value)
+        serialized_row = json.dumps(
+            normalized_row,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            default=str,
+        )
+        hasher.update(serialized_row.encode("utf-8"))
+        hasher.update(b"\n")
+
+    return hasher.hexdigest()
+
+
+def build_class_distribution_metrics(df, prefix):
+    counts = df["target"].value_counts().reindex(sorted(TARGET_TO_LABEL), fill_value=0)
+    total = len(df)
+    metrics = {}
+    for target, count in counts.items():
+        class_name = MLFLOW_CLASS_NAMES[int(target)]
+        metrics[f"{prefix}_class_{class_name}_count"] = int(count)
+        metrics[f"{prefix}_class_{class_name}_ratio"] = (
+            float(count) / total if total else 0.0
+        )
+    return metrics
+
+
+def build_mlflow_evaluation_payload(
+    df,
+    train_df,
+    test_df,
+    y_test,
+    y_pred,
+    evaluation_report,
+    accuracy,
+    random_state,
+    test_size,
+):
+    deduplication = df.attrs.get("deduplication", {})
+    dataset_hash = compute_training_dataset_hash(df)
+    snapshot_path = TRAINING_SNAPSHOT_PATH.relative_to(PROJECT_ROOT).as_posix()
+
+    metrics = {
+        "accuracy": float(accuracy),
+        "macro_f1": float(evaluation_report["macro avg"]["f1-score"]),
+        "weighted_f1": float(evaluation_report["weighted avg"]["f1-score"]),
+        "train_examples": int(len(train_df)),
+        "test_examples": int(len(test_df)),
+        "dataset_rows_before_deduplication": int(
+            deduplication.get("rows_before", len(df))
+        ),
+        "dataset_rows_after_deduplication": int(
+            deduplication.get("rows_after", len(df))
+        ),
+        "dataset_duplicates_removed": int(deduplication.get("removed_rows", 0)),
+        "dataset_duplicate_groups": int(deduplication.get("duplicate_groups", 0)),
+    }
+    for target, class_name in MLFLOW_CLASS_NAMES.items():
+        class_report = evaluation_report[TARGET_TO_LABEL[target]]
+        metrics[f"class_{class_name}_precision"] = float(
+            class_report["precision"]
+        )
+        metrics[f"class_{class_name}_recall"] = float(class_report["recall"])
+        metrics[f"class_{class_name}_f1"] = float(class_report["f1-score"])
+
+    metrics.update(build_class_distribution_metrics(df, "dataset"))
+    metrics.update(build_class_distribution_metrics(train_df, "train"))
+    metrics.update(build_class_distribution_metrics(test_df, "test"))
+
+    parameters = {
+        "random_state": int(random_state),
+        "test_size": float(test_size),
+        "split_strategy": "stratified_after_global_deduplication",
+        "deduplication_key": "normalized_verbatim+normalized_rating",
+        "dataset_sha256": dataset_hash,
+        "dataset_snapshot_path": snapshot_path,
+        "rating_feature_weight": RATING_FEATURE_WEIGHT,
+    }
+    confusion = confusion_matrix(
+        y_test,
+        y_pred,
+        labels=sorted(TARGET_TO_LABEL),
+    )
+    dataset_info = {
+        "sha256": dataset_hash,
+        "snapshot_path": snapshot_path,
+        "hash_columns": [
+            "id",
+            "verbatim",
+            "rating",
+            "target",
+            "dataset_source",
+            "sample_weight",
+        ],
+        "rows_before_deduplication": metrics[
+            "dataset_rows_before_deduplication"
+        ],
+        "rows_after_deduplication": metrics["dataset_rows_after_deduplication"],
+        "duplicates_removed": metrics["dataset_duplicates_removed"],
+        "duplicate_groups": metrics["dataset_duplicate_groups"],
+        "train_examples": metrics["train_examples"],
+        "test_examples": metrics["test_examples"],
+        "split_strategy": parameters["split_strategy"],
+        "random_state": parameters["random_state"],
+        "test_size": parameters["test_size"],
+    }
+    artifacts = {
+        "evaluation/confusion_matrix.json": {
+            "labels": TARGET_NAMES,
+            "matrix": confusion.tolist(),
+        },
+        "evaluation/classification_report.json": evaluation_report,
+        "dataset/dataset_info.json": dataset_info,
+    }
+    return metrics, parameters, artifacts
+
+
 def ensure_training_metadata_columns(df, dataset_source):
     df = df.copy()
     defaults = {
@@ -515,11 +753,7 @@ def load_feedback_annotations_from_database():
     feedback = ensure_training_metadata_columns(feedback, FEEDBACK_DATASET_SOURCE)
 
     before_deduplication = len(feedback)
-    feedback["_dedupe_key"] = (
-        feedback["verbatim"].map(normalize_verbatim_for_dedupe)
-        + "|"
-        + feedback["rating"].fillna("NA").astype(str)
-    )
+    feedback["_dedupe_key"] = build_evaluation_keys(feedback)
     feedback = (
         feedback.sort_values("feedback_updated_at")
         .drop_duplicates(subset=["_dedupe_key"], keep="last")
@@ -672,13 +906,17 @@ def build_training_dataframe(annotated_df, feedback_sample_weight=None):
         )
         df = df[df["verbatim"] != ""].copy()
 
+    df = deduplicate_training_dataframe(df)
+
     print(f"[+] Lignes utilisées pour l'entraînement: {len(df)} lignes.")
     if "dataset_source" in df.columns:
         print("[+] Lignes utilisées par source:")
         print(df["dataset_source"].value_counts())
     print("[+] Distribution utilisée pour l'entraînement:")
     print(df["manual_label"].value_counts().reindex(TARGET_NAMES, fill_value=0))
+    deduplication_metadata = df.attrs.get("deduplication", {}).copy()
     df = apply_sample_weights(df, feedback_sample_weight)
+    df.attrs["deduplication"] = deduplication_metadata
     write_training_dataset_snapshot(df)
 
     return df
@@ -736,46 +974,104 @@ def serialize_model(model, output_path=MODEL_OUTPUT_PATH):
     print(f"[+] Modèle sérialisé localement: {output_path}")
 
 
-def log_model_to_mlflow(model, accuracy, training_metadata=None):
+def log_model_to_mlflow(
+    model,
+    metrics,
+    parameters,
+    artifacts,
+    promote_to_production=True,
+):
+    publication = {
+        "mlflow_logging_succeeded": False,
+        "model_registration_succeeded": False,
+        "production_alias_promotion_attempted": False,
+        "production_alias_promotion_succeeded": False,
+        "mlflow_publication_succeeded": False,
+        "mlflow_run_id": None,
+        "model_version": None,
+        "model_uri": None,
+        "mlflow_error_stage": None,
+        "mlflow_error": None,
+    }
     if mlflow is None or MlflowClient is None:
-        raise RuntimeError("mlflow n'est pas installé dans cet environnement.")
+        publication["mlflow_error_stage"] = "mlflow_logging"
+        publication["mlflow_error"] = "mlflow n'est pas installé dans cet environnement."
+        print(f"[-] Publication MLflow échouée: {publication['mlflow_error']}")
+        return publication
 
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"))
-
-    with mlflow.start_run():
-        active_run = mlflow.active_run()
-        mlflow_run_id = active_run.info.run_id if active_run else None
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_param("rating_feature_weight", RATING_FEATURE_WEIGHT)
-        if training_metadata:
-            for key, value in training_metadata.items():
-                if isinstance(value, (int, float, np.integer, np.floating)):
-                    mlflow.log_metric(key, float(value))
-                else:
-                    mlflow.log_param(key, value)
-
-        model_info = mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="sentiment_model",
-            registered_model_name="sentiment_model",
+    stage = "mlflow_logging"
+    try:
+        mlflow.set_tracking_uri(
+            os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
         )
+        with mlflow.start_run():
+            active_run = mlflow.active_run()
+            publication["mlflow_run_id"] = (
+                active_run.info.run_id if active_run else None
+            )
+            mlflow.set_tag("training_status", "succeeded")
+            mlflow.log_metrics(metrics)
+            mlflow.log_params(parameters)
+            for artifact_path, artifact_content in artifacts.items():
+                mlflow.log_dict(artifact_content, artifact_path)
+            publication["mlflow_logging_succeeded"] = True
+            mlflow.set_tag("mlflow_logging_status", "succeeded")
 
-        client = MlflowClient()
-        client.set_registered_model_alias(
-            name="sentiment_model",
-            alias="production",
-            version=model_info.registered_model_version,
-        )
+            stage = "model_registration"
+            model_info = mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="sentiment_model",
+                registered_model_name="sentiment_model",
+            )
+            model_version = getattr(model_info, "registered_model_version", None)
+            if model_version is None:
+                raise RuntimeError("MLflow n'a retourné aucune version de modèle.")
+            publication["model_registration_succeeded"] = True
+            publication["model_version"] = str(model_version)
+            publication["model_uri"] = f"models:/sentiment_model/{model_version}"
+            mlflow.set_tag("model_registration_status", "succeeded")
 
-        print(
-            "[+] Modèle déployé sur MLflow "
-            f"(v{model_info.registered_model_version}, alias production)."
-        )
-        return {
-            "model_version": str(model_info.registered_model_version),
-            "model_uri": "models:/sentiment_model@production",
-            "mlflow_run_id": mlflow_run_id,
-        }
+            if promote_to_production:
+                stage = "production_alias_promotion"
+                publication["production_alias_promotion_attempted"] = True
+                client = MlflowClient()
+                client.set_registered_model_alias(
+                    name="sentiment_model",
+                    alias="production",
+                    version=model_version,
+                )
+                publication["production_alias_promotion_succeeded"] = True
+                publication["model_uri"] = "models:/sentiment_model@production"
+                mlflow.set_tag("production_alias_promotion_status", "succeeded")
+            else:
+                mlflow.set_tag("production_alias_promotion_status", "not_attempted")
+
+            publication["mlflow_publication_succeeded"] = (
+                publication["mlflow_logging_succeeded"]
+                and publication["model_registration_succeeded"]
+                and (
+                    publication["production_alias_promotion_succeeded"]
+                    if promote_to_production
+                    else True
+                )
+            )
+    except Exception as exc:
+        publication["mlflow_error_stage"] = stage
+        publication["mlflow_error"] = str(exc)
+        try:
+            mlflow.set_tag(f"{stage}_status", "failed")
+        except Exception:
+            pass
+        print(f"[-] Publication MLflow échouée à l'étape {stage}: {exc}")
+        return publication
+
+    print(
+        "[+] Publication MLflow réussie: métriques et artefacts journalisés, "
+        f"modèle enregistré en v{publication['model_version']}."
+    )
+    if publication["production_alias_promotion_succeeded"]:
+        print("[+] Promotion de l'alias production réussie.")
+    return publication
 
 
 def synchronize_database_predictions(model):
@@ -833,7 +1129,23 @@ def synchronize_database_predictions(model):
         conn.close()
 
 
-def train_and_log_model(test_size=0.2, random_state=42):
+def synchronize_predictions_after_production_promotion(model, publication_metadata):
+    if not publication_metadata.get("production_alias_promotion_succeeded"):
+        print(
+            "[*] Synchronisation PostgreSQL non exécutée: "
+            "le nouveau modèle n'est pas devenu production."
+        )
+        return False
+
+    synchronize_database_predictions(model)
+    return True
+
+
+def train_and_log_model(
+    test_size=0.2,
+    random_state=42,
+    promote_to_production=True,
+):
     print(
         "[*] Démarrage de l'entraînement depuis annotations manuelles "
         "+ corrections humaines..."
@@ -850,26 +1162,18 @@ def train_and_log_model(test_size=0.2, random_state=42):
         annotated_df, feedback_sample_weight=feedback_sample_weight
     )
     feature_columns = ["verbatim", "rating"]
-    source_series = df["dataset_source"].fillna("unknown")
-    sample_weights = df["sample_weight"]
-    (
-        x_train,
-        x_test,
-        y_train,
-        y_test,
-        sample_weight_train,
-        _sample_weight_test,
-        _source_train,
-        source_test,
-    ) = train_test_split(
-        df[feature_columns],
-        df["target"],
-        sample_weights,
-        source_series,
+    train_df, test_df = split_training_dataframe(
+        df,
         test_size=test_size,
         random_state=random_state,
-        stratify=df["target"],
     )
+    x_train = train_df[feature_columns]
+    x_test = test_df[feature_columns]
+    y_train = train_df["target"]
+    y_test = test_df["target"]
+    sample_weight_train = train_df["sample_weight"]
+    source_test = test_df["dataset_source"].fillna("unknown")
+    sample_weights = df["sample_weight"]
 
     evaluation_model = build_model()
     evaluation_model.fit(x_train, y_train, clf__sample_weight=sample_weight_train)
@@ -899,6 +1203,7 @@ def train_and_log_model(test_size=0.2, random_state=42):
     serialize_model(final_model)
 
     source_counts = df["dataset_source"].value_counts()
+    deduplication_metadata = df.attrs.get("deduplication", {})
     training_metadata = {
         "training_rows": int(len(df)),
         "training_manual_rows": int(source_counts.get(MANUAL_DATASET_SOURCE, 0)),
@@ -908,22 +1213,55 @@ def train_and_log_model(test_size=0.2, random_state=42):
         "training_sources": ",".join(sorted(source_counts.index.astype(str))),
         "macro_f1": macro_f1,
         "weighted_f1": weighted_f1,
+        "duplicates_removed": int(deduplication_metadata.get("removed_rows", 0)),
     }
 
-    mlflow_metadata = {}
-    try:
-        mlflow_metadata = log_model_to_mlflow(final_model, accuracy, training_metadata)
-    except Exception as exc:
-        print(f"[-] MLflow indisponible ou non configuré: {exc}")
-        print("[*] Le modèle local sérialisé reste disponible.")
+    mlflow_metrics, mlflow_parameters, mlflow_artifacts = (
+        build_mlflow_evaluation_payload(
+            df=df,
+            train_df=train_df,
+            test_df=test_df,
+            y_test=y_test,
+            y_pred=y_pred,
+            evaluation_report=evaluation_report,
+            accuracy=accuracy,
+            random_state=random_state,
+            test_size=test_size,
+        )
+    )
+    mlflow_metrics.update(
+        {
+            "training_manual_rows": training_metadata["training_manual_rows"],
+            "training_feedback_rows": training_metadata["training_feedback_rows"],
+            "training_effective_rows": training_metadata["training_effective_rows"],
+        }
+    )
+    mlflow_parameters.update(
+        {
+            "feedback_sample_weight": float(feedback_sample_weight),
+            "training_sources": training_metadata["training_sources"],
+        }
+    )
+    mlflow_metadata = log_model_to_mlflow(
+        final_model,
+        metrics=mlflow_metrics,
+        parameters=mlflow_parameters,
+        artifacts=mlflow_artifacts,
+        promote_to_production=promote_to_production,
+    )
 
     try:
-        synchronize_database_predictions(final_model)
+        synchronize_predictions_after_production_promotion(
+            final_model,
+            mlflow_metadata,
+        )
     except Exception as exc:
         print(f"[-] Synchronisation PostgreSQL ignorée: {exc}")
 
 
     return {
+        "training_succeeded": True,
+        "local_model_serialization_succeeded": True,
         "accuracy": float(accuracy),
         "macro_f1": macro_f1,
         "weighted_f1": weighted_f1,

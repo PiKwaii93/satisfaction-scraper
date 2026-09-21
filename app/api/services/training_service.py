@@ -232,6 +232,11 @@ def execute_model_training_run(training_run_id):
         from app import train_model
 
         result = train_model.train_and_log_model() or {}
+        publication_error = None
+        if not result.get("mlflow_publication_succeeded"):
+            error_stage = result.get("mlflow_error_stage") or "mlflow_publication"
+            error_detail = result.get("mlflow_error") or "échec sans détail"
+            publication_error = f"{error_stage}: {error_detail}"
         with get_cursor(commit=True) as cursor:
             cursor.execute(
                 """
@@ -249,6 +254,7 @@ def execute_model_training_run(training_run_id):
                     model_version = %s,
                     mlflow_run_id = %s,
                     model_uri = %s,
+                    error_message = %s,
                     finished_at = NOW(),
                     updated_at = NOW()
                 WHERE training_run_id = %s;
@@ -264,16 +270,23 @@ def execute_model_training_run(training_run_id):
                     _safe_float(result.get("weighted_f1")),
                     result.get("model_version"),
                     result.get("mlflow_run_id"),
-                    result.get("model_uri") or PRODUCTION_MODEL_URI,
+                    result.get("model_uri"),
+                    publication_error,
                     training_run_id,
                 ),
             )
-        try:
-            from app import sentiment_analysis
+        if result.get("production_alias_promotion_succeeded"):
+            try:
+                from app import sentiment_analysis
 
-            sentiment_analysis.reload_model()
-        except Exception as exc:
-            print(f"[-] Rechargement du modele apres entrainement ignore: {exc}")
+                sentiment_analysis.reload_model()
+            except Exception as exc:
+                print(f"[-] Rechargement du modele apres entrainement ignore: {exc}")
+        elif publication_error:
+            print(
+                "[-] Entraînement réussi, mais publication MLflow incomplète: "
+                f"{publication_error}"
+            )
         return get_model_training_run(training_run_id)
     except Exception as exc:
         _set_training_run_failed(training_run_id, exc)

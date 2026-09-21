@@ -829,6 +829,29 @@ a {
   font-weight: 800;
 }
 
+.business-kpi-scope-warning {
+  align-items: flex-start;
+  background: #fff8e8;
+  border: 1px solid #e9bf63;
+  color: #694900;
+  display: flex;
+  gap: 12px;
+}
+
+.business-kpi-scope-warning strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.business-kpi-scope-warning p {
+  margin: 0;
+}
+
+.business-kpi-scope-warning.compact {
+  margin-top: 14px;
+  padding: 12px;
+}
+
 .analysis-form-heading div {
   display: grid;
   gap: 3px;
@@ -3279,6 +3302,54 @@ a {
   gap: 14px;
 }
 
+.completed-report-readout .section-heading p {
+  max-width: 880px;
+  margin: 8px 0 0;
+  color: #475467;
+  line-height: 1.5;
+}
+
+.report-readout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-readout-block {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.report-readout-block > span {
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.report-readout-block strong {
+  overflow-wrap: anywhere;
+  color: #18202c;
+  font-size: 0.95rem;
+}
+
+.report-readout-block p {
+  margin: 0;
+  color: #475467;
+  line-height: 1.45;
+}
+
+.linked-alert-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .decision-block {
   min-width: 0;
   padding-top: 14px;
@@ -4003,7 +4074,8 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .decision-grid {
+  .decision-grid,
+  .report-readout-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4095,6 +4167,7 @@ tbody tr:last-child td {
   .benchmark-highlight-grid,
   .onboarding-step-list,
   .decision-grid,
+  .report-readout-grid,
   .trend-metric-grid,
   .trend-sentiment-grid,
   .trend-topic-grid,

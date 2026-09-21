@@ -222,8 +222,19 @@ export type AnalysisRun = {
   trustpilot_slug: string;
   source: AnalysisSource;
   status: "pending" | "running" | "completed" | "failed" | "empty";
+  collection_mode?: "sampled" | "representative" | null;
+  max_pages?: number | null;
   pages_per_star: number;
   stars_requested: number[];
+  pages_requested?: number | null;
+  pages_processed?: number;
+  pages_succeeded?: number;
+  pages_failed?: number;
+  reviews_extracted?: number;
+  unique_reviews?: number;
+  stop_reason?: string | null;
+  is_representative_for_business_kpis?: boolean;
+  business_kpi_warning?: string | null;
   total_reviews: number;
   celery_task_id: string | null;
   created_at: string | null;
@@ -562,6 +573,8 @@ export type BenchmarkCompany = {
   negative_rate: number;
   top_topics: BenchmarkTopicCount[];
   unique_topics: BenchmarkTopicCount[];
+  is_representative_for_business_kpis?: boolean;
+  business_kpi_warning?: string | null;
 };
 
 export type BenchmarkHighlights = {

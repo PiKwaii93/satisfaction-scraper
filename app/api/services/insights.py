@@ -49,7 +49,7 @@ TOPIC_PATTERNS = {
         re.IGNORECASE,
     ),
     "remboursement": re.compile(
-        r"\b(rembours|avoir|compensation|indemnis|pr[eé]l[eè]vement)\b",
+        r"\b(rembours(?:ement|ements|er|é|ée|és|ées|e|es)?|avoir|compensation|indemnis|pr[eé]l[eè]vement)\b",
         re.IGNORECASE,
     ),
     "retour": re.compile(

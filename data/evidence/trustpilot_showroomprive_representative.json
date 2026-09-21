@@ -1,0 +1,39 @@
+{
+  "company": {
+    "name": "Showroomprive",
+    "source_url": "https://fr.trustpilot.com/review/www.showroomprive.com",
+    "trustpilot_slug": "www.showroomprive.com",
+    "trustscore": 3.9,
+    "total_reviews": 264792,
+    "rating_distribution": {
+      "1": 13.0,
+      "2": 9.0,
+      "3": 16.0,
+      "4": 23.0,
+      "5": 39.0
+    },
+    "domain": "e-commerce",
+    "metadata_source": "Trustpilot public company page",
+    "metadata_verified_at": "2026-09-21"
+  },
+  "collection": {
+    "mode": "representative",
+    "pages_requested": 2,
+    "pages_processed": 1,
+    "pages_succeeded": 0,
+    "pages_failed": 1,
+    "reviews_extracted": 0,
+    "unique_reviews": 0,
+    "stop_reason": "platform_limitation",
+    "errors": [
+      {
+        "page": 1,
+        "star": null,
+        "error": "http_403"
+      }
+    ]
+  },
+  "reviews": [],
+  "target_company": "www.showroomprive.com",
+  "total_extracted": 0
+}

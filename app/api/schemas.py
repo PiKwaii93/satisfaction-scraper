@@ -226,6 +226,17 @@ class AnalysisRunCreate(BaseModel):
         default="trustpilot",
         description="Source d'avis actuellement supportée.",
     )
+    domain: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Domaine métier explicite, par exemple banque ou e-commerce.",
+    )
+    collection_mode: Literal["sampled", "representative"] = Field(
+        default="sampled",
+        description=(
+            "sampled filtre par étoiles; representative suit l'ordre naturel."
+        ),
+    )
     stars: list[int] = Field(
         default_factory=lambda: [1, 2, 3, 4, 5],
         description="Notes Trustpilot à collecter.",
@@ -236,6 +247,15 @@ class AnalysisRunCreate(BaseModel):
         ge=1,
         le=20,
         description="Nombre de pages Trustpilot à collecter pour chaque note.",
+    )
+    max_pages: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000,
+        description=(
+            "Limite totale optionnelle du mode representative. "
+            "Sans valeur, la collecte s'arrête à la fin détectée."
+        ),
     )
     skip_scrape: bool = Field(
         default=False,
@@ -252,8 +272,11 @@ class AnalysisRunCreate(BaseModel):
                 {
                     "company": "https://fr.trustpilot.com/review/www.darty.com",
                     "source": "trustpilot",
+                    "domain": "e-commerce",
+                    "collection_mode": "representative",
                     "stars": [1, 2, 3, 4, 5],
                     "pages_per_star": 1,
+                    "max_pages": 10,
                     "execute_immediately": True,
                 }
             ]
@@ -266,10 +289,25 @@ class AnalysisRunResponse(BaseModel):
     company_id: int
     company_name: str
     trustpilot_slug: str
+    domain: str | None = None
+    trustscore: float | None = None
+    total_review_count: int | None = None
+    rating_distribution: dict[str, float | None] | None = None
     source: str
     status: str
+    collection_mode: str | None = None
+    max_pages: int | None = None
     pages_per_star: int
     stars_requested: list[int]
+    pages_requested: int | None = None
+    pages_processed: int = 0
+    pages_succeeded: int = 0
+    pages_failed: int = 0
+    reviews_extracted: int = 0
+    unique_reviews: int = 0
+    stop_reason: str | None = None
+    is_representative_for_business_kpis: bool = False
+    business_kpi_warning: str | None = None
     total_reviews: int
     celery_task_id: str | None = None
     created_at: str | None = None
@@ -308,11 +346,14 @@ class AnalysisRunEventResponse(BaseModel):
 
 class ReviewResponse(BaseModel):
     review_id: int
+    source_review_id: str | None = None
+    review_url: str | None = None
     rating: int | None
     author_name: str | None
     raw_date: str | None
     verbatim: str | None
     company_responded: bool
+    company_reply_text: str | None = None
     sentiment_label: str
     sentiment_score: float
     corrected_label: str | None = None
@@ -488,6 +529,8 @@ class BenchmarkCompany(BaseModel):
     negative_rate: float
     top_topics: list[BenchmarkTopicCount] = Field(default_factory=list)
     unique_topics: list[BenchmarkTopicCount] = Field(default_factory=list)
+    is_representative_for_business_kpis: bool = False
+    business_kpi_warning: str | None = None
 
 
 class BenchmarkHighlights(BaseModel):

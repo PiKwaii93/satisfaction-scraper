@@ -15,6 +15,8 @@ def sample_run(**overrides):
         "trustpilot_slug": "demo-company.fr",
         "source": "trustpilot",
         "status": "pending",
+        "collection_mode": "sampled",
+        "max_pages": None,
         "pages_per_star": 1,
         "stars_requested": [1, 2, 3, 4, 5],
         "total_reviews": 0,
@@ -1164,7 +1166,7 @@ def test_create_trustpilot_run_uses_service(authenticated_client, monkeypatch):
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     assert response.json()["company_name"] == "darty.com"
     assert captured_payload == {
         "company": "https://fr.trustpilot.com/review/www.darty.com",

@@ -1,4 +1,5 @@
-# Tests and CI
-pytest
-httpx
+-r requirements.txt
 
+# Tests and CI only
+pytest
+httpx2

@@ -7,9 +7,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
+from psycopg2.extras import Json
+
 from app.api.database import get_cursor
 from app.api.services.insights import build_business_insights, detect_topics
-from app.scraper import scrape_trustpilot_by_stars
+from app.scraper import SAMPLED_MODE, scrape_trustpilot
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -18,6 +20,8 @@ ACTIVE_RUN_STATUSES = ("pending", "running")
 SENTIMENT_LABELS = {"Positif", "Neutre", "Négatif"}
 CSV_SOURCE = "csv"
 CSV_MAX_ROWS = 5000
+REPRESENTATIVE_MODE = "representative"
+REPRESENTATIVE_STOP_REASONS = {"natural_end"}
 CSV_COLUMN_ALIASES = {
     "verbatim": [
         "verbatim",
@@ -327,13 +331,24 @@ def rating_to_int(raw_rating):
 
 def parse_review_date(raw_date):
     text = str(raw_date or "").strip().lower()
+    if not text:
+        return None
+
+    try:
+        return datetime.strptime(text, "%Y-%m-%d")
+    except ValueError:
+        pass
+
     match = re.search(r"(\d{1,2})\s+([a-zéû]+)\s+(\d{4})", text)
     if match:
         day = int(match.group(1))
         month = FRENCH_MONTHS.get(match.group(2))
         year = int(match.group(3))
         if month:
-            return datetime(year, month, day)
+            try:
+                return datetime(year, month, day)
+            except ValueError:
+                return None
 
     return parse_relative_review_date(text)
 
@@ -341,7 +356,7 @@ def parse_review_date(raw_date):
 def parse_relative_review_date(date_text):
     now = datetime.now()
     if not date_text:
-        return now
+        return None
 
     match = re.search(r"\d+", date_text)
     if not match:
@@ -353,7 +368,7 @@ def parse_relative_review_date(date_text):
             return now - timedelta(hours=1)
         if "minute" in date_text:
             return now - timedelta(minutes=1)
-        return now
+        return None
 
     value = int(match.group())
     if "minute" in date_text:
@@ -364,10 +379,13 @@ def parse_relative_review_date(date_text):
         return now - timedelta(days=value)
     if "semaine" in date_text:
         return now - timedelta(weeks=value)
-    return now
+    return None
 
 
 def review_key(review):
+    source_review_id = str(review.get("source_review_id") or "").strip()
+    if source_review_id:
+        return hashlib.sha256(f"trustpilot:{source_review_id}".encode("utf-8")).hexdigest()
     source = "|".join(
         [
             str(review.get("author", "")).strip().lower(),
@@ -389,6 +407,48 @@ def parse_stars(stars_requested):
     ]
 
 
+def get_business_kpi_context(row):
+    collection_mode = row.get("collection_mode")
+    stop_reason = row.get("stop_reason")
+    unique_reviews = int(row.get("unique_reviews") or 0)
+
+    is_representative = (
+        collection_mode == REPRESENTATIVE_MODE
+        and unique_reviews > 0
+        and stop_reason in REPRESENTATIVE_STOP_REASONS
+    )
+    if is_representative:
+        warning = None
+    elif collection_mode == SAMPLED_MODE:
+        warning = (
+            "Échantillon analytique équilibré par étoiles : les KPI de note, "
+            "distribution, sentiment, tendance et benchmark décrivent uniquement "
+            "les avis collectés et ne sont pas représentatifs de l'ensemble des clients."
+        )
+    elif collection_mode == REPRESENTATIVE_MODE and stop_reason == "user_limit":
+        warning = (
+            "Collecte suivant l'ordre naturel mais interrompue à une limite "
+            "définie : les KPI décrivent le corpus collecté et ne représentent "
+            "pas nécessairement l'ensemble des avis de l'entreprise."
+        )
+    elif collection_mode == REPRESENTATIVE_MODE:
+        warning = (
+            "Collecte représentative incomplète : les KPI globaux ne peuvent pas "
+            "être interprétés comme représentatifs pour ce run."
+        )
+    else:
+        warning = (
+            "Mode de collecte historique non déterminé : les KPI décrivent "
+            "uniquement le corpus enregistré et ne doivent pas être interprétés "
+            "comme représentatifs."
+        )
+
+    return {
+        "is_representative_for_business_kpis": is_representative,
+        "business_kpi_warning": warning,
+    }
+
+
 def serialize_run(row):
     if row is None:
         return None
@@ -403,16 +463,31 @@ def serialize_run(row):
             int((end_at - started_at).total_seconds()),
         )
 
+    business_kpi_context = get_business_kpi_context(row)
     return {
         "run_id": row["run_id"],
         "company_id": row["company_id"],
         "organization_id": row.get("organization_id"),
         "company_name": row["company_name"],
         "trustpilot_slug": row["trustpilot_slug"],
+        "domain": row.get("domain"),
+        "trustscore": row.get("trustscore"),
+        "total_review_count": row.get("total_review_count"),
+        "rating_distribution": row.get("rating_distribution"),
         "source": row["source"],
         "status": row["status"],
+        "collection_mode": row.get("collection_mode"),
+        "max_pages": row.get("max_pages"),
         "pages_per_star": row["pages_per_star"],
         "stars_requested": parse_stars(row["stars_requested"]),
+        "pages_requested": row.get("pages_requested"),
+        "pages_processed": int(row.get("pages_processed") or 0),
+        "pages_succeeded": int(row.get("pages_succeeded") or 0),
+        "pages_failed": int(row.get("pages_failed") or 0),
+        "reviews_extracted": int(row.get("reviews_extracted") or 0),
+        "unique_reviews": int(row.get("unique_reviews") or 0),
+        "stop_reason": row.get("stop_reason"),
+        **business_kpi_context,
         "total_reviews": row["total_reviews"] or 0,
         "celery_task_id": row.get("celery_task_id"),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
@@ -468,7 +543,12 @@ def get_run_events(run_id, limit=100):
         return [serialize_run_event(row) for row in cursor.fetchall()]
 
 
-def get_or_create_company(company_input, organization_id, source="trustpilot"):
+def get_or_create_company(
+    company_input,
+    organization_id,
+    source="trustpilot",
+    domain=None,
+):
     company_slug = normalize_company_slug(company_input)
     company_name = (
         str(company_input or "").strip()
@@ -485,39 +565,55 @@ def get_or_create_company(company_input, organization_id, source="trustpilot"):
         cursor.execute(
             """
             INSERT INTO companies (
-                organization_id, company_name, trustpilot_slug, source_url, updated_at
+                organization_id, company_name, trustpilot_slug, source_url,
+                domain, updated_at
             )
-            VALUES (%s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, NOW())
             ON CONFLICT (organization_id, trustpilot_slug) DO UPDATE
             SET company_name = EXCLUDED.company_name,
                 source_url = EXCLUDED.source_url,
+                domain = COALESCE(EXCLUDED.domain, companies.domain),
                 updated_at = NOW()
             RETURNING
                 company_id,
                 organization_id,
                 company_name,
                 trustpilot_slug,
-                source_url;
+                source_url,
+                domain;
             """,
-            (organization_id, company_name, company_slug, source_url),
+            (organization_id, company_name, company_slug, source_url, domain),
         )
         return cursor.fetchone()
 
 
-def find_active_analysis_run(company_id, source, stars, pages_per_star):
+def find_active_analysis_run(
+    company_id,
+    source,
+    stars,
+    pages_per_star,
+    collection_mode=SAMPLED_MODE,
+    max_pages=None,
+):
     with get_cursor() as cursor:
         cursor.execute(
             """
             SELECT
                 ar.*,
                 c.company_name,
-                c.trustpilot_slug
+                c.trustpilot_slug,
+                c.domain,
+                c.trustscore,
+                c.total_review_count,
+                c.rating_distribution
             FROM analysis_runs ar
             JOIN companies c ON c.company_id = ar.company_id
             WHERE ar.company_id = %s
               AND ar.source = %s
               AND ar.stars_requested = %s
               AND ar.pages_per_star = %s
+              AND ar.collection_mode = %s
+              AND ar.max_pages IS NOT DISTINCT FROM %s
               AND ar.status = ANY(%s)
             ORDER BY ar.created_at DESC
             LIMIT 1;
@@ -527,6 +623,8 @@ def find_active_analysis_run(company_id, source, stars, pages_per_star):
                 source,
                 ",".join(str(star) for star in stars),
                 pages_per_star,
+                collection_mode,
+                max_pages,
                 list(ACTIVE_RUN_STATUSES),
             ),
         )
@@ -539,12 +637,18 @@ def create_analysis_run(request, organization_id):
     if not stars or invalid_stars:
         raise ValueError("Les notes ciblees doivent etre comprises entre 1 et 5.")
 
-    company = get_or_create_company(request.company, organization_id=organization_id)
+    company = get_or_create_company(
+        request.company,
+        organization_id=organization_id,
+        domain=request.domain,
+    )
     active_run = find_active_analysis_run(
         company_id=company["company_id"],
         source=request.source,
         stars=stars,
         pages_per_star=request.pages_per_star,
+        collection_mode=request.collection_mode,
+        max_pages=request.max_pages,
     )
     if active_run:
         status_label = (
@@ -569,9 +673,11 @@ def create_analysis_run(request, organization_id):
                 status,
                 stars_requested,
                 pages_per_star,
+                collection_mode,
+                max_pages,
                 model_uri
             )
-            VALUES (%s, %s, %s, 'pending', %s, %s, %s)
+            VALUES (%s, %s, %s, 'pending', %s, %s, %s, %s, %s)
             RETURNING run_id;
             """,
             (
@@ -580,6 +686,8 @@ def create_analysis_run(request, organization_id):
                 request.source,
                 ",".join(str(star) for star in stars),
                 request.pages_per_star,
+                request.collection_mode,
+                request.max_pages,
                 MODEL_URI,
             ),
         )
@@ -704,6 +812,13 @@ def queue_analysis_run(run_id, skip_scrape=False):
             SET status = 'pending',
                 celery_task_id = %s,
                 total_reviews = 0,
+                pages_requested = NULL,
+                pages_processed = 0,
+                pages_succeeded = 0,
+                pages_failed = 0,
+                reviews_extracted = 0,
+                unique_reviews = 0,
+                stop_reason = NULL,
                 error_message = NULL,
                 started_at = NULL,
                 finished_at = NULL,
@@ -741,7 +856,11 @@ def get_analysis_run(run_id, organization_id=None):
             SELECT
                 ar.*,
                 c.company_name,
-                c.trustpilot_slug
+                c.trustpilot_slug,
+                c.domain,
+                c.trustscore,
+                c.total_review_count,
+                c.rating_distribution
             FROM analysis_runs ar
             JOIN companies c ON c.company_id = ar.company_id
             WHERE {" AND ".join(filters)};
@@ -758,7 +877,11 @@ def list_analysis_runs(organization_id, limit=50, offset=0):
             SELECT
                 ar.*,
                 c.company_name,
-                c.trustpilot_slug
+                c.trustpilot_slug,
+                c.domain,
+                c.trustscore,
+                c.total_review_count,
+                c.rating_distribution
             FROM analysis_runs ar
             JOIN companies c ON c.company_id = ar.company_id
             WHERE ar.organization_id = %s
@@ -768,6 +891,61 @@ def list_analysis_runs(organization_id, limit=50, offset=0):
             (organization_id, limit, offset),
         )
         return [serialize_run(row) for row in cursor.fetchall()]
+
+
+def persist_collection_evidence(run_id, company_id, payload):
+    company = payload.get("company") or {}
+    collection = payload.get("collection") or {}
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            UPDATE companies
+            SET company_name = COALESCE(NULLIF(%s, ''), company_name),
+                source_url = COALESCE(NULLIF(%s, ''), source_url),
+                domain = COALESCE(NULLIF(%s, ''), domain),
+                trustscore = %s,
+                total_review_count = %s,
+                rating_distribution = %s,
+                metadata_collected_at = NOW(),
+                updated_at = NOW()
+            WHERE company_id = %s;
+            """,
+            (
+                company.get("name"),
+                company.get("source_url"),
+                company.get("domain"),
+                company.get("trustscore"),
+                company.get("total_reviews"),
+                Json(company.get("rating_distribution"))
+                if company.get("rating_distribution") is not None
+                else None,
+                company_id,
+            ),
+        )
+        cursor.execute(
+            """
+            UPDATE analysis_runs
+            SET pages_requested = %s,
+                pages_processed = %s,
+                pages_succeeded = %s,
+                pages_failed = %s,
+                reviews_extracted = %s,
+                unique_reviews = %s,
+                stop_reason = %s,
+                updated_at = NOW()
+            WHERE run_id = %s;
+            """,
+            (
+                collection.get("pages_requested"),
+                int(collection.get("pages_processed") or 0),
+                int(collection.get("pages_succeeded") or 0),
+                int(collection.get("pages_failed") or 0),
+                int(collection.get("reviews_extracted") or 0),
+                int(collection.get("unique_reviews") or 0),
+                collection.get("stop_reason"),
+                run_id,
+            ),
+        )
 
 
 def execute_analysis_run(run_id, skip_scrape=False):
@@ -826,11 +1004,14 @@ def execute_analysis_run(run_id, skip_scrape=False):
             def record_scrape_progress(step, message, level="info"):
                 record_run_event(run_id, message, step=step, level=level)
 
-            scrape_trustpilot_by_stars(
+            scrape_trustpilot(
                 company_slug=company_slug,
                 output_path=str(json_path),
+                collection_mode=run["collection_mode"],
                 stars_list=stars,
                 pages_per_star=run["pages_per_star"],
+                max_pages=run.get("max_pages"),
+                company_domain=run.get("domain"),
                 progress_callback=record_scrape_progress,
             )
             record_run_event(
@@ -854,6 +1035,9 @@ def execute_analysis_run(run_id, skip_scrape=False):
         )
         with json_path.open("r", encoding="utf-8") as file:
             payload = json.load(file)
+
+        if run["source"] == "trustpilot":
+            persist_collection_evidence(run_id, run["company_id"], payload)
 
         review_count = len(payload.get("reviews", []))
         record_run_event(
@@ -975,16 +1159,20 @@ def persist_reviews(run_id, company_id, payload):
                 """
                 INSERT INTO reviews (
                     run_id, company_id, external_review_key, author_name, rating,
-                    raw_date, review_date, verbatim, company_responded
+                    raw_date, review_date, verbatim, company_responded,
+                    source_review_id, review_url, company_reply_text
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (run_id, external_review_key) DO UPDATE
                 SET author_name = EXCLUDED.author_name,
                     rating = EXCLUDED.rating,
                     raw_date = EXCLUDED.raw_date,
                     review_date = EXCLUDED.review_date,
                     verbatim = EXCLUDED.verbatim,
-                    company_responded = EXCLUDED.company_responded
+                    company_responded = EXCLUDED.company_responded,
+                    source_review_id = EXCLUDED.source_review_id,
+                    review_url = EXCLUDED.review_url,
+                    company_reply_text = EXCLUDED.company_reply_text
                 RETURNING review_id;
                 """,
                 (
@@ -997,6 +1185,9 @@ def persist_reviews(run_id, company_id, payload):
                     parse_review_date(review.get("date", "")),
                     verbatim,
                     bool(review.get("company_responded", False)),
+                    review.get("source_review_id"),
+                    review.get("review_url"),
+                    review.get("company_reply_text"),
                 ),
             )
             review_id = cursor.fetchone()["review_id"]
@@ -1032,12 +1223,15 @@ def persist_reviews(run_id, company_id, payload):
             persisted_rows.append(
                 {
                     "review_id": review_id,
+                    "source_review_id": review.get("source_review_id"),
+                    "review_url": review.get("review_url"),
                     "author": review.get("author", ""),
                     "rating": rating,
                     "date": review.get("date", ""),
                     "sentiment_label": label,
                     "sentiment_score": score,
                     "company_responded": bool(review.get("company_responded", False)),
+                    "company_reply_text": review.get("company_reply_text"),
                     "topics": topics,
                     "verbatim": verbatim,
                 }
@@ -1053,6 +1247,8 @@ def write_predictions_csv(csv_path, target_company, rows):
             file,
             fieldnames=[
                 "review_id",
+                "source_review_id",
+                "review_url",
                 "target_company",
                 "author",
                 "rating",
@@ -1060,6 +1256,7 @@ def write_predictions_csv(csv_path, target_company, rows):
                 "sentiment_label",
                 "sentiment_score",
                 "company_responded",
+                "company_reply_text",
                 "topics",
                 "verbatim",
             ],
@@ -1092,11 +1289,14 @@ def get_run_reviews(run_id, sentiment=None, limit=100, offset=0, organization_id
             f"""
             SELECT
                 r.review_id,
+                r.source_review_id,
+                r.review_url,
                 r.rating,
                 r.author_name,
                 r.raw_date,
                 r.verbatim,
                 r.company_responded,
+                r.company_reply_text,
                 sp.label AS sentiment_label,
                 sp.score AS sentiment_score,
                 rf.corrected_label,
@@ -1708,6 +1908,16 @@ def get_run_trend(run_id, organization_id):
 
 def build_benchmark_company(summary):
     run = summary["run"]
+    business_kpi_context = (
+        {
+            "is_representative_for_business_kpis": run[
+                "is_representative_for_business_kpis"
+            ],
+            "business_kpi_warning": run.get("business_kpi_warning"),
+        }
+        if "is_representative_for_business_kpis" in run
+        else get_business_kpi_context(run)
+    )
     kpis = summary["kpis"]
     review_count = int(kpis.get("review_count") or 0)
     negative_count = get_distribution_count(
@@ -1744,6 +1954,7 @@ def build_benchmark_company(summary):
             for row in summary["top_topics"][:5]
         ],
         "unique_topics": [],
+        **business_kpi_context,
     }
 
 
