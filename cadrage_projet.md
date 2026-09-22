@@ -106,7 +106,7 @@ Hors MVP :
 
 - deploiement cloud public ;
 - gestion multi-utilisateur avancee ;
-- authentification complete ;
+- durcissement de l'authentification pour la production ;
 - monitoring Prometheus/Grafana ;
 - integration officielle Google Reviews ;
 - modele Transformer fine-tune.
@@ -138,9 +138,9 @@ Hors MVP :
 | Organisation de la donnee | Schema PostgreSQL et pipeline d'analyse. |
 | Machine Learning | Modele scikit-learn suivi avec MLflow. |
 | Dashboard | Interface React avec rapports, benchmark et exports. |
-| API | FastAPI securisee par API key. |
+| API | FastAPI avec authentification JWT et roles par organisation. |
 | Dockerisation | Tous les services sont definis dans `docker-compose.yml`. |
-| DevOps | GitHub, branches, PR, CI Docker, tests manuels documentes. |
+| DevOps | CI Docker, deploiement automatise sur VM de test existante, rollback manuel, KPI et supervision de test ; voir `docs/DEVOPS_EVIDENCE.md`. |
 
 ## 12. Roadmap de soutenance
 
@@ -163,8 +163,8 @@ Hors MVP :
 
 - Corriger quelques avis.
 - Montrer la qualite IA.
-- Lancer un reentrainement.
-- Consulter la nouvelle version MLflow.
+- Montrer le run d'entrainement valide et ses metriques dans MLflow.
+- Expliquer la promotion explicite de la version de production.
 
 ### Phase 4 - Industrialisation
 
@@ -181,7 +181,7 @@ Hors MVP :
 | Donnees ambigues | Erreurs de classification. | Correction humaine et reentrainement. |
 | Corpus limite | Generalisation imparfaite. | Ajouter plusieurs entreprises et secteurs. |
 | Secrets en local | Non adapte production. | Variables d'environnement puis secret manager. |
-| Pas de monitoring complet | Visibilite limite en production. | Ajouter logs structures et tableau de bord technique. |
+| Monitoring limite a la VM de test | Aucune garantie de surveillance en production. | Conserver les rapports de sonde et distinguer cette preuve d'un SLA de production. |
 
 ## 14. Conclusion du cadrage
 

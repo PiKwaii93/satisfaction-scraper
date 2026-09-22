@@ -13,7 +13,7 @@ Le projet est orchestre avec Docker Compose et se compose de plusieurs services 
 | Service | Technologie | Role |
 | --- | --- | --- |
 | `frontend` | React, Vite, TypeScript | Interface produit pour lancer, comparer et corriger les analyses. |
-| `api` | FastAPI | API produit, endpoints securises par cle API. |
+| `api` | FastAPI | API produit, endpoints metier proteges par JWT et roles. |
 | `celery_worker` | Celery | Execution asynchrone des analyses et des reentrainements. |
 | `redis` | Redis | Broker et backend de resultats Celery. |
 | `postgres_db` | PostgreSQL | Stockage des entreprises, runs, avis, predictions et corrections. |
@@ -143,8 +143,8 @@ Le reentrainement :
 - pondere davantage les corrections recentes ;
 - cree un snapshot auditable du dataset d'entrainement ;
 - evalue le modele sur un split stratifie ;
-- publie une nouvelle version dans MLflow ;
-- met a jour l'alias de production.
+- peut enregistrer une nouvelle version candidate dans MLflow ;
+- ne met a jour l'alias de production et ne resynchronise les predictions qu'apres promotion explicite.
 
 Cette boucle transforme l'application en outil d'amelioration continue plutot qu'en simple dashboard statique.
 
@@ -170,7 +170,7 @@ L'API expose les principaux endpoints suivants.
 | `GET /model-training/overview` | Etat du modele de production. |
 | `POST /model-training/runs` | Lancement d'un reentrainement. |
 
-Les endpoints metier sont proteges par une cle API transmise dans le header `X-API-Key`. L'endpoint `/health` reste public afin de faciliter les sondes de disponibilite.
+Les endpoints metier sont proteges par des jetons JWT et des roles, avec isolation par organisation. L'endpoint `/health` reste public afin de faciliter les sondes de disponibilite.
 
 ## 9. Interface React
 
@@ -230,7 +230,13 @@ Cette organisation rend le projet reproductible sur une autre machine equipee de
 
 ## 12. CI/CD et qualite
 
-Une pipeline GitHub Actions existe pour construire l'image Docker et verifier le demarrage minimal. Les tests manuels frequents incluent :
+La CI GitHub Actions execute les tests backend, les tests et le build frontend,
+puis construit l'image Docker. Un job `e2e-smoke` manuel valide un demarrage
+Compose isole et un import CSV de 15 avis. Le workflow de deploiement manuel
+vise une VM de test existante et verifie API et frontend. Les runs exacts et
+leurs limites sont dans [les preuves DevOps](docs/DEVOPS_EVIDENCE.md).
+
+Les validations disponibles incluent :
 
 - build du frontend ;
 - compilation Python de l'API ;
@@ -243,29 +249,24 @@ Une pipeline GitHub Actions existe pour construire l'image Docker et verifier le
 - reentrainement ;
 - export CSV et PDF.
 
-Ameliorations possibles :
-
-- ajouter des tests unitaires FastAPI ;
-- tester automatiquement les schemas Pydantic ;
-- ajouter un smoke test Docker Compose ;
-- publier des artefacts de rapport en CI ;
-- mesurer les temps de pipeline.
+Le script KPI extrait les temps de deploiement des runs GitHub Actions. La
+supervision de test archive un JSON et un Step Summary ; l'execution planifiee
+par GitHub n'etait pas encore demontree au controle du 22/09/2026.
 
 ## 13. Securite et cadre reglementaire
 
 Mesures deja presentes :
 
-- API key sur les endpoints metier ;
+- authentification JWT locale, roles et isolation par organisation ;
 - endpoint de sante public limite ;
-- variables d'environnement pour la configuration ;
+- variables d'environnement et secrets GitHub pour la configuration de test ;
 - separation des services Docker ;
 - export explicite des donnees.
 
 Points a renforcer pour une production reelle :
 
 - remplacer les secrets de developpement par un gestionnaire de secrets ;
-- ajouter une authentification utilisateur ;
-- limiter les droits par role ;
+- renforcer l'authentification et la gestion des secrets pour une production reelle ;
 - documenter la duree de conservation des avis ;
 - anonymiser les auteurs si le contexte d'usage l'exige ;
 - formaliser les contraintes RGPD.
@@ -273,23 +274,25 @@ Points a renforcer pour une production reelle :
 ## 14. Limites connues
 
 - Le scraping Trustpilot depend de la structure HTML du site.
+- La tentative reelle versionnee a recu HTTP 403 et n'a extrait aucun avis ; la preuve d'une collecte directe de plus de 10 000 avis manque.
 - Les avis ironiques ou tres courts restent difficiles a classer.
 - La classe `Neutre` est plus difficile a apprendre.
 - Les corrections humaines doivent rester coherentes pour ne pas degrader le modele.
-- Le monitoring technique reste encore limite.
-- Le deploiement cloud n'est pas encore automatise.
+- Le monitoring GitHub Actions concerne la VM de test, pas un SLA de production ; le scheduler n'est pas encore prouve.
+- Le deploiement automatise cible une VM scolaire existante, sans provisioning cloud.
+- Le rollback DB/migrations n'a pas ete demontre.
 
 ## 15. Perspectives
 
 Les evolutions les plus pertinentes sont :
 
-1. renforcer les tests automatises ;
+1. completer les preuves de volumetrie et de representativite de collecte ;
 2. enrichir le corpus avec plus d'entreprises et de secteurs ;
 3. ajouter une classification thematique plus robuste ;
 4. brancher d'autres sources d'avis via API ou CSV ;
-5. ajouter un monitoring applicatif et metier ;
-6. preparer un deploiement cloud de demonstration ;
-7. ajouter une authentification utilisateur complete.
+5. verifier un run `schedule` avant de revenir au cron horaire ;
+6. preparer un eventuel provisioning cloud distinct de la VM scolaire ;
+7. formaliser RGPD, retention et securite de production.
 
 ## 16. Conclusion technique
 

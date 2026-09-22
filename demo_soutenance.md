@@ -26,7 +26,7 @@ cd C:\Users\Maxen\OneDrive\Documents\GitHub\satisfaction-scraper
 Demarrer les services :
 
 ```powershell
-docker-compose up -d postgres_db mlflow redis celery_worker api frontend
+docker-compose up -d postgres_db mlflow redis model_bootstrap celery_worker api frontend
 ```
 
 Verifier que l'API repond :
@@ -147,19 +147,18 @@ Ce qu'il faut expliquer :
 - les erreurs deviennent des donnees utiles ;
 - la boucle humaine permet d'ameliorer le corpus.
 
-### Etape 6 - Reentrainer le modele
+### Etape 6 - Montrer le modele evalue et versionne
 
 Dans le bloc `Entrainement IA` :
 
-1. montrer le nombre de corrections pretes ;
-2. cliquer sur `Reentrainer` ;
-3. attendre la fin du run ;
-4. montrer la nouvelle version de production ;
-5. ouvrir MLflow si besoin.
+1. montrer le nombre de corrections et la boucle de feedback ;
+2. ouvrir le run MLflow valide de la version v53 ;
+3. montrer les metriques, la matrice de confusion et le hash du dataset ;
+4. verifier que l'alias `production` pointe vers v53.
 
 Ce qu'il faut expliquer :
 
-- le modele est entrainable depuis l'application ;
+- le modele est entrainable depuis l'application, mais la demo n'exige aucun nouvel entrainement ;
 - les corrections humaines ont un poids plus fort ;
 - MLflow garde l'historique des versions ;
 - l'alias de production indique quelle version est utilisee.
@@ -193,14 +192,15 @@ Points a montrer :
 - endpoints d'import CSV ;
 - endpoints de correction humaine ;
 - endpoints de reentrainement ;
-- securisation par cle API ;
+- authentification JWT et roles par organisation ;
 - endpoint `/health`.
 
 Puis expliquer rapidement :
 
 - Docker Compose pour rendre le projet reproductible ;
-- GitHub Actions pour verifier les PR ;
-- tests backend et build frontend ;
+- GitHub Actions pour la CI et le deploiement sur VM de test ;
+- tests backend, frontend, build Docker et smoke E2E manuel ;
+- KPI et supervision de test avec leurs limites de preuve ;
 - PostgreSQL pour l'historique ;
 - MLflow pour le modele.
 
@@ -292,15 +292,16 @@ Chaque correction est stockee en base. Lors du reentrainement, ces corrections s
 - ironie et avis tres courts difficiles ;
 - dependance au HTML Trustpilot pour le scraping ;
 - besoin de plus de secteurs et d'entreprises ;
-- authentification et monitoring encore a industrialiser.
+- collecte directe de plus de 10 000 avis non prouvee : la tentative reelle versionnee a recu HTTP 403 ;
+- supervision limitee a la VM de test ; aucun run `schedule` prouve au 22/09/2026.
 
 ### Quelles sont les prochaines evolutions ?
 
 - ajouter plus de tests automatises ;
 - brancher d'autres sources d'avis ;
 - renforcer la classification thematique ;
-- ajouter une authentification utilisateur ;
-- deployer une version cloud ;
+- renforcer la gestion des secrets et l'authentification pour la production ;
+- verifier le declenchement planifie et revenir ensuite au cron horaire ;
 - suivre les performances et la derive du modele.
 
 ## 7. Preuves a montrer dans le code
@@ -317,6 +318,8 @@ Fichiers utiles :
 - `frontend/src/App.tsx` : interface produit ;
 - `tests/` : tests backend ;
 - `.github/workflows/ci.yml` : pipeline CI ;
+- `docs/TRACEABILITY.md` : exigences, preuves et limites ;
+- `docs/DEVOPS_EVIDENCE.md` : runs CI, deploiements, rollback, KPI et supervision ;
 - `README.md` : installation et commandes ;
 - `cahier_des_charges.md` : besoin et cadrage ;
 - `rapport_technique.md` : architecture technique.

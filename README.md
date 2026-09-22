@@ -21,6 +21,7 @@ Le projet est parti d'un scraper Trustpilot, mais l'objectif actuel est plus lar
 - [Scripts historiques](#scripts-historiques)
 - [Variables d'environnement](#variables-denvironnement)
 - [CI GitHub Actions](#ci-github-actions)
+- [Documentation](#documentation)
 - [Limites connues](#limites-connues)
 - [Documentation agent](#documentation-agent)
 
@@ -371,8 +372,9 @@ servi. Le script KPI n'archive ni ne restitue de secret.
 
 Le workflow `Monitor test VM` fournit le tableau de supervision de
 l'environnement de test dans **GitHub Actions > runs > Step Summary**. Il est
-declenchable manuellement. Son cron prevoit au maximum un declenchement par
-heure. La cadence planifiee reste inactive tant que la variable de depot
+declenchable manuellement. Son cron est temporairement a cinq minutes pour
+diagnostiquer l'absence d'evenements `schedule` ; la cadence horaire doit etre
+retablie ensuite. La sonde planifiee reste inactive tant que la variable de depot
 GitHub non secrete
 `TEST_MONITOR_SCHEDULE_ENABLED` n'est pas definie a `true`, pour permettre
 d'abord une validation manuelle. Le cron peut creer un run GitHub planifie
@@ -728,14 +730,23 @@ Jobs actuels :
 - frontend tests et build ;
 - docker build.
 
+## Documentation
+
+- [Matrice de traçabilité DataScientest](docs/TRACEABILITY.md) : exigence, code, preuve, statut et limite.
+- [Preuves DevOps](docs/DEVOPS_EVIDENCE.md) : CI/E2E, déploiements, rollback, KPI, supervision et scheduler non encore démontré.
+- [Runbook de la VM de test](docs/TEST_VM_RUNBOOK.md) : préparation, déploiement, contrôles, tunnel, rollback et gestion des alertes.
+- [Cadrage](cadrage_projet.md), [cahier des charges](cahier_des_charges.md), [rapport technique](rapport_technique.md) et [scénario de soutenance](demo_soutenance.md).
+
 ## Limites connues
 
-- Le scraping Trustpilot depend de la structure HTML du site.
+- La tentative réelle Trustpilot versionnée a reçu HTTP 403 : aucune collecte directe de plus de 10 000 avis n'est démontrée.
+- Le scraping Trustpilot depend aussi de la structure HTML du site.
 - Les vrais connecteurs Google/Zendesk/Shopify ne sont pas encore branches.
 - Le stockage JWT en `localStorage` est acceptable pour le MVP local, pas pour un SaaS durci.
 - Pas de paiement, abonnement, facturation ou gestion multi-org globale avancee.
 - Deploiement automatise vers une VM de test existante ; le projet ne provisionne pas lui-meme l'infrastructure cloud.
 - Supervision technique de la VM de test via GitHub Actions, avec les limites de cadence et de sondage decrites ci-dessus.
+- Aucun run `schedule` du monitoring ni du heartbeat diagnostic n'etait observe au controle du 22/09/2026 ; la planification n'est pas encore prouvee.
 - Pas de politique RGPD/retention formalisee.
 
 ## Documentation agent
