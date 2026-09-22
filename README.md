@@ -371,25 +371,40 @@ servi. Le script KPI n'archive ni ne restitue de secret.
 
 Le workflow `Monitor test VM` fournit le tableau de supervision de
 l'environnement de test dans **GitHub Actions > runs > Step Summary**. Il est
-declenchable manuellement et comporte une cadence horaire. La cadence planifiee
-reste inactive tant que la variable de depot GitHub non secrete
+declenchable manuellement. Son cron prevoit au maximum un declenchement par
+heure. La cadence planifiee reste inactive tant que la variable de depot
+GitHub non secrete
 `TEST_MONITOR_SCHEDULE_ENABLED` n'est pas definie a `true`, pour permettre
 d'abord une validation manuelle. Le cron peut creer un run GitHub planifie
 marque `skipped` ; le job ne s'execute alors pas et ne contacte pas la VM.
-Il reutilise les quatre secrets SSH du
-deploiement, sans service payant. Chaque run conserve un rapport JSON pendant
+Il reutilise les quatre secrets SSH du deploiement, sans service payant. L'IP
+publique de la VM est dynamique : apres un changement, mettre a jour
+`TEST_HOST` et `TEST_SSH_KNOWN_HOSTS`. Lorsqu'une sonde est executee, une VM
+arretee ou inaccessible produit volontairement un incident SSH. Chaque run
+conserve un rapport JSON pendant
 30 jours : horodatage, SHA servi, etats Docker et healthchecks PostgreSQL,
 Redis, MLflow, API, frontend, ping fonctionnel Celery, espace libre et action
 eventuelle. Deux sondes applicatives en echec a 30 secondes d'intervalle
-declenchent au plus un redemarrage de `api` ou `frontend`, uniquement si leurs
+declenchent au plus un seul redemarrage de `api` ou `frontend`, uniquement si leurs
 dependances sont saines. Une nouvelle sonde enregistre le resultat. Sous
 5 GiB libres, le workflow alerte sans remedier. Il ne remedie jamais aux
 incidents SSH, disque, PostgreSQL, Redis, MLflow ou Celery. Un run en incident
 ou en alerte echoue dans Actions ; activer les notifications GitHub d'echec de workflow pour
-recevoir l'alerte. `celery inspect ping` mesure une reponse du worker a cet
-instant, pas le succes de toutes les taches en file. Les sondes planifiees
+recevoir l'alerte. `celery inspect ping` prouve que le worker repond au moment
+de la sonde, pas que toutes les taches metier reussissent. Les sondes planifiees
 peuvent etre differees par GitHub et ne garantissent pas un controle a l'heure
 exacte. Aucun incident volontaire n'a ete provoque sur la VM scolaire.
+
+Premiere preuve reelle du chantier 10 : le run manuel
+[35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
+de `Monitor test VM` a reussi. Son artefact `test-vm-monitor-35726582579`
+contient `monitor-report.json` : SSH `ok` ; PostgreSQL, Redis, MLflow, API et
+frontend `healthy` ; Celery `running` avec `inspect ping` reussi ; API et
+frontend HTTP accessibles ; environ 11,82 GiB libres sur `/` ; aucune alerte
+ni remediation ; `result=healthy`. Le SHA effectivement servi et releve par la
+sonde etait `72517acbf156efab454e6496670b67526b109c3f`. C'est attendu
+apres le rollback manuel de la VM, meme si `main` est plus recent : le
+monitoring rapporte le SHA servi, sans supposer qu'il correspond a `main`.
 
 URLs utiles :
 
