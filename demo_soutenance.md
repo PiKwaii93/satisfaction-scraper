@@ -29,6 +29,13 @@ Demarrer les services :
 docker-compose up -d postgres_db mlflow redis model_bootstrap celery_worker api frontend
 ```
 
+Choisir **avant la demonstration** le registre MLflow utilise. Avec des volumes
+vierges, `model_bootstrap` enregistre le pickle versionne comme premiere version
+(v1 dans ce registre neuf) : ce parcours prouve le cold start, **pas** la
+presence de v53. Pour montrer v53 et son alias `production`, ouvrir le registre
+conserve et les preuves de [docs/MLFLOW_V53_PREUVES.md](docs/MLFLOW_V53_PREUVES.md).
+Ne pas annoncer v53 a partir d'un registre vierge.
+
 Verifier que l'API repond :
 
 ```powershell
@@ -152,9 +159,9 @@ Ce qu'il faut expliquer :
 Dans le bloc `Entrainement IA` :
 
 1. montrer le nombre de corrections et la boucle de feedback ;
-2. ouvrir le run MLflow valide de la version v53 ;
+2. si le registre conserve est disponible, ouvrir le run MLflow valide de v53 ;
 3. montrer les metriques, la matrice de confusion et le hash du dataset ;
-4. verifier que l'alias `production` pointe vers v53.
+4. verifier sur ce meme registre que l'alias `production` pointe vers v53.
 
 Ce qu'il faut expliquer :
 
@@ -293,7 +300,8 @@ Chaque correction est stockee en base. Lors du reentrainement, ces corrections s
 - dependance au HTML Trustpilot pour le scraping ;
 - besoin de plus de secteurs et d'entreprises ;
 - collecte directe de plus de 10 000 avis non prouvee : la tentative reelle versionnee a recu HTTP 403 ;
-- supervision limitee a la VM de test ; aucun run `schedule` prouve au 22/09/2026.
+- supervision limitee a la VM de test ; un heartbeat planifie est prouve, mais
+  aucune sonde planifiee active de la VM n'est encore demontree.
 
 ### Quelles sont les prochaines evolutions ?
 
@@ -301,7 +309,7 @@ Chaque correction est stockee en base. Lors du reentrainement, ces corrections s
 - brancher d'autres sources d'avis ;
 - renforcer la classification thematique ;
 - renforcer la gestion des secrets et l'authentification pour la production ;
-- verifier le declenchement planifie et revenir ensuite au cron horaire ;
+- verifier une sonde planifiee active de la VM, puis revenir au cron horaire ;
 - suivre les performances et la derive du modele.
 
 ## 7. Preuves a montrer dans le code

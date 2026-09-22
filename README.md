@@ -208,6 +208,10 @@ aucune version. Il n'entraine jamais le modele. `/health` teste la connexion
 PostgreSQL par `SELECT 1` ; Redis et MLflow sont controles par leurs sondes
 Compose au demarrage.
 
+Dans un registre **vierge**, ce bootstrap produit la premiere version (v1)
+de ce registre ; il ne restaure pas l'historique du registre conserve ou la
+v53 promue. Voir la [checklist de preuve v53](docs/MLFLOW_V53_PREUVES.md).
+
 Pour demontrer un cold start sans utiliser les volumes locaux habituels, choisir
 un nom de projet distinct et des ports hote libres :
 
@@ -373,8 +377,11 @@ servi. Le script KPI n'archive ni ne restitue de secret.
 Le workflow `Monitor test VM` fournit le tableau de supervision de
 l'environnement de test dans **GitHub Actions > runs > Step Summary**. Il est
 declenchable manuellement. Son cron est temporairement a cinq minutes pour
-diagnostiquer l'absence d'evenements `schedule` ; la cadence horaire doit etre
-retablie ensuite. La sonde planifiee reste inactive tant que la variable de depot
+diagnostiquer le scheduler ; des evenements `schedule` sont maintenant prouves
+par le [heartbeat 35765192366](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366)
+et le [run Monitor 35764642522](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522),
+dont le job a ete `skipped`. La cadence horaire reste a retablir lors d'une
+etape distincte. La sonde planifiee reste inactive tant que la variable de depot
 GitHub non secrete
 `TEST_MONITOR_SCHEDULE_ENABLED` n'est pas definie a `true`, pour permettre
 d'abord une validation manuelle. Le cron peut creer un run GitHub planifie
@@ -733,9 +740,11 @@ Jobs actuels :
 ## Documentation
 
 - [Matrice de traçabilité DataScientest](docs/TRACEABILITY.md) : exigence, code, preuve, statut et limite.
-- [Preuves DevOps](docs/DEVOPS_EVIDENCE.md) : CI/E2E, déploiements, rollback, KPI, supervision et scheduler non encore démontré.
+- [Preuves DevOps](docs/DEVOPS_EVIDENCE.md) : CI/E2E, déploiements, rollback, KPI, supervision et événements `schedule` démontrés.
 - [Runbook de la VM de test](docs/TEST_VM_RUNBOOK.md) : préparation, déploiement, contrôles, tunnel, rollback et gestion des alertes.
 - [Cadrage](cadrage_projet.md), [cahier des charges](cahier_des_charges.md), [rapport technique](rapport_technique.md) et [scénario de soutenance](demo_soutenance.md).
+- Sources académiques à valider avant export : [Discovery et quatre KPI](docs/DISCOVERY_DONNEES_KPI.md), [veille](docs/VEILLE_TECHNO_REGLEMENTAIRE.md), [MVP](docs/MVP_ACADEMIQUE.md), [roadmap](docs/ROADMAP_ACADEMIQUE.md), [SWOT](docs/SWOT_SOURCE.md) et [collecte](docs/COLLECTE_EXPLICATIVE_SOURCE.md).
+- [Checklist des preuves MLflow v53](docs/MLFLOW_V53_PREUVES.md) : captures du registre conservé et distinction du bootstrap sur registre vierge.
 
 ## Limites connues
 
@@ -746,7 +755,9 @@ Jobs actuels :
 - Pas de paiement, abonnement, facturation ou gestion multi-org globale avancee.
 - Deploiement automatise vers une VM de test existante ; le projet ne provisionne pas lui-meme l'infrastructure cloud.
 - Supervision technique de la VM de test via GitHub Actions, avec les limites de cadence et de sondage decrites ci-dessus.
-- Aucun run `schedule` du monitoring ni du heartbeat diagnostic n'etait observe au controle du 22/09/2026 ; la planification n'est pas encore prouvee.
+- Les evenements `schedule` et le heartbeat sont prouves ; le job Monitor
+  planifie a ete `skipped` par le garde, donc aucune sonde planifiee active de
+  la VM n'est encore demontree.
 - Pas de politique RGPD/retention formalisee.
 
 ## Documentation agent

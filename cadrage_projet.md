@@ -45,15 +45,18 @@ Comment aider une entreprise a analyser rapidement un grand volume d'avis client
 
 ## 6. KPIs metier
 
-| KPI | Utilite |
+Les **quatre KPI retenus pour la Discovery** sont définis avec formule, source,
+période et règles de représentativité dans [docs/DISCOVERY_DONNEES_KPI.md](docs/DISCOVERY_DONNEES_KPI.md).
+
+| KPI retenu | Utilité et limite principale |
 | --- | --- |
-| Nombre d'avis analyses | Mesurer la couverture de l'analyse. |
-| Note moyenne | Donner une lecture rapide de la satisfaction declaree. |
-| Distribution des sentiments | Comprendre le ressenti texte. |
-| Taux d'avis negatifs | Prioriser les actions correctives. |
-| Irritants principaux | Identifier les causes d'insatisfaction. |
-| Taux de reponse entreprise | Mesurer la reactivite visible. |
-| Score sante | Synthese operationnelle pour comparer les entreprises. |
+| Note moyenne | Satisfaction déclarée par note, sur le corpus réellement traité. |
+| Part d'avis à sentiment négatif | Lecture des verbatims avec les limites du modèle et du mode de collecte. |
+| Taux de réponse visible de l'entreprise | Réactivité publique ; non calculable si le statut de réponse est inconnu. |
+| Volume d'avis analysés | Couverture du corpus, **pas** mesure directe de satisfaction. |
+
+La distribution complète des sentiments, les irritants et le score santé restent
+des analyses complémentaires du produit, pas des KPI Discovery supplémentaires.
 
 ## 7. KPIs data et IA
 
@@ -66,16 +69,20 @@ Comment aider une entreprise a analyser rapidement un grand volume d'avis client
 | Nombre de corrections humaines | Volume disponible pour l'amelioration continue. |
 | Version MLflow de production | Traçabilite du modele utilise. |
 
-## 8. Experience map
+## 8. Experience Map — hypothèse de cadrage
 
-| Etape | Situation actuelle | Reponse de l'application |
-| --- | --- | --- |
-| Collecte | L'utilisateur lit plusieurs pages d'avis ou exporte manuellement ses donnees. | Scraping Trustpilot ou import CSV. |
-| Structuration | Les avis sont disperses. | Stockage PostgreSQL avec historique des runs. |
-| Analyse | Lecture manuelle et interpretation subjective. | Modele de sentiment et detection d'irritants. |
-| Priorisation | Les sujets critiques sont difficiles a isoler. | Avis critiques, score sante, points de vigilance. |
-| Reporting | Synthese manuelle longue a produire. | Dashboard, export CSV et rapport PDF. |
-| Amelioration | Les erreurs de modele ne sont pas capitalisees. | Corrections humaines puis reentrainement. |
+Point de vue **supposé** d'une responsable du service client devant suivre les
+avis après achat. Les étapes, besoins et irritants sont des hypothèses issues du
+cadrage produit : **aucun entretien, questionnaire ou test utilisateur n'a été
+réalisé**. Cette carte n'est donc pas une observation du parcours réel.
+
+| Étape du persona | Action et besoin supposés | Irritant possible | Appui proposé et limite |
+| --- | --- | --- | --- |
+| Réunir les avis | J'essaie d'obtenir un ensemble d'avis et sa provenance. | Sources dispersées, accès parfois refusé. | Import autorisé ou collecte si accessible ; le HTTP 403 Trustpilot empêche la preuve de collecte exhaustive. |
+| Contrôler le corpus | Je vérifie dates, notes, doublons et couverture. | Un échantillon peut donner une image trompeuse. | Historique du run et avertissement de représentativité ; la provenance reste à contrôler. |
+| Comprendre les signaux | Je compare note et texte, puis lis les avis négatifs. | Une note seule masque le motif ; le modèle peut se tromper. | Sentiment, thèmes lexicaux et verbatims consultables ; relecture humaine nécessaire. |
+| Décider d'une priorité | J'isole les problèmes répétitifs et les avis sans réponse connue. | Plusieurs sujets se concurrencent ; certaines données de réponse manquent. | Priorités et KPI contextualisés ; pas d'attribution causale automatique. |
+| Partager et suivre | Je présente les constats et vérifie une évolution. | Périodes et sources non comparables. | Tableau de bord et exports, avec source, période et effectif affichés. |
 
 ## 9. Perimetre MVP
 
@@ -131,9 +138,9 @@ Hors MVP :
 | Consigne | Reponse dans le projet |
 | --- | --- |
 | Cahier des charges | `cahier_des_charges.md` decrit le besoin, le MVP, les KPIs, la veille et la roadmap. |
-| Discovery | Personas, experience map, KPIs et sources de donnees dans ce document. |
-| Veille technologique | Comparaison Trustpilot Business, Google Reviews, Avis Verifies, outils BI et services NLP dans le cahier des charges. |
-| SWOT | Section dediee dans le cahier des charges. |
+| Discovery | Personas et Experience Map hypothétique ici ; données, analyses et quatre KPI dans `docs/DISCOVERY_DONNEES_KPI.md`. |
+| Veille technologique et réglementaire | Source datée et sourcée dans `docs/VEILLE_TECHNO_REGLEMENTAIRE.md` ; PDF final encore à produire après validation. |
+| SWOT | Contenu source dans `docs/SWOT_SOURCE.md` ; slide PowerPoint unique encore à produire après validation. |
 | Recolte de donnees | Scraping Trustpilot + import CSV. |
 | Organisation de la donnee | Schema PostgreSQL et pipeline d'analyse. |
 | Machine Learning | Modele scikit-learn suivi avec MLflow. |

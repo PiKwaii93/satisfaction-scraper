@@ -15,11 +15,16 @@ l'exploitation dans [docs/TEST_VM_RUNBOOK.md](docs/TEST_VM_RUNBOOK.md).
 
 ## Point ouvert
 
-Le scheduler GitHub n'a produit aucun run `schedule` observé au dernier
-contrôle du 22/09/2026. Les crons de diagnostic sont temporairement à cinq
-minutes, et `TEST_MONITOR_SCHEDULE_ENABLED` reste déclaré à `false`. Le
-heartbeat diagnostic attend également une preuve de déclenchement. Ne pas
-assimiler un workflow configuré à une exécution planifiée réussie.
+Le scheduler GitHub a maintenant produit un [heartbeat planifié réussi](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366)
+et un [événement Monitor planifié](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522)
+dont le job a été `skipped` par le garde. Les crons de diagnostic sont encore
+temporairement à cinq minutes ; `TEST_MONITOR_SCHEDULE_ENABLED` n'a pas été
+activé pour une sonde planifiée réelle. La création d'événements `schedule`
+est démontrée, **pas** l'exécution d'une sonde VM planifiée.
+
+Les sources académiques Markdown sont préparées dans `docs/` ; leurs rendus
+PPTX/PDF/DOCX attendent la validation de leur contenu. La collecte directe de
+plus de 10 000 avis reste non conforme à la preuve demandée.
 
 ## Contraintes durables
 

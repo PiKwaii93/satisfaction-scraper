@@ -160,7 +160,7 @@ Le projet doit pouvoir etre lance localement avec Docker Compose.
 
 ### 4.2 Securite
 
-Les endpoints metier doivent etre proteges par une cle API. Les secrets de developpement sont acceptables en local, mais devront etre externalises en production.
+Les endpoints metier actuels sont proteges par authentification JWT et roles par organisation. `API_KEY` subsiste uniquement pour compatibilite interne historique ; les secrets reels ne sont pas versionnes. Le durcissement de securite d'un deploiement de production reste hors du MVP scolaire.
 
 ### 4.3 Performance
 
@@ -291,6 +291,10 @@ Les corrections humaines sont integrees au dataset avec un poids superieur aux a
 
 ## 8. Veille technologique
 
+Comparaison historique de cadrage. La source académique datée, sourcée et
+complétée par la veille réglementaire est
+`docs/VEILLE_TECHNO_REGLEMENTAIRE.md` ; son PDF final attend validation.
+
 ### 8.1 Solutions metier
 
 | Solution | Interet | Limite |
@@ -314,6 +318,10 @@ Le projet retient scikit-learn pour le MVP car la contrainte principale est de c
 
 ## 9. SWOT
 
+La source actualisée destinée à l'unique slide PowerPoint est
+`docs/SWOT_SOURCE.md`. Les listes ci-dessous conservent le détail historique
+du cadrage ; elles ne remplacent pas la slide au format imposé.
+
 ### Forces
 
 - Pipeline complet de bout en bout.
@@ -330,8 +338,8 @@ Le projet retient scikit-learn pour le MVP car la contrainte principale est de c
 - Corpus encore limite.
 - Classe `Neutre` plus fragile.
 - Scraping dependant de la structure Trustpilot.
-- Monitoring encore simple.
-- Pas d'authentification utilisateur complete.
+- Supervision limitee a la VM de test ; sonde planifiee active non encore demontree.
+- Authentification JWT et roles presents, mais securite de production non auditee.
 
 ### Opportunites
 
@@ -351,6 +359,10 @@ Le projet retient scikit-learn pour le MVP car la contrainte principale est de c
 - Surapprentissage sur quelques entreprises.
 
 ## 10. Roadmap
+
+Cette vue historique par phases est complétée par la roadmap académique
+`docs/ROADMAP_ACADEMIQUE.md`, qui distingue dates prouvées et jalons futurs
+relatifs à la soutenance (date officielle non communiquée).
 
 | Phase | Objectif | Livrables |
 | --- | --- | --- |

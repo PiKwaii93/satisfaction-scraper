@@ -250,8 +250,9 @@ Les validations disponibles incluent :
 - export CSV et PDF.
 
 Le script KPI extrait les temps de deploiement des runs GitHub Actions. La
-supervision de test archive un JSON et un Step Summary ; l'execution planifiee
-par GitHub n'etait pas encore demontree au controle du 22/09/2026.
+supervision de test archive un JSON et un Step Summary. Un heartbeat et un
+evenement Monitor `schedule` sont desormais prouves ; le job Monitor planifie
+a ete `skipped`, donc la sonde VM planifiee active reste a demontrer.
 
 ## 13. Securite et cadre reglementaire
 
@@ -278,7 +279,7 @@ Points a renforcer pour une production reelle :
 - Les avis ironiques ou tres courts restent difficiles a classer.
 - La classe `Neutre` est plus difficile a apprendre.
 - Les corrections humaines doivent rester coherentes pour ne pas degrader le modele.
-- Le monitoring GitHub Actions concerne la VM de test, pas un SLA de production ; le scheduler n'est pas encore prouve.
+- Le monitoring GitHub Actions concerne la VM de test, pas un SLA de production ; des evenements `schedule` sont prouves, mais pas encore une sonde planifiee active de la VM.
 - Le deploiement automatise cible une VM scolaire existante, sans provisioning cloud.
 - Le rollback DB/migrations n'a pas ete demontre.
 
@@ -290,7 +291,7 @@ Les evolutions les plus pertinentes sont :
 2. enrichir le corpus avec plus d'entreprises et de secteurs ;
 3. ajouter une classification thematique plus robuste ;
 4. brancher d'autres sources d'avis via API ou CSV ;
-5. verifier un run `schedule` avant de revenir au cron horaire ;
+5. verifier une sonde planifiee active avant de revenir au cron horaire ;
 6. preparer un eventuel provisioning cloud distinct de la VM scolaire ;
 7. formaliser RGPD, retention et securite de production.
 

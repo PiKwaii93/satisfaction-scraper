@@ -58,18 +58,18 @@ Le code de supervision avec traçabilité des incidents récupérés est présen
 
 Le SHA servi est antérieur à `main` parce que la VM avait été volontairement rollbackée. La sonde lit `current.sha` : elle rapporte l'état réel, pas le dernier commit du dépôt. [monitor-test.yml](../.github/workflows/monitor-test.yml) publie un Step Summary et un JSON. Deux échecs applicatifs espacés de 30 secondes peuvent provoquer **un seul** restart de l'API ou du frontend si les dépendances sont saines. Un incident récupéré reste `alert` et la sonde post-restart est archivée ; un échec persistant reste `incident`. Sous 5 GiB libres, alerte sans remédiation. Aucune panne volontaire ni remédiation réelle n'a été provoquée sur la VM scolaire.
 
-## Scheduler : preuve encore absente
+## Scheduler : événements démontrés, sonde VM planifiée en attente
 
-Au contrôle en lecture seule du 22/09/2026, la liste des runs `schedule` était vide. Le cron de `monitor-test.yml` est **temporairement** à cinq minutes pour diagnostiquer GitHub ; le [heartbeat diagnostic](../.github/workflows/schedule-heartbeat.yml) a été ajouté par le commit `927486a0e6b6cad12849d3fcb1b37ca34bbf0290`. Aucun run `schedule` du heartbeat n'était visible au même contrôle. Cela démontre la **configuration**, pas l'exécution par le scheduler. Le retour à une cadence horaire est prévu après la preuve.
+Le constat initial du 22/09/2026 (« aucun run `schedule` observé ») est **périmé**. Depuis, le [heartbeat planifié 35765192366](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366) a réussi et le [run Monitor planifié 35764642522](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522) a été créé. Son job a été `skipped` conformément au garde `TEST_MONITOR_SCHEDULE_ENABLED == 'true'` du [workflow](../.github/workflows/monitor-test.yml). La création d'événements par GitHub est donc démontrée ; **aucune sonde planifiée active de la VM n'est encore démontrée**. Le contrôle manuel sain 35726582579 reste une preuve distincte.
 
-La variable non secrète `TEST_MONITOR_SCHEDULE_ENABLED` est déclarée volontairement à `false` pendant ce diagnostic par l'équipe ; cette valeur n'a pas été relue via l'API GitHub dans cet audit. Même si GitHub crée un run planifié, le job de supervision reste `skipped` sans cette variable à `true`. Cette absence de sonde VM ne doit pas être confondue avec l'absence d'événement `schedule`.
+Le cron de diagnostic est encore **temporairement** à cinq minutes. Le retour à la cadence horaire et l'activation éventuelle du garde relèvent d'une étape ultérieure ; aucune modification de workflow ou de VM n'est effectuée par cette mise à jour documentaire. Un événement planifié peut créer un run GitHub `skipped` sans aucune supervision de VM exécutée.
 
 ## Limites à annoncer au jury
 
 - La tentative réelle Trustpilot versionnée a reçu HTTP 403, sans avis extraits ; une collecte directe de plus de 10 000 avis n'est pas prouvée par [l'artefact](../data/evidence/trustpilot_showroomprive_representative.json).
 - Le rollback de migration DB, la remise en service de fonctionnalités différentes et l'auto-rollback provoqué sur VM n'ont pas été démontrés.
 - `celery inspect ping` prouve la réponse du worker au moment de la sonde, pas le succès de toutes les tâches métier.
-- GitHub Actions donne une supervision de **test**, sans garantie de cadence ni SLA de production ; le déclenchement `schedule` reste à prouver.
+- GitHub Actions donne une supervision de **test**, sans garantie de cadence ni SLA de production ; les événements `schedule` sont prouvés, mais pas une sonde planifiée active de la VM.
 - L'IP publique de la VM scolaire est dynamique ; la VM existe déjà, et le projet ne la provisionne pas.
 
 Voir [TEST_VM_RUNBOOK.md](TEST_VM_RUNBOOK.md) pour les opérations et [TRACEABILITY.md](TRACEABILITY.md) pour le lien entre sujet, code et preuves.
