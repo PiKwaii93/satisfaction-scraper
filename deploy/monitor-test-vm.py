@@ -117,6 +117,7 @@ def monitor(sleep=time.sleep, check=probe, restart=compose):
         second = check(sha)
     action = None
     final = second or first
+    probes = [first] + ([second] if second else [])
     target = restart_target(first, second) if second else None
     if target:
         try:
@@ -126,18 +127,22 @@ def monitor(sleep=time.sleep, check=probe, restart=compose):
             succeeded = False
         action = {"service": target, "attempts": 1, "command_succeeded": succeeded}
         final = check(sha)
+        probes.append(final)
         action["healthy_after_restart"] = final["healthy"][target]
     dependencies = ("postgres_db", "redis", "mlflow", "celery_worker")
     persistent_apps = {service for service in ("api", "frontend")
                        if second and not first["healthy"][service] and not second["healthy"][service]}
-    incident = (any(not final["healthy"][service] for service in dependencies)
+    incident = (bool(action and not action["command_succeeded"])
+                or any(not final["healthy"][service] for service in dependencies)
                 or any(not final["healthy"][service] for service in persistent_apps))
     transient_app = any(not final["healthy"][service] for service in ("api", "frontend")) and not incident
     alert = "Less than 5 GiB free on /" if free < DISK_ALERT_BYTES else None
+    if action and action["command_succeeded"] and not incident:
+        alert = "; ".join(filter(None, (alert, "Confirmed application incident recovered after restart")))
     if transient_app:
         alert = "; ".join(filter(None, (alert, "Application probe failed once; incident not confirmed")))
     return {"timestamp_utc": stamp, "served_sha": sha, "ssh": "ok", "disk_free_bytes": free,
-            "components": final, "probes": [first] + ([second] if second else []),
+            "components": final, "probes": probes,
             "alert": alert, "remediation": action,
             "result": "incident" if incident else "alert" if alert else "healthy"}
 
@@ -158,7 +163,9 @@ def summary(report):
     lines.append(f"- Alert: {report.get('alert') or 'none'}")
     action = report.get("remediation")
     lines.append(f"- Remediation: {action['service']} restart once; healthy after: {action['healthy_after_restart']}" if action else "- Remediation: none")
-    lines.append(f"- Final result: {report['result']}")
+    meanings = {"healthy": "no confirmed anomaly", "alert": "recovered anomaly or non-critical alert",
+                "incident": "unresolved anomaly or critical dependency failure"}
+    lines.append(f"- Final result: {report['result']} ({meanings[report['result']]})")
     return "\n".join(lines) + "\n"
 
 

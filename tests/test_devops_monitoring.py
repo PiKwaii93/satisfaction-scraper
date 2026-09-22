@@ -52,6 +52,18 @@ def fake_probe(api=True, frontend=True, postgres=True, redis=True, mlflow=True, 
             "api_http": api, "frontend_http": frontend, "celery_ping": celery}
 
 
+def monitor_root(monkeypatch, tmp_path, sha="d" * 40, free_gib=10):
+    root = tmp_path / "satisfaction-test"
+    release = root / "releases" / sha
+    release.mkdir(parents=True)
+    (release / ".source_sha").write_text(sha)
+    (root / "current.sha").write_text(sha)
+    monkeypatch.setattr(monitor, "ROOT", root)
+    monkeypatch.setattr(monitor.shutil, "disk_usage",
+                        lambda _: SimpleNamespace(free=free_gib * 1024**3))
+    return sha
+
+
 def test_restart_requires_two_failures_and_healthy_dependencies():
     assert monitor.restart_target(fake_probe(api=False), fake_probe(api=False)) == "api"
     assert monitor.restart_target(fake_probe(frontend=False), fake_probe(frontend=False)) == "frontend"
@@ -80,8 +92,9 @@ def test_double_probe_one_restart_and_disk_alert(monkeypatch, tmp_path):
     assert sleeps == [30]
     assert len(restarts) == 1 and restarts[0][0] == (sha, "restart", "api")
     assert report["remediation"]["attempts"] == 1
-    assert report["result"] == "alert" and report["alert"] == "Less than 5 GiB free on /"
-    assert len(report["probes"]) == 2
+    assert report["result"] == "alert" and "Less than 5 GiB free on /" in report["alert"]
+    assert "Confirmed application incident recovered after restart" in report["alert"]
+    assert len(report["probes"]) == 3
     assert "api: ok" in monitor.summary(report)
     assert json.loads(json.dumps(report))["served_sha"] == sha
 
@@ -116,6 +129,72 @@ def test_single_app_failure_is_only_an_alert(monkeypatch, tmp_path):
                              restart=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("restart")))
     assert report["result"] == "alert"
     assert report["remediation"] is None
+
+
+def test_api_incident_recovered_by_one_restart_is_alert(monkeypatch, tmp_path):
+    sha = monitor_root(monkeypatch, tmp_path)
+    probes = iter([fake_probe(api=False), fake_probe(api=False), fake_probe()])
+    restarts, sleeps = [], []
+
+    def restart(*args, **kwargs):
+        restarts.append(args)
+        return SimpleNamespace(returncode=0)
+
+    report = monitor.monitor(sleep=sleeps.append, check=lambda _: next(probes), restart=restart)
+    assert sleeps == [30]
+    assert restarts == [(sha, "restart", "api")]
+    assert report["result"] == "alert"
+    assert report["remediation"] == {"service": "api", "attempts": 1,
+                                      "command_succeeded": True, "healthy_after_restart": True}
+    assert len(report["probes"]) == 3
+    assert [item["healthy"]["api"] for item in report["probes"]] == [False, False, True]
+    assert "alert (recovered anomaly" in monitor.summary(report)
+
+
+def test_frontend_incident_recovered_by_one_restart_is_alert(monkeypatch, tmp_path):
+    sha = monitor_root(monkeypatch, tmp_path)
+    probes = iter([fake_probe(frontend=False), fake_probe(frontend=False), fake_probe()])
+    restarts = []
+
+    def restart(*args, **kwargs):
+        restarts.append(args)
+        return SimpleNamespace(returncode=0)
+
+    report = monitor.monitor(sleep=lambda _: None, check=lambda _: next(probes), restart=restart)
+    assert restarts == [(sha, "restart", "frontend")]
+    assert report["result"] == "alert"
+    assert len(report["probes"]) == 3
+    assert [item["healthy"]["frontend"] for item in report["probes"]] == [False, False, True]
+
+
+def test_failed_restart_remains_incident_even_if_post_probe_is_healthy(monkeypatch, tmp_path):
+    monitor_root(monkeypatch, tmp_path)
+    probes = iter([fake_probe(api=False), fake_probe(api=False), fake_probe()])
+    report = monitor.monitor(sleep=lambda _: None, check=lambda _: next(probes),
+                             restart=lambda *args, **kwargs: SimpleNamespace(returncode=1))
+    assert report["result"] == "incident"
+    assert report["remediation"]["command_succeeded"] is False
+    assert len(report["probes"]) == 3
+
+
+def test_post_restart_probe_still_failing_is_incident(monkeypatch, tmp_path):
+    monitor_root(monkeypatch, tmp_path)
+    probes = iter([fake_probe(api=False), fake_probe(api=False), fake_probe(api=False)])
+    report = monitor.monitor(sleep=lambda _: None, check=lambda _: next(probes),
+                             restart=lambda *args, **kwargs: SimpleNamespace(returncode=0))
+    assert report["result"] == "incident"
+    assert report["remediation"]["healthy_after_restart"] is False
+    assert len(report["probes"]) == 3
+
+
+def test_entirely_healthy_environment_has_no_remediation(monkeypatch, tmp_path):
+    monitor_root(monkeypatch, tmp_path)
+    report = monitor.monitor(check=lambda _: fake_probe(),
+                             restart=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("restart")))
+    assert report["result"] == "healthy"
+    assert report["remediation"] is None
+    assert len(report["probes"]) == 1
+    assert "healthy (no confirmed anomaly)" in monitor.summary(report)
 
 
 def test_yaml_parses_with_schedule_and_manual_dispatch():
