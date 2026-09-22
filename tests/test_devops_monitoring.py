@@ -203,7 +203,7 @@ def test_yaml_parses_with_schedule_and_manual_dispatch():
         data = yaml.safe_load(stream)
     triggers = data.get("on", data.get(True))  # PyYAML 1.1 treats `on` as a bool.
     assert "workflow_dispatch" in triggers and len(triggers["schedule"]) == 1
-    assert triggers["schedule"][0]["cron"] == "17 * * * *"
+    assert triggers["schedule"][0]["cron"] == "*/5 * * * *"
     assert data["jobs"]["monitor"]["if"] == (
         "github.event_name == 'workflow_dispatch' || vars.TEST_MONITOR_SCHEDULE_ENABLED == 'true'"
     )
