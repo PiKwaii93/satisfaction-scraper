@@ -1,0 +1,84 @@
+name: Monitor test VM
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: satisfaction-test-vm
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    # Enable scheduled probes only after the first manual VM check is validated.
+    if: github.event_name == 'workflow_dispatch' || vars.TEST_MONITOR_SCHEDULE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: test
+    timeout-minutes: 8
+    env:
+      TEST_HOST: ${{ secrets.TEST_HOST }}
+      TEST_USER: ${{ secrets.TEST_USER }}
+      TEST_SSH_KEY: ${{ secrets.TEST_SSH_KEY }}
+      TEST_SSH_KNOWN_HOSTS: ${{ secrets.TEST_SSH_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure verified SSH access
+        shell: bash
+        run: |
+          set -euo pipefail
+          for value in "$TEST_HOST" "$TEST_USER" "$TEST_SSH_KEY" "$TEST_SSH_KNOWN_HOSTS"; do
+            test -n "$value" || { echo 'A required test secret is missing' >&2; exit 1; }
+          done
+          [[ "$TEST_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$TEST_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$TEST_SSH_KEY" > "$HOME/.ssh/test_vm_key"
+          printf '%s\n' "$TEST_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/test_vm_key" "$HOME/.ssh/known_hosts"
+
+      - name: Probe test VM
+        id: probe
+        shell: bash
+        run: |
+          set -uo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 \
+            -i "$HOME/.ssh/test_vm_key" "$TEST_USER@$TEST_HOST" \
+            'python3 - probe' < deploy/monitor-test-vm.py > monitor-report.json
+          probe_rc=$?
+          if ! python3 -m json.tool monitor-report.json >/dev/null 2>&1; then
+            python3 deploy/monitor-test-vm.py ssh-failure > monitor-report.json
+          fi
+          echo "probe_exit=$probe_rc" >> "$GITHUB_OUTPUT"
+
+      - name: Publish supervision summary
+        if: always()
+        shell: bash
+        run: |
+          if test -s monitor-report.json; then
+            python3 deploy/monitor-test-vm.py summary monitor-report.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Test VM supervision could not produce a report.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Archive machine-readable report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-vm-monitor-${{ github.run_id }}
+          path: monitor-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail on incident or alert
+        if: always()
+        shell: bash
+        run: |
+          test -s monitor-report.json
+          python3 -c 'import json; assert json.load(open("monitor-report.json"))["result"] == "healthy"'

@@ -275,6 +275,12 @@ et n'installe pas Docker. Le seul port entrant necessaire est SSH (22). Compose
 lie PostgreSQL 5432, Redis 6379, MLflow 5000, API 8000 et frontend 5173 a
 `127.0.0.1` sur la VM. Pour consulter l'application, ouvrir un tunnel :
 
+La VM scolaire effectivement utilisee possede 2 vCPU, environ 7,7 GiB de RAM
+et un disque de 29 GiB ; ces chiffres ne remplacent pas la configuration
+recommandee ci-dessus. Son IP publique est dynamique : apres tout changement
+d'IP, actualiser les secrets GitHub `TEST_HOST` et `TEST_SSH_KNOWN_HOSTS` a
+partir d'une cle hote verifiee. Aucune adresse de VM n'est versionnee.
+
 ```bash
 ssh -L 5173:127.0.0.1:5173 -L 8000:127.0.0.1:8000 utilisateur@hote
 ```
@@ -324,6 +330,66 @@ strategie a un seul ensemble de conteneurs : une breve interruption reste
 possible pendant leur remplacement. Ne pas changer `DB_PASSWORD` d'une base
 existante via un simple redeploiement : le volume PostgreSQL conserve son mot
 de passe initial.
+
+Preuves du chantier 9 (22 septembre 2026) : le playbook Ansible a termine avec
+`ok=4 changed=1 unreachable=0 failed=0` au premier passage, puis `changed=0`
+au second ; depuis GitHub Actions, `changed=0` egalement. Les deploiements
+automatises [35712061341](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35712061341)
+(`72517acbf156efab454e6496670b67526b109c3f`) et
+[35716640160](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35716640160)
+(`a50c69836f3117c224c017af84456e8ec2e1461b`) ont reussi. Un rollback
+manuel sur la VM a remis `72517ac...` en service avec `HEALTHCHECK=passed` ;
+les marqueurs `current.sha` et `previous.sha` ont ete verifies. Le second commit
+etait vide : cette preuve valide le changement de revision, pas un retour a des
+fonctionnalites differentes. Le downgrade des migrations DB n'a pas ete teste,
+et aucun candidat deliberement defaillant n'a servi a tester le rollback
+automatique. Les ressources scolaires preexistantes, dont MicroK8s, sont restees
+intactes.
+
+### KPI DevOps et supervision de la VM de test
+
+`scripts/deployment_kpis.py` interroge les runs et etapes de GitHub Actions,
+sans acces a la VM. Exemple :
+
+```bash
+python scripts/deployment_kpis.py --since 2026-09-22 --limit 100 > kpis.json
+```
+
+Le JSON contient SHA, horodatage, resultat, phase d'echec, durees, frequence
+des deploiements et taux de succes. Le **Deployment Cycle Time** est mesure du
+`workflow_dispatch` (creation du run) a la fin reussie de l'etape `Deploy and
+check API and frontend`. La duree du workflow complet est un champ distinct.
+Sur les deux deploiements reussis : 6 min 06 s pour `72517ac...`, puis 1 min
+03 s pour `a50c698...`. La **Deployment Frequency** etait de deux deploiements
+automatises reussis le 22 septembre 2026. Le **Deployment Success Rate** brut
+etait de 2/4, soit 50 % ; apres correction de la configuration d'acces, 2/2,
+soit 100 %. Les deux premiers runs ont echoue pendant Ansible, avant transfert
+ou activation du candidat, a cause de l'acces SSH / de la cle. Ils n'ont pas
+servi une mauvaise version applicative. Le rollback manuel n'apparait pas dans
+ces KPI Actions ; `current.sha` sur la VM reste la source du SHA effectivement
+servi. Le script KPI n'archive ni ne restitue de secret.
+
+Le workflow `Monitor test VM` fournit le tableau de supervision de
+l'environnement de test dans **GitHub Actions > runs > Step Summary**. Il est
+declenchable manuellement et comporte une cadence horaire. La cadence planifiee
+reste inactive tant que la variable de depot GitHub non secrete
+`TEST_MONITOR_SCHEDULE_ENABLED` n'est pas definie a `true`, pour permettre
+d'abord une validation manuelle. Le cron peut creer un run GitHub planifie
+marque `skipped` ; le job ne s'execute alors pas et ne contacte pas la VM.
+Il reutilise les quatre secrets SSH du
+deploiement, sans service payant. Chaque run conserve un rapport JSON pendant
+30 jours : horodatage, SHA servi, etats Docker et healthchecks PostgreSQL,
+Redis, MLflow, API, frontend, ping fonctionnel Celery, espace libre et action
+eventuelle. Deux sondes applicatives en echec a 30 secondes d'intervalle
+declenchent au plus un redemarrage de `api` ou `frontend`, uniquement si leurs
+dependances sont saines. Une nouvelle sonde enregistre le resultat. Sous
+5 GiB libres, le workflow alerte sans remedier. Il ne remedie jamais aux
+incidents SSH, disque, PostgreSQL, Redis, MLflow ou Celery. Un run en incident
+ou en alerte echoue dans Actions ; activer les notifications GitHub d'echec de workflow pour
+recevoir l'alerte. `celery inspect ping` mesure une reponse du worker a cet
+instant, pas le succes de toutes les taches en file. Les sondes planifiees
+peuvent etre differees par GitHub et ne garantissent pas un controle a l'heure
+exacte. Aucun incident volontaire n'a ete provoque sur la VM scolaire.
 
 URLs utiles :
 
@@ -653,8 +719,8 @@ Jobs actuels :
 - Les vrais connecteurs Google/Zendesk/Shopify ne sont pas encore branches.
 - Le stockage JWT en `localStorage` est acceptable pour le MVP local, pas pour un SaaS durci.
 - Pas de paiement, abonnement, facturation ou gestion multi-org globale avancee.
-- Pas de deploiement cloud automatise.
-- Pas de monitoring technique complet.
+- Deploiement automatise vers une VM de test existante ; le projet ne provisionne pas lui-meme l'infrastructure cloud.
+- Supervision technique de la VM de test via GitHub Actions, avec les limites de cadence et de sondage decrites ci-dessus.
 - Pas de politique RGPD/retention formalisee.
 
 ## Documentation agent
