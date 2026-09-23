@@ -17,9 +17,9 @@ l'exploitation dans [docs/TEST_VM_RUNBOOK.md](docs/TEST_VM_RUNBOOK.md).
 
 Le scheduler GitHub a maintenant produit un [heartbeat planifié réussi](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366)
 et un [événement Monitor planifié](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522)
-dont le job a été `skipped` par le garde. Les crons de diagnostic sont encore
-temporairement à cinq minutes ; `TEST_MONITOR_SCHEDULE_ENABLED` n'a pas été
-activé pour une sonde planifiée réelle. La création d'événements `schedule`
+dont le job a été `skipped` par le garde. Le workflow heartbeat de diagnostic a été retiré ;
+le cron final de Monitor est horaire à la minute 17. `TEST_MONITOR_SCHEDULE_ENABLED` reste
+à `false` et n'a pas été activé pour une sonde planifiée réelle. La création d'événements `schedule`
 est démontrée, **pas** l'exécution d'une sonde VM planifiée.
 
 Les sources académiques Markdown sont préparées dans `docs/` ; leurs rendus

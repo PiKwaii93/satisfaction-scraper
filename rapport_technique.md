@@ -291,7 +291,7 @@ Les evolutions les plus pertinentes sont :
 2. enrichir le corpus avec plus d'entreprises et de secteurs ;
 3. ajouter une classification thematique plus robuste ;
 4. brancher d'autres sources d'avis via API ou CSV ;
-5. verifier une sonde planifiee active avant de revenir au cron horaire ;
+5. verifier une sonde planifiee active avec le cron horaire deja retabli ;
 6. preparer un eventuel provisioning cloud distinct de la VM scolaire ;
 7. formaliser RGPD, retention et securite de production.
 

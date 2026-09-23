@@ -62,7 +62,7 @@ Le SHA servi est antérieur à `main` parce que la VM avait été volontairement
 
 Le constat initial du 22/09/2026 (« aucun run `schedule` observé ») est **périmé**. Depuis, le [heartbeat planifié 35765192366](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366) a réussi et le [run Monitor planifié 35764642522](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522) a été créé. Son job a été `skipped` conformément au garde `TEST_MONITOR_SCHEDULE_ENABLED == 'true'` du [workflow](../.github/workflows/monitor-test.yml). La création d'événements par GitHub est donc démontrée ; **aucune sonde planifiée active de la VM n'est encore démontrée**. Le contrôle manuel sain 35726582579 reste une preuve distincte.
 
-Le cron de diagnostic est encore **temporairement** à cinq minutes. Le retour à la cadence horaire et l'activation éventuelle du garde relèvent d'une étape ultérieure ; aucune modification de workflow ou de VM n'est effectuée par cette mise à jour documentaire. Un événement planifié peut créer un run GitHub `skipped` sans aucune supervision de VM exécutée.
+Le workflow heartbeat de diagnostic a été retiré après cette preuve. Le cron final de Monitor est horaire à la minute 17. `TEST_MONITOR_SCHEDULE_ENABLED` reste à `false` : un événement planifié peut créer un run GitHub `skipped` sans aucune supervision de VM exécutée.
 
 ## Limites à annoncer au jury
 

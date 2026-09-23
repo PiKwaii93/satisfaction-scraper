@@ -376,12 +376,11 @@ servi. Le script KPI n'archive ni ne restitue de secret.
 
 Le workflow `Monitor test VM` fournit le tableau de supervision de
 l'environnement de test dans **GitHub Actions > runs > Step Summary**. Il est
-declenchable manuellement. Son cron est temporairement a cinq minutes pour
-diagnostiquer le scheduler ; des evenements `schedule` sont maintenant prouves
+declenchable manuellement. Son cron final est horaire a la minute 17 ; des evenements `schedule` sont prouves
 par le [heartbeat 35765192366](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366)
 et le [run Monitor 35764642522](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522),
-dont le job a ete `skipped`. La cadence horaire reste a retablir lors d'une
-etape distincte. La sonde planifiee reste inactive tant que la variable de depot
+dont le job a ete `skipped`. Le workflow heartbeat de diagnostic a ensuite ete retire.
+La sonde planifiee reste inactive tant que la variable de depot
 GitHub non secrete
 `TEST_MONITOR_SCHEDULE_ENABLED` n'est pas definie a `true`, pour permettre
 d'abord une validation manuelle. Le cron peut creer un run GitHub planifie

@@ -309,7 +309,7 @@ Chaque correction est stockee en base. Lors du reentrainement, ces corrections s
 - brancher d'autres sources d'avis ;
 - renforcer la classification thematique ;
 - renforcer la gestion des secrets et l'authentification pour la production ;
-- verifier une sonde planifiee active de la VM, puis revenir au cron horaire ;
+- verifier une sonde planifiee active de la VM avec le cron horaire deja retabli ;
 - suivre les performances et la derive du modele.
 
 ## 7. Preuves a montrer dans le code
