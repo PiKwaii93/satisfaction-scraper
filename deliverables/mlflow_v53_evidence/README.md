@@ -1,6 +1,6 @@
 # Preuves MLflow v53 - export assaini
 
-Ces fichiers proviennent du registre MLflow local conservé, consulté en lecture seule le 24 septembre 2026 à 06:36:44 UTC. Ils sont préparés pour revue avant publication ; ils ne sont pas des captures de l'interface MLflow.
+Ces fichiers assainis publiés proviennent du registre MLflow local conservé, consulté en lecture seule le 24 septembre 2026 à 06:36:44 UTC. Les exports originaux restent hors Git ; aucune capture authentique de l'interface MLflow n'a été constituée.
 
 | Fichier | Rôle |
 | --- | --- |
