@@ -22,9 +22,11 @@ le cron final de Monitor est horaire à la minute 17. `TEST_MONITOR_SCHEDULE_ENA
 à `false` et n'a pas été activé pour une sonde planifiée réelle. La création d'événements `schedule`
 est démontrée, **pas** l'exécution d'une sonde VM planifiée.
 
-Les sources académiques Markdown sont préparées dans `docs/` ; leurs rendus
-PPTX/PDF/DOCX attendent la validation de leur contenu. La collecte directe de
-plus de 10 000 avis reste non conforme à la preuve demandée.
+Les sources académiques Markdown et leurs rendus PPTX/PDF/DOCX sont indexés
+dans [deliverables/README.md](deliverables/README.md). Le schéma détaillé et
+l'ETL figurent dans [docs/SCHEMA_DONNEES_ETL.md](docs/SCHEMA_DONNEES_ETL.md).
+La collecte directe de plus de 10 000 avis reste non conforme à la preuve
+demandée. Les captures du registre MLflow v53 restent à constituer.
 
 ## Contraintes durables
 
@@ -33,5 +35,5 @@ plus de 10 000 avis reste non conforme à la preuve demandée.
 - Ne pas présenter une source préparée comme un connecteur fonctionnel.
 - Ne pas committer de secrets, d'archives de base ou de clés SSH.
 - Ne pas modifier la VM scolaire ou ses ressources MicroK8s sans demande explicite.
-- Ne pas committer ou pousser sans autorisation utilisateur ; le présent
-  chantier documentaire est explicitement autorisé à être committé et poussé.
+- Ne pas committer ou pousser sans autorisation utilisateur ; le chantier 12
+  doit être revu avant tout commit ou push.

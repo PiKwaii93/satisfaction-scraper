@@ -568,6 +568,11 @@ anciens scripts :
 - `dim_companies`
 - `fact_reviews`
 
+Le [schema de donnees et pipeline ETL detailles](docs/SCHEMA_DONNEES_ETL.md)
+inventorient les 16 tables produit, les FK et index, les cardinalites et les
+deux tables historiques distinctes. Le [PDF de remise](deliverables/07_Schema_Donnees_ETL.pdf)
+inclut leurs diagrammes.
+
 Commandes de migration :
 
 ```powershell
@@ -742,7 +747,7 @@ Jobs actuels :
 - [Preuves DevOps](docs/DEVOPS_EVIDENCE.md) : CI/E2E, déploiements, rollback, KPI, supervision et événements `schedule` démontrés.
 - [Runbook de la VM de test](docs/TEST_VM_RUNBOOK.md) : préparation, déploiement, contrôles, tunnel, rollback et gestion des alertes.
 - [Cadrage](cadrage_projet.md), [cahier des charges](cahier_des_charges.md), [rapport technique](rapport_technique.md) et [scénario de soutenance](demo_soutenance.md).
-- Sources académiques à valider avant export : [Discovery et quatre KPI](docs/DISCOVERY_DONNEES_KPI.md), [veille](docs/VEILLE_TECHNO_REGLEMENTAIRE.md), [MVP](docs/MVP_ACADEMIQUE.md), [roadmap](docs/ROADMAP_ACADEMIQUE.md), [SWOT](docs/SWOT_SOURCE.md) et [collecte](docs/COLLECTE_EXPLICATIVE_SOURCE.md).
+- [Livrables académiques finaux](deliverables/README.md) et sources Markdown : [Discovery et quatre KPI](docs/DISCOVERY_DONNEES_KPI.md), [veille](docs/VEILLE_TECHNO_REGLEMENTAIRE.md), [MVP](docs/MVP_ACADEMIQUE.md), [roadmap](docs/ROADMAP_ACADEMIQUE.md), [SWOT](docs/SWOT_SOURCE.md), [collecte](docs/COLLECTE_EXPLICATIVE_SOURCE.md) et [schéma/ETL](docs/SCHEMA_DONNEES_ETL.md).
 - [Checklist des preuves MLflow v53](docs/MLFLOW_V53_PREUVES.md) : captures du registre conservé et distinction du bootstrap sur registre vierge.
 
 ## Limites connues

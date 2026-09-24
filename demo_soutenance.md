@@ -327,6 +327,7 @@ Fichiers utiles :
 - `tests/` : tests backend ;
 - `.github/workflows/ci.yml` : pipeline CI ;
 - `docs/TRACEABILITY.md` : exigences, preuves et limites ;
+- `docs/SCHEMA_DONNEES_ETL.md` : 16 tables produit, relations, isolation et ETL ;
 - `docs/DEVOPS_EVIDENCE.md` : runs CI, deploiements, rollback, KPI et supervision ;
 - `README.md` : installation et commandes ;
 - `cahier_des_charges.md` : besoin et cadrage ;

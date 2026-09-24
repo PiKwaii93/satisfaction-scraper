@@ -77,7 +77,11 @@ Les colonnes optionnelles sont :
 
 ## 4. Modele de donnees
 
-L'application produit utilise un schema PostgreSQL dedie.
+L'application produit utilise un schema PostgreSQL dedie de **16 tables**,
+versionne par huit migrations Alembic jusqu'a `20260921_0008`. Le tableau
+ci-dessous ne presente que les tables centrales de l'analyse ; le
+[catalogue complet, ses cardinalites, contraintes et diagrammes](docs/SCHEMA_DONNEES_ETL.md)
+est egalement livre en [PDF](deliverables/07_Schema_Donnees_ETL.pdf).
 
 | Table | Role |
 | --- | --- |
@@ -94,8 +98,10 @@ Ce modele separe les donnees brutes, les predictions, les corrections et les met
 
 Le schema produit est versionne avec Alembic. Une base existante non versionnee
 est validee puis rattachee a la baseline sans recreation des tables. Les tables
-historiques `dim_companies` et `fact_reviews` restent initialisees par
-`init_db.sql` pour les anciens scripts.
+historiques `dim_companies` et `fact_reviews` restent definies par
+`init_db.sql` pour les anciens scripts. Elles ne sont pas les tables du produit.
+Le `ON CONFLICT` de l'ancien `app/etl.py` vise une unicite absente du SQL
+historique ; ce flux ne doit pas etre presente comme le chemin produit valide.
 
 ## 5. Pipeline d'analyse
 
@@ -109,6 +115,13 @@ historiques `dim_companies` et `fact_reviews` restent initialisees par
 8. Des irritants metier sont detectes par analyse lexicale.
 9. Les resultats sont stockes dans PostgreSQL.
 10. Le frontend affiche le rapport, les avis, les exports et le journal d'execution.
+
+Le [diagramme ETL detaille](docs/SCHEMA_DONNEES_ETL.md) distingue la collecte
+Trustpilot, l'import CSV, la normalisation, les tables produit PostgreSQL,
+l'inference MLflow et la restitution API/frontend. Le lot historique de
+1 200 avis a une provenance d'acquisition incomplete ; la tentative HTTP 403
+plus recente n'a extrait aucun avis. Ces deux JSON ne prouvent pas la collecte
+exhaustive de plus de 10 000 commentaires.
 
 Les statuts principaux d'un run sont :
 
@@ -250,9 +263,15 @@ Les validations disponibles incluent :
 - export CSV et PDF.
 
 Le script KPI extrait les temps de deploiement des runs GitHub Actions. La
-supervision de test archive un JSON et un Step Summary. Un heartbeat et un
-evenement Monitor `schedule` sont desormais prouves ; le job Monitor planifie
-a ete `skipped`, donc la sonde VM planifiee active reste a demontrer.
+supervision de test archive un JSON et un Step Summary. Le cron final de
+Monitor est `17 * * * *` ; le workflow diagnostic heartbeat a ete retire.
+Le [heartbeat planifie 35765192366](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366)
+a reussi et l'[evenement Monitor planifie 35764642522](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522)
+a ete cree, mais son job a ete `skipped` par `TEST_MONITOR_SCHEDULE_ENABLED=false`.
+La [sonde manuelle reelle 35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
+a reussi ; aucune sonde VM planifiee active n'est prouvee. Le restart conditionnel
+unique de l'API ou du frontend est teste par le code, sans restart reel apres
+incident demontre sur la VM.
 
 ## 13. Securite et cadre reglementaire
 
@@ -282,6 +301,10 @@ Points a renforcer pour une production reelle :
 - Le monitoring GitHub Actions concerne la VM de test, pas un SLA de production ; des evenements `schedule` sont prouves, mais pas encore une sonde planifiee active de la VM.
 - Le deploiement automatise cible une VM scolaire existante, sans provisioning cloud.
 - Le rollback DB/migrations n'a pas ete demontre.
+- Le rollback applicatif a ete teste entre deux revisions Git dont la seconde
+  est un commit vide ; le retour de fonctionnalites differentes n'est pas prouve.
+- La v53 correspond au registre MLflow conserve ; un cold start sur registre
+  vierge cree une nouvelle v1 et non une copie de cet historique.
 
 ## 15. Perspectives
 
