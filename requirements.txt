@@ -1,5 +1,6 @@
 # Scraping
 playwright==1.44.0
+tzdata
 
 # Data Engineering & Science
 pandas

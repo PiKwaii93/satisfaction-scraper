@@ -3,7 +3,9 @@ import os
 import random
 import re
 import time
-from urllib.parse import urljoin
+from datetime import datetime
+from urllib.parse import urljoin, urlparse
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import sync_playwright
 
@@ -113,11 +115,49 @@ def review_dedupe_key(review):
     )
 
 
+def normalize_review_datetime(raw_datetime):
+    """Return the Trustpilot French calendar day from an aware ISO timestamp.
+
+    Europe/Paris is explicit because the application's date field has no time
+    zone. The declared tzdata dependency supplies IANA rules on Windows.
+    """
+    if not raw_datetime:
+        return None
+    try:
+        instant = datetime.fromisoformat(str(raw_datetime).strip().replace("Z", "+00:00"))
+        if instant.tzinfo is None or instant.utcoffset() is None:
+            return None
+        return instant.astimezone(ZoneInfo("Europe/Paris")).date().isoformat()
+    except ValueError:
+        return None
+
+
+def _review_date(element):
+    if element is None:
+        return ""
+    iso_day = normalize_review_datetime(element.get_attribute("datetime"))
+    if iso_day:
+        return iso_day
+    return element.inner_text().strip().replace("Date de l'expérience :", "").strip()
+
+
 def extract_reviews_from_page(page, fallback_rating=None):
     reviews = []
+    seen_ids = set()
     review_cards = page.query_selector_all("article[class*='styles_reviewCard']")
     for card in review_cards:
         try:
+            review_link = card.query_selector("a[href*='/reviews/']")
+            review_href = review_link.get_attribute("href") if review_link else None
+            review_url = urljoin("https://fr.trustpilot.com", review_href) if review_href else None
+            review_path = urlparse(review_url).path if review_url else ""
+            review_match = re.fullmatch(r"/reviews/([A-Za-z0-9_-]+)", review_path.rstrip("/"))
+            if not review_match or urlparse(review_url).hostname != "fr.trustpilot.com":
+                continue  # Annex cards are not reviews; only stable review IDs count.
+            source_review_id = review_match.group(1)
+            if source_review_id in seen_ids:
+                continue
+
             author_elem = card.query_selector(
                 "[data-user-profile-link-name='title'], "
                 "span[class*='styles_consumerName']"
@@ -134,9 +174,12 @@ def extract_reviews_from_page(page, fallback_rating=None):
                 alt_match = re.search(r"(?:Noté|Rated)\s+(\d)", alt_text)
                 if alt_match:
                     rating = alt_match.group(1)
-            date_elem = card.query_selector("[data-submission-date-typography='true'], time")
-            date = date_elem.inner_text().strip() if date_elem else ""
-            date = date.replace("Date de l'expérience :", "").strip()
+            date_elem = (
+                card.query_selector("time[data-service-review-date-time-ago][datetime]")
+                or card.query_selector("[data-submission-date-typography='true']")
+                or card.query_selector("time")
+            )
+            date = _review_date(date_elem)
             title_elem = card.query_selector(
                 "[data-review-title-typography='true'], "
                 "h2[data-service-review-title-typography='true']"
@@ -154,16 +197,20 @@ def extract_reviews_from_page(page, fallback_rating=None):
             else:
                 verbatim = f"{title_text} - {body_text}".strip(" - ")
             reply_elem = card.query_selector(
+                "[data-service-review-business-reply-text-typography], "
                 "[data-dashboard-reply-typography='true'], "
                 "div[class*='styles_replyContainer']"
             )
             reply_text = reply_elem.inner_text().strip() if reply_elem else None
-            review_link = card.query_selector("a[href*='/reviews/']")
-            review_url = review_link.get_attribute("href") if review_link else None
-            review_url = urljoin("https://fr.trustpilot.com", review_url) if review_url else None
-            source_review_id = review_url.rstrip("/").split("/")[-1] if review_url else None
+            reply_date_elem = card.query_selector(
+                "time[data-service-review-business-reply-date-time-ago][datetime]"
+            )
+            if reply_date_elem is None and reply_elem is not None:
+                reply_date_elem = reply_elem.query_selector("time[datetime]")
+            reply_date = _review_date(reply_date_elem) if reply_elem else None
             if not verbatim and not rating:
                 continue
+            seen_ids.add(source_review_id)
             reviews.append(
                 {
                     "source_review_id": source_review_id,
@@ -174,6 +221,7 @@ def extract_reviews_from_page(page, fallback_rating=None):
                     "verbatim": verbatim,
                     "company_responded": bool(reply_elem),
                     "company_reply_text": reply_text,
+                    "company_reply_date": reply_date,
                 }
             )
         except Exception:
