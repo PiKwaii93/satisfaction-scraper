@@ -1,0 +1,87 @@
+{
+  "consulted_at_utc": "2026-09-24T06:36:44.097391+00:00",
+  "files": [
+    {
+      "derived_from": [
+        {
+          "export_file": "registry.json",
+          "export_sha256": "8f0592058624aeb3299d60fe466a0b1af6c69a77fb7feed30535814cc7baaded"
+        },
+        {
+          "export_file": "run_params_and_tags.json",
+          "export_sha256": "c50d449e6fb4bf4af52cf1d7ce34f5d6f124b340490cc92f97126892229d931b"
+        },
+        {
+          "export_file": "run_metrics.json",
+          "export_sha256": "a28549b6cadded4720d788b84f76331095c105344fa05bf03dcf6e72a146543f"
+        }
+      ],
+      "published_file": "summary.json",
+      "sha256": "8ebf9f2204fe679f89f2f420c9590586cf1636664d61817951132452dbea5501",
+      "transformation": "Sélection de champs et re-sérialisation sans information privée"
+    },
+    {
+      "derived_from": [
+        {
+          "export_file": "artifacts/dataset/dataset_info.json",
+          "export_sha256": "2d39ac4def711b5c85a4a092b62a6c4acf9af9d8816c2cb56340f18b7c04f44e"
+        }
+      ],
+      "published_file": "dataset_info.json",
+      "sha256": "d7660bf810c92b4e01ca26db02114400c2402deea31eba5f7c466a93709cb88b",
+      "transformation": "Re-sérialisation JSON des valeurs exportées; le chemin privé du snapshot était déjà retiré dans l’export"
+    },
+    {
+      "derived_from": [
+        {
+          "export_file": "artifacts/evaluation/classification_report.json",
+          "export_sha256": "ee18802be04513d904e3f6235c844d92d1f4a48b44b26c26071fd2cf72873985"
+        }
+      ],
+      "published_file": "classification_report.json",
+      "sha256": "73ecc5c5ff7a590006e5e73861a2fe80a79c39ce7e6a54c95a572793a7ef48a6",
+      "transformation": "Re-sérialisation JSON des valeurs exportées"
+    },
+    {
+      "derived_from": [
+        {
+          "export_file": "artifacts/evaluation/confusion_matrix.json",
+          "export_sha256": "6fba2a5ac540433f0cee14d66f3db6f29f48346ba6d318593e8ab8cb7b60338c"
+        }
+      ],
+      "published_file": "confusion_matrix.json",
+      "sha256": "ba30613ce8992a49d7610968fe3907f6297101b10a984e126fc1acca764c81d9",
+      "transformation": "Re-sérialisation JSON des valeurs exportées"
+    }
+  ],
+  "missing": [
+    "Capture authentique de l’interface MLflow",
+    "Réhachage indépendant du contenu du snapshot",
+    "Artefact autonome de distribution des classes; répartition disponible comme métriques",
+    "Export du binaire du modèle; présence et nombre de fichiers seulement vérifiés"
+  ],
+  "model": "sentiment_model",
+  "raw_registry_artifacts": [
+    {
+      "private_export_sha256": "2d39ac4def711b5c85a4a092b62a6c4acf9af9d8816c2cb56340f18b7c04f44e",
+      "registry_original_sha256": "ce20b44bdfc4adec42746838f71760f992081db7921b59761c8a55f65cc59d8d",
+      "run_artifact": "dataset/dataset_info.json",
+      "snapshot_path_removed_in_private_export": true
+    },
+    {
+      "private_export_sha256": "ee18802be04513d904e3f6235c844d92d1f4a48b44b26c26071fd2cf72873985",
+      "registry_original_sha256": "ee18802be04513d904e3f6235c844d92d1f4a48b44b26c26071fd2cf72873985",
+      "run_artifact": "evaluation/classification_report.json",
+      "snapshot_path_removed_in_private_export": false
+    },
+    {
+      "private_export_sha256": "6fba2a5ac540433f0cee14d66f3db6f29f48346ba6d318593e8ab8cb7b60338c",
+      "registry_original_sha256": "6fba2a5ac540433f0cee14d66f3db6f29f48346ba6d318593e8ab8cb7b60338c",
+      "run_artifact": "evaluation/confusion_matrix.json",
+      "snapshot_path_removed_in_private_export": false
+    }
+  ],
+  "run_id": "de7104ef534541309c8b8e6eecbb6755",
+  "source": "Registre MLflow local conservé, extraction en lecture seule",
+  "version": 53
+}

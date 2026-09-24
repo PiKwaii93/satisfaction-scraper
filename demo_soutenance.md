@@ -20,7 +20,7 @@ Montrer en 8 a 12 minutes que le projet couvre toute la chaine attendue :
 Depuis la racine du projet :
 
 ```powershell
-cd C:\Users\Maxen\OneDrive\Documents\GitHub\satisfaction-scraper
+cd <chemin-du-depot>
 ```
 
 Demarrer les services :
@@ -159,9 +159,9 @@ Ce qu'il faut expliquer :
 Dans le bloc `Entrainement IA` :
 
 1. montrer le nombre de corrections et la boucle de feedback ;
-2. si le registre conserve est disponible, ouvrir le run MLflow valide de v53 ;
-3. montrer les metriques, la matrice de confusion et le hash du dataset ;
-4. verifier sur ce meme registre que l'alias `production` pointe vers v53.
+2. presenter le [PDF de preuves v53](deliverables/08_Preuve_MLflow_v53.pdf) et les [exports assainis](deliverables/mlflow_v53_evidence/README.md), prepares a partir du registre conserve consulte en lecture seule le 24 septembre 2026 ;
+3. montrer les metriques, la matrice de confusion et le hash **enregistre** du dataset ; preciser que le snapshot n'a pas ete rehache independamment ;
+4. indiquer que l'alias `production` pointait vers v53 a cette consultation. Si le registre conserve est disponible au moment de la demo, verifier cet etat a nouveau en direct ; sur un registre vierge, ne pas annoncer v53.
 
 Ce qu'il faut expliquer :
 

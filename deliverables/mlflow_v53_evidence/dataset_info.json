@@ -1,0 +1,21 @@
+{
+  "duplicate_groups": 42,
+  "duplicates_removed": 102,
+  "hash_columns": [
+    "id",
+    "verbatim",
+    "rating",
+    "target",
+    "dataset_source",
+    "sample_weight"
+  ],
+  "random_state": 42,
+  "rows_after_deduplication": 1554,
+  "rows_before_deduplication": 1656,
+  "sha256": "deb2f21da31b6c64c999fd539b79192e26d2fd1c71e820f31884294c0e9984cd",
+  "snapshot_basename": "sentiment_training_dataset.csv",
+  "split_strategy": "stratified_after_global_deduplication",
+  "test_examples": 311,
+  "test_size": 0.2,
+  "train_examples": 1243
+}
