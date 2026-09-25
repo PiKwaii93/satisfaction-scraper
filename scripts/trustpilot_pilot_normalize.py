@@ -16,7 +16,12 @@ from pathlib import Path
 from app.scraper import normalize_review_datetime
 
 
-PRIVATE_DIR = Path(os.environ["LOCALAPPDATA"]) / "SatisfactionClient" / "TrustpilotPilot"
+def private_dir() -> Path:
+    """Resolve the Windows-only private output path when the script runs."""
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        raise RuntimeError("Ce script privé nécessite LOCALAPPDATA sous Windows")
+    return Path(local_app_data) / "SatisfactionClient" / "TrustpilotPilot"
 
 
 def file_sha256(path: Path) -> str:
@@ -73,7 +78,8 @@ def main() -> None:
     if not re.fullmatch(r"\d{8}T\d{6}Z", stamp):
         raise ValueError("Horodatage de pilote invalide")
 
-    inputs = [PRIVATE_DIR / f"showroomprive_page_{page}_{stamp}.json" for page in (11, 50)]
+    root = private_dir()
+    inputs = [root / f"showroomprive_page_{page}_{stamp}.json" for page in (11, 50)]
     originals = {path.name: file_sha256(path) for path in inputs}
     payloads = []
     all_ids = set()
@@ -93,7 +99,7 @@ def main() -> None:
     if len(all_ids) != 40:
         raise ValueError("Nombre total d'identifiants inattendu")
 
-    output_dir = PRIVATE_DIR / "normalized"
+    output_dir = root / "normalized"
     output_dir.mkdir(exist_ok=True)
     lines = [
         "# Validation hors ligne du pilote Trustpilot",

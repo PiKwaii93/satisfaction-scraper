@@ -1,8 +1,11 @@
 """Anonymous fixtures for the Trustpilot pilot parser; no network or real reviews."""
 
 import json
+import importlib
+import os
 import unittest
 from datetime import datetime
+from unittest.mock import patch
 
 from app.scraper import (
     collect_review_pages,
@@ -13,6 +16,7 @@ from app.scraper import (
 )
 from scripts.trustpilot_pilot_normalize import normalize_record, valid_project_record
 from scripts.trustpilot_pilot_extract import date_details
+from scripts import trustpilot_pilot_extract, trustpilot_pilot_normalize
 from scripts.trustpilot_manual_check import connect_existing_browser
 
 
@@ -84,6 +88,16 @@ class Page:
 
 
 class TrustpilotDateTest(unittest.TestCase):
+    def test_private_scripts_import_without_windows_environment(self):
+        environment = {key: value for key, value in os.environ.items() if key != "LOCALAPPDATA"}
+        with patch.dict(os.environ, environment, clear=True):
+            importlib.reload(trustpilot_pilot_extract)
+            importlib.reload(trustpilot_pilot_normalize)
+            with self.assertRaisesRegex(RuntimeError, "LOCALAPPDATA"):
+                trustpilot_pilot_extract.private_output_dir()
+            with self.assertRaisesRegex(RuntimeError, "LOCALAPPDATA"):
+                trustpilot_pilot_normalize.private_dir()
+
     def test_aware_iso_offsets_and_paris_midnight(self):
         self.assertEqual(normalize_review_datetime("2026-08-16T22:30:00Z"), "2026-08-17")
         self.assertEqual(normalize_review_datetime("2026-08-17T00:30:00+02:00"), "2026-08-17")

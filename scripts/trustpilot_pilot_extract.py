@@ -32,7 +32,6 @@ REVIEW_DATE_SELECTOR = "time[data-service-review-date-time-ago]"
 REPLY_TITLE_SELECTOR = "[data-service-review-business-reply-title-typography]"
 REPLY_TEXT_SELECTOR = "[data-service-review-business-reply-text-typography]"
 REPLY_DATE_SELECTOR = "time[data-service-review-business-reply-date-time-ago]"
-OUTPUT_DIR = Path(os.environ["LOCALAPPDATA"]) / "SatisfactionClient" / "TrustpilotPilot"
 FRENCH_MONTHS = {
     "janvier": 1, "fevrier": 2, "mars": 3, "avril": 4,
     "mai": 5, "juin": 6, "juillet": 7, "aout": 8,
@@ -43,6 +42,14 @@ FRENCH_MONTHS = {
 def read_text(card, selector: str) -> str:
     element = card.query_selector(selector)
     return element.inner_text().strip() if element else ""
+
+
+def private_output_dir() -> Path:
+    """Resolve the Windows-only private location only when the pilot runs."""
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        raise RuntimeError("Ce pilote privé nécessite LOCALAPPDATA sous Windows")
+    return Path(local_app_data) / "SatisfactionClient" / "TrustpilotPilot"
 
 
 def french_calendar_date(value: str) -> str | None:
@@ -228,14 +235,15 @@ def save_report(path: Path, started_at: str, summaries: list[dict], stop_reason:
 
 def main() -> None:
     repo = Path(__file__).resolve().parents[1]
-    if OUTPUT_DIR.resolve().is_relative_to(repo):
+    output_dir = private_output_dir()
+    if output_dir.resolve().is_relative_to(repo):
         raise RuntimeError("Le dossier pilote doit rester hors Git.")
     started_at = datetime.now(timezone.utc).isoformat()
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     summaries: list[dict] = []
     seen_ids: set[str] = set()
     stop_reason = None
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as playwright:
         try:
@@ -331,7 +339,7 @@ def main() -> None:
                             break
                         filename = f"showroomprive_page_{number}_{stamp}.json"
                         save_json(
-                            OUTPUT_DIR / filename,
+                            output_dir / filename,
                             {
                                 "source": "trustpilot",
                                 "target_company": COMPANY,
@@ -351,7 +359,7 @@ def main() -> None:
                         stop_reason = f"Erreur de navigation ou de lecture sur la page {number} ; aucune nouvelle tentative"
                         break
 
-    report_path = OUTPUT_DIR / f"validation_{stamp}.md"
+    report_path = output_dir / f"validation_{stamp}.md"
     save_report(report_path, started_at, summaries, stop_reason)
     print(f"Rapport : %LOCALAPPDATA%\\SatisfactionClient\\TrustpilotPilot\\{report_path.name}")
     for summary in summaries:
