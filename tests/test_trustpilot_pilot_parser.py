@@ -125,6 +125,12 @@ class TrustpilotDateTest(unittest.TestCase):
         self.assertEqual(reviews[0]["company_reply_text"], "Réponse fictive.")
         self.assertEqual(datetime.strptime(reviews[0]["date"], "%Y-%m-%d").strftime("%Y-%m-%d"), reviews[0]["date"])
 
+    def test_parser_can_omit_author_for_private_collection(self):
+        reviews = extract_reviews_from_page(Page([Card("review-a")]), include_author=False)
+        self.assertEqual(len(reviews), 1)
+        self.assertNotIn("author", reviews[0])
+        self.assertEqual(reviews[0]["title"], "Titre anonyme")
+
     def test_pilot_uses_iso_when_visible_date_is_relative(self):
         class RelativeDateCard:
             def query_selector(self, selector):

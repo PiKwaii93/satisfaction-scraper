@@ -141,28 +141,44 @@ def _review_date(element):
     return element.inner_text().strip().replace("Date de l'expérience :", "").strip()
 
 
-def extract_reviews_from_page(page, fallback_rating=None):
+REVIEW_CARD_SELECTOR = "article[class*='styles_reviewCard']"
+
+
+def review_identity_from_card(card):
+    """Return the stable ID and canonical URL, or None for an annex card."""
+    link = card.query_selector("a[href*='/reviews/']")
+    href = link.get_attribute("href") if link else None
+    review_url = urljoin("https://fr.trustpilot.com", href) if href else None
+    if not review_url:
+        return None
+    parsed = urlparse(review_url)
+    match = re.fullmatch(r"/reviews/([A-Za-z0-9_-]+)", parsed.path.rstrip("/"))
+    if parsed.hostname != "fr.trustpilot.com" or not match:
+        return None
+    return match.group(1), review_url
+
+
+def extract_reviews_from_page(page, fallback_rating=None, include_author=True):
     reviews = []
     seen_ids = set()
-    review_cards = page.query_selector_all("article[class*='styles_reviewCard']")
+    review_cards = page.query_selector_all(REVIEW_CARD_SELECTOR)
     for card in review_cards:
         try:
-            review_link = card.query_selector("a[href*='/reviews/']")
-            review_href = review_link.get_attribute("href") if review_link else None
-            review_url = urljoin("https://fr.trustpilot.com", review_href) if review_href else None
-            review_path = urlparse(review_url).path if review_url else ""
-            review_match = re.fullmatch(r"/reviews/([A-Za-z0-9_-]+)", review_path.rstrip("/"))
-            if not review_match or urlparse(review_url).hostname != "fr.trustpilot.com":
+            if hasattr(card, "is_visible") and not card.is_visible():
+                continue
+            identity = review_identity_from_card(card)
+            if identity is None:
                 continue  # Annex cards are not reviews; only stable review IDs count.
-            source_review_id = review_match.group(1)
+            source_review_id, review_url = identity
             if source_review_id in seen_ids:
                 continue
 
-            author_elem = card.query_selector(
-                "[data-user-profile-link-name='title'], "
-                "span[class*='styles_consumerName']"
-            )
-            author = author_elem.inner_text().strip() if author_elem else "Anonyme"
+            if include_author:
+                author_elem = card.query_selector(
+                    "[data-user-profile-link-name='title'], "
+                    "span[class*='styles_consumerName']"
+                )
+                author = author_elem.inner_text().strip() if author_elem else "Anonyme"
             rating = str(fallback_rating or "")
             rating_container = card.query_selector(
                 "div[class*='styles_reviewHeader'] div[data-star-rating], "
@@ -211,19 +227,20 @@ def extract_reviews_from_page(page, fallback_rating=None):
             if not verbatim and not rating:
                 continue
             seen_ids.add(source_review_id)
-            reviews.append(
-                {
-                    "source_review_id": source_review_id,
-                    "review_url": review_url,
-                    "author": author,
-                    "rating": int(rating) if rating.isdigit() else None,
-                    "date": date,
-                    "verbatim": verbatim,
-                    "company_responded": bool(reply_elem),
-                    "company_reply_text": reply_text,
-                    "company_reply_date": reply_date,
-                }
-            )
+            review = {
+                "source_review_id": source_review_id,
+                "review_url": review_url,
+                "rating": int(rating) if rating.isdigit() else None,
+                "date": date,
+                "title": title_text,
+                "verbatim": verbatim,
+                "company_responded": bool(reply_elem),
+                "company_reply_text": reply_text,
+                "company_reply_date": reply_date,
+            }
+            if include_author:
+                review["author"] = author
+            reviews.append(review)
         except Exception:
             continue
     return reviews
