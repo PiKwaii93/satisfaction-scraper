@@ -64,7 +64,8 @@ class Config:
             raise ValueError(f"At most {limit} pages per run")
 
     def url(self, number):
-        return f"https://fr.trustpilot.com/review/{self.company}?page={number}"
+        base = f"https://fr.trustpilot.com/review/{self.company}"
+        return base if number == 1 else f"{base}?page={number}"
 
 
 def utc_now():

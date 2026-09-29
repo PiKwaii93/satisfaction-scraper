@@ -51,6 +51,12 @@ def manifest(cfg):
     return json.loads((cfg.output_dir / "manifest.json").read_text(encoding="utf-8"))
 
 
+def test_first_page_uses_canonical_url_without_page_parameter(tmp_path):
+    cfg = config(tmp_path)
+    assert cfg.url(1) == "https://fr.trustpilot.com/review/example.com"
+    assert cfg.url(2) == "https://fr.trustpilot.com/review/example.com?page=2"
+
+
 def test_valid_page_and_annex_cards(tmp_path):
     cfg = config(tmp_path, end=1)
     nav = FakeNavigator({1: capture(cfg, 1, [review("a", reply=True)], card_count=2)})
