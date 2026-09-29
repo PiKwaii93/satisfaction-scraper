@@ -178,3 +178,66 @@ def test_dry_run_resume_shows_only_remaining_pages(tmp_path):
     plan = collector.run_collection(config(tmp_path, resume=True), None, dry_run=True)
     assert plan["pages"] == [2]
     assert (cfg.output_dir / "manifest.json").read_bytes() == before
+
+
+def test_contiguous_extension_preserves_prior_pages_and_full_resume_skips_all(tmp_path):
+    initial = config(tmp_path)
+    collector.run_collection(initial, FakeNavigator({
+        1: capture(initial, 1, [review("a")]),
+        2: capture(initial, 2, [review("b")]),
+    }))
+    extended = collector.Config("example.com", 3, 4, initial.output_dir, True)
+    navigator = FakeNavigator({
+        3: capture(extended, 3, [review("b"), review("c")]),
+        4: capture(extended, 4, [review("d")]),
+    })
+    result = collector.run_collection(extended, navigator)
+    assert navigator.calls == [3, 4]
+    assert result["start_page"] == 1 and result["end_page"] == 4
+    assert result["unique_review_ids"] == ["a", "b", "c", "d"]
+    assert result["pages"]["3"]["new_count"] == 1
+    full = collector.Config("example.com", 1, 4, initial.output_dir, True)
+    no_fetch = FakeNavigator({})
+    collector.run_collection(full, no_fetch)
+    assert no_fetch.calls == []
+
+
+def test_extension_rejects_incomplete_prior_range(tmp_path):
+    initial = config(tmp_path)
+    with pytest.raises(collector.CollectionStopped):
+        collector.run_collection(initial, FakeNavigator({
+            1: capture(initial, 1, [review("a")]),
+            2: capture(initial, 2, [], status=403),
+        }))
+    extension = collector.Config("example.com", 3, 4, initial.output_dir, True)
+    no_fetch = FakeNavigator({})
+    with pytest.raises(collector.CollectionStopped, match="incomplete"):
+        collector.run_collection(extension, no_fetch)
+    assert no_fetch.calls == []
+
+
+def test_extension_rejects_more_than_40_combined_pages(tmp_path):
+    initial = collector.Config("example.com", 11, 13, tmp_path / "private")
+    collector.run_collection(initial, FakeNavigator({
+        number: capture(initial, number, [review(str(number))]) for number in range(11, 14)
+    }))
+    extension = collector.Config("example.com", 14, 51, initial.output_dir, True)
+    with pytest.raises(collector.CollectionStopped, match="exceeds 40"):
+        collector.run_collection(extension, FakeNavigator({}), dry_run=True)
+
+
+def test_private_path_accepts_packaged_app_virtualization(tmp_path, monkeypatch):
+    local = tmp_path / "Local"
+    requested = local / "SatisfactionClient" / "TrustpilotSequential"
+    redirected = (
+        local / "Packages" / "CodexApp" / "LocalCache" / "Local"
+        / "SatisfactionClient" / "TrustpilotSequential"
+    )
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    monkeypatch.setattr(Path, "resolve", lambda self: redirected)
+    collector.ensure_private_dir(requested)
+    with pytest.raises(ValueError, match="Output must be under"):
+        collector.ensure_private_dir(tmp_path / "public-repository")
+    monkeypatch.setattr(Path, "resolve", lambda self: local / "Other" / "SatisfactionClient" / "TrustpilotSequential")
+    with pytest.raises(ValueError, match="Output must be under"):
+        collector.ensure_private_dir(requested)

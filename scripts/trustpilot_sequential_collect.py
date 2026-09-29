@@ -136,18 +136,28 @@ def _load_existing(config):
     if not manifest_path.exists():
         raise CollectionStopped("No manifest to resume")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if any(manifest.get(key) != value for key, value in
-           (("company", config.company), ("start_page", config.start_page), ("end_page", config.end_page))):
+    if manifest.get("company") != config.company:
+        raise CollectionStopped("Manifest configuration mismatch")
+    saved_start = manifest.get("start_page")
+    saved_end = manifest.get("end_page")
+    if not isinstance(saved_start, int) or not isinstance(saved_end, int):
+        raise CollectionStopped("Invalid manifest page range")
+    extending = config.start_page == saved_end + 1 and config.end_page >= config.start_page
+    if extending:
+        if config.end_page - saved_start + 1 > MAX_PAGES:
+            raise CollectionStopped(f"Combined collection exceeds {MAX_PAGES} pages")
+        manifest["end_page"] = config.end_page
+    elif not (saved_start <= config.start_page <= config.end_page <= saved_end):
         raise CollectionStopped("Manifest configuration mismatch")
     seen = set()
-    for number in range(config.start_page, config.end_page + 1):
+    for number in range(saved_start, manifest["end_page"] + 1):
         path = config.output_dir / page_name(number)
         record = manifest["pages"].get(str(number))
         if not path.exists():
             if record:
                 raise CollectionStopped("Manifest references a missing page file")
-            if any((config.output_dir / page_name(later)).exists()
-                   for later in range(number + 1, config.end_page + 1)):
+            if any(str(later) in manifest["pages"] or (config.output_dir / page_name(later)).exists()
+                   for later in range(number + 1, manifest["end_page"] + 1)):
                 raise CollectionStopped("Non-contiguous page files")
             break
         raw = path.read_bytes()
@@ -176,6 +186,15 @@ def _load_existing(config):
         seen.update(ids)
     if set(manifest.get("unique_review_ids", [])) - seen:
         raise CollectionStopped("Manifest IDs not present in saved pages")
+    if extending and any(str(number) not in manifest["pages"] for number in range(saved_start, saved_end + 1)):
+        raise CollectionStopped("Cannot extend an incomplete collection")
+    first_incomplete = next(
+        (number for number in range(saved_start, manifest["end_page"] + 1)
+         if str(number) not in manifest["pages"]),
+        manifest["end_page"] + 1,
+    )
+    if config.start_page > first_incomplete:
+        raise CollectionStopped("Requested range skips an incomplete page")
     manifest["unique_review_ids"] = sorted(seen)
     return manifest
 
@@ -280,8 +299,22 @@ def private_default_dir():
 
 
 def ensure_private_dir(path):
-    root = Path(os.environ["LOCALAPPDATA"]).resolve() / "SatisfactionClient"
-    if not path.resolve().is_relative_to(root):
+    # A packaged Windows app can virtualize a newly created LOCALAPPDATA
+    # directory into Packages/<app>/LocalCache/Local. Check both the requested
+    # lexical path and its real target so resume accepts that private redirect
+    # without permitting an output path outside LOCALAPPDATA.
+    local = Path(os.path.abspath(os.environ["LOCALAPPDATA"]))
+    root = local / "SatisfactionClient"
+    requested = Path(os.path.abspath(path))
+    if not requested.is_relative_to(root):
+        raise ValueError(f"Output must be under {root}")
+    relative = requested.relative_to(root)
+    actual = requested.resolve()
+    virtual_root = local / "Packages"
+    virtual_parts = actual.relative_to(virtual_root).parts if actual.is_relative_to(virtual_root) else ()
+    expected_tail = ("LocalCache", "Local", "SatisfactionClient", *relative.parts)
+    is_packaged_redirect = len(virtual_parts) == len(expected_tail) + 1 and virtual_parts[1:] == expected_tail
+    if not actual.is_relative_to(root) and not is_packaged_redirect:
         raise ValueError(f"Output must be under {root}")
 
 
