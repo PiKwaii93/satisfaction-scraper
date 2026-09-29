@@ -1,5 +1,6 @@
 """Offline-only tests: no CDP browser or Trustpilot request."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -42,7 +43,8 @@ def capture(cfg, number, reviews, *, status=200, card_count=None, **changes):
              "card_ids": [r["source_review_id"] for r in reviews], "reviews": reviews,
              "main_review_ids": [r["source_review_id"] for r in reviews],
              "stack_details": [], "next_page": number + 1,
-             "next_control_present": True, "pagination_present": True}
+             "next_control_present": True, "pagination_present": True,
+             "displayed_total": None, "displayed_total_observed_at": None}
     value.update(changes)
     return value
 
@@ -420,10 +422,124 @@ def test_natural_end_requires_pagination_and_never_accepts_404(tmp_path):
 
 def test_natural_end_safety_ceiling_is_not_completion(tmp_path):
     cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
-    with pytest.raises(collector.CollectionStopped, match="Safety ceiling"):
-        collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")])}))
+    result = collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")])}))
+    assert result["collection_status"] == "checkpoint_reached"
     assert manifest(cfg)["natural_end_page"] is None
     assert manifest(cfg)["pages"]["1"]["validation_status"] == "completed"
+
+
+def test_checkpoint_extends_to_natural_end_with_displayed_totals(tmp_path):
+    first = collector.Config("example.com", 1, 2, tmp_path / "private", until_natural_end=True)
+    begin = collector.run_collection(first, FakeNavigator({
+        1: capture(first, 1, [review("a")], displayed_total=4,
+                   displayed_total_observed_at="2026-09-29T10:00:00+00:00"),
+        2: capture(first, 2, [review("b")], displayed_total=5,
+                   displayed_total_observed_at="2026-09-29T10:01:00+00:00"),
+    }))
+    assert begin["collection_status"] == "checkpoint_reached"
+    assert begin["natural_end_page"] is None
+    assert begin["displayed_total_at_start"] == 4
+    assert begin["displayed_total_observed_at"] == "2026-09-29T10:00:00+00:00"
+    assert begin["total_unique_reviews"] == 2
+    assert begin["first_collected_at"] and begin["last_collected_at"]
+    resumed = collector.Config("example.com", 3, 4, first.output_dir,
+                               resume=True, until_natural_end=True)
+    nav = FakeNavigator({3: capture(resumed, 3, [review("c", reply=True)],
+                                     next_page=None, next_control_present=False,
+                                     displayed_total=5,
+                                     displayed_total_observed_at="2026-09-29T10:02:00+00:00")})
+    finished = collector.run_collection(resumed, nav)
+    assert nav.calls == [3]
+    assert finished["collection_status"] == "natural_end_reached"
+    assert finished["natural_end_page"] == 3
+    assert finished["displayed_total_at_end"] == 5
+    assert finished["total_unique_reviews"] == 3
+    assert finished["last_collected_at"] == finished["pages"]["3"]["collected_at"]
+    report = collector.reconcile_collection(collector.Config(
+        "example.com", 1, 4, first.output_dir, resume=True, until_natural_end=True))
+    assert report["pages_verified"] == 3
+    assert report["unique_review_ids"] == 3
+    assert report["business_replies_on_unique_reviews"] == 1
+    assert report["displayed_minus_collected"] == 2
+    assert report["displayed_total_changed"] is True
+    assert "not established automatically" in report["exhaustiveness_claim"]
+
+
+def test_reconciliation_does_not_write_private_files(tmp_path):
+    cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
+    collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")],
+                                                 next_page=None, next_control_present=False)}))
+    files_before = {path.name: path.read_bytes() for path in cfg.output_dir.iterdir()}
+    collector.reconcile_collection(collector.Config(
+        "example.com", 1, 1, cfg.output_dir, resume=True, until_natural_end=True))
+    assert {path.name: path.read_bytes() for path in cfg.output_dir.iterdir()} == files_before
+
+
+def test_error_status_and_reconciliation_requires_natural_end(tmp_path):
+    cfg = collector.Config("example.com", 1, 2, tmp_path / "private", until_natural_end=True)
+    with pytest.raises(collector.CollectionStopped, match="HTTP 403"):
+        collector.run_collection(cfg, FakeNavigator({
+            1: capture(cfg, 1, [review("a")]), 2: capture(cfg, 2, [], status=403)}))
+    assert manifest(cfg)["collection_status"] == "stopped_error"
+    with pytest.raises(collector.CollectionStopped, match="Natural end"):
+        collector.reconcile_collection(collector.Config(
+            "example.com", 1, 2, cfg.output_dir, resume=True, until_natural_end=True))
+
+
+def test_recent_manifest_without_new_metadata_is_migrated_in_memory(tmp_path):
+    cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
+    collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")],
+                                                 displayed_total=10,
+                                                 displayed_total_observed_at="2026-09-29T10:00:00+00:00")}))
+    path = cfg.output_dir / "manifest.json"
+    old = json.loads(path.read_text(encoding="utf-8"))
+    for key in ("collection_status", "total_unique_reviews", "first_collected_at",
+                "last_collected_at", "displayed_total_at_start", "displayed_total_observed_at",
+                "displayed_total_at_end", "displayed_total_end_observed_at"):
+        old.pop(key)
+    path.write_text(json.dumps(old), encoding="utf-8")
+    resumed = collector.run_collection(collector.Config(
+        "example.com", 1, 1, cfg.output_dir, resume=True, until_natural_end=True), FakeNavigator({}))
+    assert resumed["collection_status"] == "checkpoint_reached"
+    assert resumed["displayed_total_at_start"] == 10
+    assert resumed["total_unique_reviews"] == 1
+
+
+def test_recent_page_without_new_total_or_pagination_fields_can_resume(tmp_path):
+    cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
+    collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")])}))
+    page_path = cfg.output_dir / "page_0001.json"
+    page = json.loads(page_path.read_text(encoding="utf-8"))
+    for key in ("pagination_present", "next_control_present", "displayed_total",
+                "displayed_total_observed_at"):
+        page.pop(key)
+    raw = collector.json_bytes(page)
+    page_path.write_bytes(raw)
+    manifest_path = cfg.output_dir / "manifest.json"
+    previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+    previous["pages"]["1"] = collector.page_record(page, hashlib.sha256(raw).hexdigest())
+    for key in ("collection_status", "total_unique_reviews", "first_collected_at",
+                "last_collected_at", "displayed_total_at_start", "displayed_total_observed_at",
+                "displayed_total_at_end", "displayed_total_end_observed_at"):
+        previous.pop(key)
+    manifest_path.write_bytes(collector.json_bytes(previous))
+    no_fetch = FakeNavigator({})
+    recovered = collector.run_collection(collector.Config(
+        "example.com", 1, 1, cfg.output_dir, resume=True, until_natural_end=True), no_fetch)
+    assert no_fetch.calls == []
+    assert recovered["collection_status"] == "checkpoint_reached"
+    assert recovered["displayed_total_at_start"] is None
+
+
+def test_reconciliation_detects_changed_page_hash(tmp_path):
+    cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
+    collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")],
+                                                 next_page=None, next_control_present=False)}))
+    page_path = cfg.output_dir / "page_0001.json"
+    page_path.write_bytes(page_path.read_bytes() + b" ")
+    with pytest.raises(collector.CollectionStopped, match="hash or metadata mismatch"):
+        collector.reconcile_collection(collector.Config(
+            "example.com", 1, 1, cfg.output_dir, resume=True, until_natural_end=True))
 
 
 def test_legacy_manifest_cannot_claim_stack_completeness(tmp_path):

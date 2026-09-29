@@ -35,6 +35,10 @@ STACK_MAIN_ID_JS = """element => { const link = element.parentElement
     ?.querySelector('article[class*="styles_reviewCard"] a[href*="/reviews/"]');
     try { return new URL(link.href).pathname.match(/^\\/reviews\\/([A-Za-z0-9_-]+)$/)?.[1] || null; }
     catch { return null; } }"""
+DISPLAYED_TOTAL_JS = """() => { const match = (document.body?.innerText || '')
+    .match(/(?:Tous les avis|All reviews)\\s*\\(([\\d\\s\\u202f.,]+)\\)/i);
+    const digits = match?.[1].replace(/\\D/g, '');
+    return digits ? Number(digits) : null; }"""
 PRIVATE_REVIEW_FIELDS = (
     "source_review_id", "review_url", "rating", "date", "title", "verbatim",
     "company_responded", "company_reply_text", "company_reply_date",
@@ -196,6 +200,9 @@ def validate_capture(config, number, capture):
         if next_page is None and (capture.get("next_control_present")
                                   or not capture.get("pagination_present")):
             raise CollectionStopped("Ambiguous natural end: pagination is not conclusive")
+    displayed_total = capture.get("displayed_total")
+    if displayed_total is not None and (type(displayed_total) is not int or displayed_total < 0):
+        raise CollectionStopped("Invalid displayed review total")
 
 
 def validate_stack_structure(main_ids, details, ids):
@@ -213,7 +220,7 @@ def validate_stack_structure(main_ids, details, ids):
 
 
 def page_record(page, digest):
-    return {"file": page_name(page["page"]), "sha256": digest,
+    record = {"file": page_name(page["page"]), "sha256": digest,
             "card_count": page["card_count"], "valid_count": page["valid_count"],
             "new_count": len(page["new_review_ids"]), "collected_at": page["collected_at"],
             "url": page["url"], "status": page["status"], "errors": [],
@@ -223,6 +230,32 @@ def page_record(page, digest):
             "total_unique_reviews": page["total_unique_reviews"],
             "business_reply_count": page["business_reply_count"],
             "validation_status": page["validation_status"], "next_page": page["next_page"]}
+    # Older validated page files lack these fields; preserve their exact record
+    # shape on resume rather than silently treating the absence as a new proof.
+    if "pagination_present" in page:
+        record["pagination_present"] = page["pagination_present"]
+        record["next_control_present"] = page["next_control_present"]
+    return record
+
+
+def refresh_manifest_metadata(manifest):
+    """Derive safe counters from verified page records, including older manifests."""
+    records = [manifest["pages"][key] for key in sorted(manifest["pages"], key=int)]
+    manifest["total_unique_reviews"] = len(manifest.get("unique_review_ids", []))
+    manifest["first_collected_at"] = records[0]["collected_at"] if records else None
+    manifest["last_collected_at"] = records[-1]["collected_at"] if records else None
+    manifest.setdefault("displayed_total_at_start", None)
+    manifest.setdefault("displayed_total_observed_at", None)
+    manifest.setdefault("displayed_total_at_end", None)
+    manifest.setdefault("displayed_total_end_observed_at", None)
+    if manifest.get("natural_end_page") is not None:
+        manifest["collection_status"] = "natural_end_reached"
+    elif manifest.get("last_error"):
+        manifest["collection_status"] = "stopped_error"
+    elif records and len(records) == manifest["end_page"] - manifest["start_page"] + 1:
+        manifest["collection_status"] = "checkpoint_reached"
+    else:
+        manifest["collection_status"] = "in_progress"
 
 
 def _load_existing(config):
@@ -233,7 +266,11 @@ def _load_existing(config):
         return {"company": config.company, "start_page": config.start_page,
                 "end_page": config.end_page, "created_at": utc_now(), "pages": {},
                 "unique_review_ids": [], "last_error": None,
-                "until_natural_end": config.until_natural_end, "natural_end_page": None}
+                "until_natural_end": config.until_natural_end, "natural_end_page": None,
+                "collection_status": "in_progress", "total_unique_reviews": 0,
+                "first_collected_at": None, "last_collected_at": None,
+                "displayed_total_at_start": None, "displayed_total_observed_at": None,
+                "displayed_total_at_end": None, "displayed_total_end_observed_at": None}
     if not manifest_path.exists():
         raise CollectionStopped("No manifest to resume")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -281,6 +318,9 @@ def _load_existing(config):
                 raise CollectionStopped("Saved page stack counts are inconsistent")
         except (KeyError, TypeError):
             raise CollectionStopped("Saved page lacks verified review stack metadata") from None
+        if "pagination_present" in page and page.get("next_page") is None and (
+                not page["pagination_present"] or page.get("next_control_present")):
+            raise CollectionStopped("Saved natural end lacks pagination proof")
         if set(page.get("new_review_ids", [])) != {r.get("source_review_id") for r in page.get("reviews", [])}:
             raise CollectionStopped("Saved page review IDs are inconsistent")
         if set(page["new_review_ids"]) != set(ids) - seen:
@@ -318,6 +358,15 @@ def _load_existing(config):
             or manifest["pages"][str(natural_end_page)]["next_page"] is not None
             or any(int(number) > natural_end_page for number in manifest["pages"])):
         raise CollectionStopped("Natural end is not backed by a completed page")
+    if manifest.get("displayed_total_at_start") is None and str(saved_start) in manifest["pages"]:
+        first_page = json.loads((config.output_dir / page_name(saved_start)).read_text(encoding="utf-8"))
+        manifest["displayed_total_at_start"] = first_page.get("displayed_total")
+        manifest["displayed_total_observed_at"] = first_page.get("displayed_total_observed_at")
+    if natural_end_page is not None and manifest.get("displayed_total_at_end") is None:
+        last_page = json.loads((config.output_dir / page_name(natural_end_page)).read_text(encoding="utf-8"))
+        manifest["displayed_total_at_end"] = last_page.get("displayed_total")
+        manifest["displayed_total_end_observed_at"] = last_page.get("displayed_total_observed_at")
+    refresh_manifest_metadata(manifest)
     return manifest
 
 
@@ -360,30 +409,104 @@ def run_collection(config, navigator, *, dry_run=False):
                     "stacked_reviews_extracted": sum(s["extracted"] for s in capture["stack_details"]),
                     "total_unique_reviews": len(capture["card_ids"]),
                     "business_reply_count": sum(bool(r["company_responded"]) for r in capture["reviews"]),
-                    "validation_status": "completed", "next_page": capture.get("next_page")}
+                    "validation_status": "completed", "next_page": capture.get("next_page"),
+                    "pagination_present": capture.get("pagination_present"),
+                    "next_control_present": capture.get("next_control_present"),
+                    "displayed_total": capture.get("displayed_total"),
+                    "displayed_total_observed_at": capture.get("displayed_total_observed_at")}
             raw = json_bytes(page)
             atomic_write(config.output_dir / page_name(number), raw)
             record = page_record(page, hashlib.sha256(raw).hexdigest())
             manifest["pages"][str(number)] = record
             if config.until_natural_end and capture.get("next_page") is None:
                 manifest["natural_end_page"] = number
+                manifest["displayed_total_at_end"] = capture.get("displayed_total")
+                manifest["displayed_total_end_observed_at"] = capture.get("displayed_total_observed_at")
+            if manifest["first_collected_at"] is None:
+                manifest["displayed_total_at_start"] = capture.get("displayed_total")
+                manifest["displayed_total_observed_at"] = capture.get("displayed_total_observed_at")
             seen.update(capture["card_ids"])
             manifest["unique_review_ids"] = sorted(seen)
             manifest["last_error"] = None
+            refresh_manifest_metadata(manifest)
             atomic_write(config.output_dir / MANIFEST_NAME, json_bytes(manifest))
         except Exception as exc:
             # Never mark a failed/partially saved page complete. A valid orphan page
             # can be reconciled on --resume without another network request.
             manifest["pages"].pop(str(number), None)
+            if manifest.get("natural_end_page") == number:
+                manifest["natural_end_page"] = None
+                manifest["displayed_total_at_end"] = None
+                manifest["displayed_total_end_observed_at"] = None
             manifest["last_error"] = {"page": number, "at": utc_now(), "reason": str(exc)}
+            refresh_manifest_metadata(manifest)
             try:
                 atomic_write(config.output_dir / MANIFEST_NAME, json_bytes(manifest))
             except OSError:
                 pass
             raise CollectionStopped(f"Stopped at page {number}: {exc}") from exc
-    if config.until_natural_end and manifest.get("natural_end_page") is None:
-        raise CollectionStopped("Safety ceiling reached before a demonstrated natural end; validated pages remain saved")
+    refresh_manifest_metadata(manifest)
+    atomic_write(config.output_dir / MANIFEST_NAME, json_bytes(manifest))
     return manifest
+
+
+def reconcile_collection(config):
+    """Read-only integrity report; never infer academic exhaustiveness automatically."""
+    config.validate()
+    if not config.resume or not config.until_natural_end:
+        raise CollectionStopped("Reconciliation requires --resume and --until-natural-end")
+    manifest = _load_existing(config)  # Verifies page identity, SHA-256 and saved metadata.
+    terminal = manifest.get("natural_end_page")
+    if terminal is None or manifest["start_page"] != 1:
+        raise CollectionStopped("Natural end from page 1 has not been demonstrated")
+    expected_pages = set(range(1, terminal + 1))
+    if {int(number) for number in manifest["pages"]} != expected_pages:
+        raise CollectionStopped("Missing page before natural end")
+    stored_ids = []
+    seen_card_ids = set()
+    repeated_card_ids = 0
+    replies = 0
+    main_reviews = 0
+    stacked_reviews = 0
+    for number in sorted(expected_pages):
+        page = json.loads((config.output_dir / page_name(number)).read_text(encoding="utf-8"))
+        record = manifest["pages"][str(number)]
+        if record["validation_status"] != "completed" or any(
+                stack["expected"] != stack["extracted"] for stack in page["stack_details"]):
+            raise CollectionStopped(f"Incomplete page {number}")
+        if number < terminal and page["next_page"] != number + 1:
+            raise CollectionStopped(f"Broken next-page chain at page {number}")
+        if number == terminal and (page["next_page"] is not None
+                                   or not page.get("pagination_present")
+                                   or page.get("next_control_present")):
+            raise CollectionStopped("Last page lacks a demonstrated natural end")
+        for review_id in page["card_ids"]:
+            repeated_card_ids += review_id in seen_card_ids
+            seen_card_ids.add(review_id)
+        stored_ids.extend(review["source_review_id"] for review in page["reviews"])
+        replies += sum(bool(review["company_responded"]) for review in page["reviews"])
+        main_reviews += record["main_review_count"]
+        stacked_reviews += record["stacked_reviews_extracted"]
+    if (len(stored_ids) != len(set(stored_ids)) or set(stored_ids) != seen_card_ids
+            or len(seen_card_ids) != manifest["total_unique_reviews"]):
+        raise CollectionStopped("Stored review IDs do not match deduplicated page IDs")
+    start_total = manifest.get("displayed_total_at_start")
+    end_total = manifest.get("displayed_total_at_end")
+    return {"collection_status": manifest["collection_status"],
+            "natural_end_page": terminal, "pages_verified": len(expected_pages),
+            "page_sha256_and_metadata_valid": True, "all_pages_completed": True,
+            "all_stacks_complete": True, "main_reviews_seen": main_reviews,
+            "stacked_reviews_seen": stacked_reviews,
+            "unique_review_ids": len(stored_ids), "repeated_ids_across_pages": repeated_card_ids,
+            "business_replies_on_unique_reviews": replies,
+            "displayed_total_at_start": start_total,
+            "displayed_total_observed_at": manifest.get("displayed_total_observed_at"),
+            "displayed_total_at_end": end_total,
+            "displayed_total_end_observed_at": manifest.get("displayed_total_end_observed_at"),
+            "displayed_minus_collected": end_total - len(stored_ids) if end_total is not None else None,
+            "displayed_total_changed": start_total != end_total
+            if start_total is not None and end_total is not None else None,
+            "exhaustiveness_claim": "not established automatically; review pagination shifts and count gaps"}
 
 
 class LiveNavigator:
@@ -453,11 +576,14 @@ class LiveNavigator:
         reviews = extract_reviews_from_page(self.page, include_author=False)
         self._ensure_clean(url)
         next_page, next_control_present, pagination_present = self._next_page(number, url)
+        displayed_total = self.page.evaluate(DISPLAYED_TOTAL_JS)
+        observed_at = utc_now() if displayed_total is not None else None
         return {"status": status, "url": self.page.url, "redirected": False,
                 "challenge": False, "card_count": len(cards), "card_ids": ids, "reviews": reviews,
                 "main_review_ids": main_ids, "stack_details": stack_details,
                 "next_page": next_page, "next_control_present": next_control_present,
-                "pagination_present": pagination_present}
+                "pagination_present": pagination_present,
+                "displayed_total": displayed_total, "displayed_total_observed_at": observed_at}
 
 
 def private_default_dir():
@@ -499,6 +625,7 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true")
     mode.add_argument("--execute", action="store_true")
+    mode.add_argument("--reconcile", action="store_true", help="Verify a completed natural-end collection offline")
     args = parser.parse_args()
     config = Config(args.company, args.start_page, args.end_page, args.output_dir,
                     args.resume, args.until_natural_end)
@@ -506,6 +633,11 @@ def main():
     ensure_private_dir(config.output_dir)
     if args.dry_run:
         print(json.dumps(run_collection(config, None, dry_run=True), ensure_ascii=False, indent=2))
+        return
+    if args.reconcile:
+        report_config = Config(args.company, args.start_page, args.end_page, args.output_dir,
+                               True, args.until_natural_end)
+        print(json.dumps(reconcile_collection(report_config), ensure_ascii=False, indent=2))
         return
     from playwright.sync_api import sync_playwright
 
@@ -516,6 +648,7 @@ def main():
         result = run_collection(config, LiveNavigator(browser.contexts[0]))
         print(json.dumps({"completed_pages": len(result["pages"]),
                           "unique_reviews": len(result["unique_review_ids"]),
+                          "collection_status": result["collection_status"],
                           "manifest": str(config.output_dir / MANIFEST_NAME)}, ensure_ascii=False))
 
 
