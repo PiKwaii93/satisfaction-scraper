@@ -39,7 +39,10 @@ def config(tmp_path, end=2, resume=False):
 def capture(cfg, number, reviews, *, status=200, card_count=None, **changes):
     value = {"status": status, "url": cfg.url(number), "redirected": False,
              "challenge": False, "card_count": len(reviews) if card_count is None else card_count,
-             "card_ids": [r["source_review_id"] for r in reviews], "reviews": reviews}
+             "card_ids": [r["source_review_id"] for r in reviews], "reviews": reviews,
+             "main_review_ids": [r["source_review_id"] for r in reviews],
+             "stack_details": [], "next_page": number + 1,
+             "next_control_present": True, "pagination_present": True}
     value.update(changes)
     return value
 
@@ -56,6 +59,8 @@ def test_valid_page_and_annex_cards(tmp_path):
     assert result["unique_review_ids"] == ["a"]
     assert result["pages"]["1"]["card_count"] == 2
     assert result["pages"]["1"]["valid_count"] == 1
+    assert result["pages"]["1"]["validation_status"] == "completed"
+    assert result["pages"]["1"]["stack_count"] == 0
 
 
 def test_cross_page_duplicate_by_stable_id(tmp_path):
@@ -104,7 +109,8 @@ def test_http_block_stops_without_retry(tmp_path, status):
 
 def test_parser_gap_stops_page(tmp_path):
     cfg = config(tmp_path)
-    bad = capture(cfg, 1, [review("a")], card_count=2, card_ids=["a", "b"])
+    bad = capture(cfg, 1, [review("a")], card_count=2, card_ids=["a", "b"],
+                  main_review_ids=["a", "b"])
     with pytest.raises(collector.CollectionStopped, match="not completely parsed"):
         collector.run_collection(cfg, FakeNavigator({1: bad}))
     assert manifest(cfg)["pages"] == {}
@@ -241,3 +247,188 @@ def test_private_path_accepts_packaged_app_virtualization(tmp_path, monkeypatch)
     monkeypatch.setattr(Path, "resolve", lambda self: local / "Other" / "SatisfactionClient" / "TrustpilotSequential")
     with pytest.raises(ValueError, match="Output must be under"):
         collector.ensure_private_dir(requested)
+
+
+class FakeButton:
+    def __init__(self, stack):
+        self.stack = stack
+
+    def count(self):
+        return int(self.stack.button_exists)
+
+    def is_visible(self):
+        return self.stack.button_exists
+
+    def click(self, timeout):
+        self.stack.clicks += 1
+        self.stack.visible_ids = list(self.stack.revealed_ids)
+
+
+class FakeStack:
+    def __init__(self, main_id, count, revealed_ids=(), *, button_exists=True):
+        self.main_id = main_id
+        self.count = count
+        self.revealed_ids = revealed_ids
+        self.visible_ids = []
+        self.button_exists = button_exists
+        self.clicks = 0
+
+    def get_attribute(self, name):
+        assert name == "data-service-review-stack-count"
+        return str(self.count)
+
+    def evaluate(self, script):
+        if script == collector.STACK_MAIN_ID_JS:
+            return self.main_id
+        assert script == collector.STACK_IDS_JS
+        return list(self.visible_ids)
+
+    def locator(self, selector):
+        assert selector == collector.STACK_BUTTON_SELECTOR
+        return FakeButton(self)
+
+
+class FakeStacks:
+    def __init__(self, stacks):
+        self.stacks = stacks
+
+    def count(self):
+        return len(self.stacks)
+
+    def nth(self, index):
+        return self.stacks[index]
+
+
+class FakePage:
+    def __init__(self, stacks):
+        self.stacks = stacks
+        self.waits = 0
+
+    def locator(self, selector):
+        assert selector == collector.STACK_SELECTOR
+        return FakeStacks(self.stacks)
+
+    def wait_for_timeout(self, milliseconds):
+        self.waits += 1
+
+
+@pytest.mark.parametrize("counts", [[], [2], [5], [2, 5]])
+def test_expand_stacks_exact_ids_without_second_click(counts):
+    stacks = [FakeStack(f"main{i}", count, [f"extra{i}_{n}" for n in range(count - 1)])
+              for i, count in enumerate(counts)]
+    main = [s.main_id for s in stacks] or ["plain"]
+    details = collector.expand_review_stacks(FakePage(stacks), main, lambda: None)
+    assert sum(s["extracted"] for s in details) == sum(count - 1 for count in counts)
+    assert all(s.clicks == 1 for s in stacks)
+    assert all(s["expected"] == s["extracted"] for s in details)
+
+
+def test_incomplete_stack_never_completes_page(tmp_path, monkeypatch):
+    cfg = config(tmp_path, end=1)
+    bad = capture(cfg, 1, [review("main"), review("extra1"), review("extra2")],
+                  main_review_ids=["main"], stack_details=[{
+                      "main_review_id": "main", "stack_count": 5,
+                      "expected": 4, "extracted": 2, "review_ids": ["extra1", "extra2"]}])
+    with pytest.raises(collector.CollectionStopped, match="Incomplete review stack"):
+        collector.run_collection(cfg, FakeNavigator({1: bad}))
+    assert manifest(cfg)["pages"] == {}
+    assert not (cfg.output_dir / "page_0001.json").exists()
+    complete = capture(cfg, 1, [review("main"), *[review(f"extra{i}") for i in range(1, 5)]],
+                       main_review_ids=["main"], stack_details=[{
+                           "main_review_id": "main", "stack_count": 5,
+                           "expected": 4, "extracted": 4,
+                           "review_ids": [f"extra{i}" for i in range(1, 5)]}])
+    resumed = FakeNavigator({1: complete})
+    collector.run_collection(config(tmp_path, end=1, resume=True), resumed)
+    assert resumed.calls == [1]
+    assert manifest(cfg)["pages"]["1"]["validation_status"] == "completed"
+    stack = FakeStack("main", 5, ["extra1", "extra2"])
+    ticks = iter([0, 9])
+    monkeypatch.setattr(collector.time, "monotonic", lambda: next(ticks))
+    with pytest.raises(collector.CollectionStopped, match="Incomplete review stack"):
+        collector.expand_review_stacks(FakePage([stack]), ["main"], lambda: None)
+    assert stack.clicks == 1
+
+
+def test_missing_stack_button_and_interruption_stop_without_retry():
+    missing = FakeStack("main", 2, ["extra"], button_exists=False)
+    with pytest.raises(collector.CollectionStopped, match="Missing review stack button"):
+        collector.expand_review_stacks(FakePage([missing]), ["main"], lambda: None)
+    assert missing.clicks == 0
+    stack = FakeStack("main", 2, ["extra"])
+    checks = 0
+
+    def interrupted():
+        nonlocal checks
+        checks += 1
+        if checks == 2:
+            raise collector.CollectionStopped("Interrupted during expansion")
+
+    with pytest.raises(collector.CollectionStopped, match="Interrupted during expansion"):
+        collector.expand_review_stacks(FakePage([stack]), ["main"], interrupted)
+    assert stack.clicks == 1
+
+
+def test_duplicate_between_main_and_stack_is_rejected():
+    stack = FakeStack("main", 2, ["other-main"])
+    with pytest.raises(collector.CollectionStopped, match="Duplicate review ID"):
+        collector.expand_review_stacks(FakePage([stack]), ["main", "other-main"], lambda: None)
+
+
+def test_completed_stack_manifest_and_resume(tmp_path):
+    cfg = config(tmp_path)
+    stack = {"main_review_id": "a", "stack_count": 2, "expected": 1,
+             "extracted": 1, "review_ids": ["b"]}
+    first = capture(cfg, 1, [review("a"), review("b", reply=True)],
+                    main_review_ids=["a"], stack_details=[stack])
+    nav = FakeNavigator({1: first, 2: capture(cfg, 2, [], status=403)})
+    with pytest.raises(collector.CollectionStopped):
+        collector.run_collection(cfg, nav)
+    record = manifest(cfg)["pages"]["1"]
+    assert (record["main_review_count"], record["stack_count"],
+            record["stacked_reviews_expected"], record["stacked_reviews_extracted"],
+            record["total_unique_reviews"], record["business_reply_count"],
+            record["validation_status"]) == (1, 1, 1, 1, 2, 1, "completed")
+    resumed = FakeNavigator({2: capture(cfg, 2, [review("c")])})
+    collector.run_collection(config(tmp_path, resume=True), resumed)
+    assert resumed.calls == [2]
+
+
+def test_natural_end_requires_pagination_and_never_accepts_404(tmp_path):
+    cfg = collector.Config("example.com", 1, 3, tmp_path / "private", until_natural_end=True)
+    nav = FakeNavigator({1: capture(cfg, 1, [review("a")]),
+                         2: capture(cfg, 2, [review("b")], next_page=None,
+                                    next_control_present=False, pagination_present=True)})
+    result = collector.run_collection(cfg, nav)
+    assert nav.calls == [1, 2] and result["natural_end_page"] == 2
+    no_fetch = FakeNavigator({})
+    collector.run_collection(collector.Config("example.com", 1, 3, cfg.output_dir,
+                                              resume=True, until_natural_end=True), no_fetch)
+    assert no_fetch.calls == []
+    bad_cfg = collector.Config("example.com", 1, 2, tmp_path / "other", until_natural_end=True)
+    bad_nav = FakeNavigator({1: capture(bad_cfg, 1, [review("a")]),
+                             2: capture(bad_cfg, 2, [], status=404)})
+    with pytest.raises(collector.CollectionStopped, match="HTTP 404"):
+        collector.run_collection(bad_cfg, bad_nav)
+
+
+def test_natural_end_safety_ceiling_is_not_completion(tmp_path):
+    cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
+    with pytest.raises(collector.CollectionStopped, match="Safety ceiling"):
+        collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")])}))
+    assert manifest(cfg)["natural_end_page"] is None
+    assert manifest(cfg)["pages"]["1"]["validation_status"] == "completed"
+
+
+def test_legacy_manifest_cannot_claim_stack_completeness(tmp_path):
+    cfg = config(tmp_path, end=1)
+    collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")])}))
+    page_path = cfg.output_dir / "page_0001.json"
+    old = json.loads(page_path.read_text(encoding="utf-8"))
+    for key in ("validation_status", "main_review_ids", "main_review_count",
+                "stack_details", "stack_count", "stacked_reviews_expected",
+                "stacked_reviews_extracted", "total_unique_reviews"):
+        old.pop(key)
+    page_path.write_text(json.dumps(old), encoding="utf-8")
+    with pytest.raises(collector.CollectionStopped, match="incomplete"):
+        collector.run_collection(config(tmp_path, end=1, resume=True), FakeNavigator({}))
