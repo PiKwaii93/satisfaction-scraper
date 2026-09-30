@@ -78,7 +78,7 @@ réalisé**. Cette carte n'est donc pas une observation du parcours réel.
 
 | Étape du persona | Action et besoin supposés | Irritant possible | Appui proposé et limite |
 | --- | --- | --- | --- |
-| Réunir les avis | J'essaie d'obtenir un ensemble d'avis et sa provenance. | Sources dispersées, accès parfois refusé. | Import autorisé ou collecte si accessible ; le HTTP 403 Trustpilot empêche la preuve de collecte exhaustive. |
+| Réunir les avis | J'essaie d'obtenir un ensemble d'avis et sa provenance. | Sources dispersées, accès parfois refusé. | La collecte privée Vapoter démontre 11 281 IDs sur les vues accessibles ; la tentative Showroomprivé HTTP 403 reste historique. Droits de réutilisation publique à documenter. |
 | Contrôler le corpus | Je vérifie dates, notes, doublons et couverture. | Un échantillon peut donner une image trompeuse. | Historique du run et avertissement de représentativité ; la provenance reste à contrôler. |
 | Comprendre les signaux | Je compare note et texte, puis lis les avis négatifs. | Une note seule masque le motif ; le modèle peut se tromper. | Sentiment, thèmes lexicaux et verbatims consultables ; relecture humaine nécessaire. |
 | Décider d'une priorité | J'isole les problèmes répétitifs et les avis sans réponse connue. | Plusieurs sujets se concurrencent ; certaines données de réponse manquent. | Priorités et KPI contextualisés ; pas d'attribution causale automatique. |

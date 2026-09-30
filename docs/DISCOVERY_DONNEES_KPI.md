@@ -23,7 +23,7 @@ Ces personnes sont des **profils envisagés**, pas des personnes contactées. La
 | Identifiant d'avis, verbatim, note, date, réponse de l'entreprise | Dédupliquer, calculer note et réponse, filtrer par période. | Données variables selon la source ; un champ absent ne signifie pas « aucune réponse ». |
 | Sentiment, score, version du modèle et thèmes détectés | Mesurer le sentiment et explorer les irritants. | Prédictions historisées et thèmes lexicaux disponibles ; les prédictions et mots-clés peuvent se tromper. |
 
-Pour évaluer l'existant, on vérifie d'abord la provenance et l'autorisation d'usage, le nombre de lignes réellement extraites, les doublons, champs manquants, dates exploitables et la part du corpus couverte. On compare ensuite notes et sentiments, puis on lit des exemples d'avis pour contrôler les désaccords et les thèmes. Les analyses par entreprise, source et période ne sont comparables que si leur périmètre et leur mode de collecte le permettent. L'artefact [Showroomprivé](../data/evidence/trustpilot_showroomprive_representative.json) indique HTTP 403 et zéro avis extrait : aucun KPI client ne peut en être calculé.
+Pour évaluer l'existant, on vérifie d'abord la provenance et l'autorisation d'usage, le nombre de lignes réellement extraites, les doublons, champs manquants, dates exploitables et la part du corpus couverte. On compare ensuite notes et sentiments, puis on lit des exemples d'avis pour contrôler les désaccords et les thèmes. Les analyses par entreprise, source et période ne sont comparables que si leur périmètre et leur mode de collecte le permettent. L'ancien artefact [Showroomprivé](../data/evidence/trustpilot_showroomprive_representative.json) indique HTTP 403 et zéro avis extrait ; la [collecte Vapoter](TRUSTPILOT_VAPOTER_EVIDENCE.md) démontre ultérieurement 11 281 IDs privés, sans calcul de nouveaux KPI dans ce document.
 
 ## Les quatre KPI retenus
 
@@ -45,5 +45,11 @@ Le code détecte le thème `livraison`, mais le rapport présente seulement les 
 | État documenté au 22/09/2026 | Personas hypothétiques, Experience Map, inventaire des données et preuves existantes. | Équipe projet ; dépôt Git, code, PostgreSQL, MLflow et runs GitHub existants. |
 | Prochaine revue documentaire, avant soutenance (date non communiquée) | Valider quatre définitions, sources, dénominateurs et limites ; relire avec le PDF normatif. | Équipe projet et relecture métier si disponible ; aucun achat prévu. |
 | Si accès à des interlocuteurs ou données autorisées | Confirmer/infirmer les hypothèses et réviser la carte ; étape non réalisée à ce jour. | Temps des interlocuteurs et droit d'accès à convenir ; coût non chiffré. |
+
+## Observation ponctuelle du profil Vapoter
+
+Le 30 septembre 2026 à 16:27 (Europe/Paris), le [profil Trustpilot de Vapoter](https://fr.trustpilot.com/review/www.vapoter.fr) affichait un TrustScore de **4,8 / 5**, **11 281 avis** et la catégorie **« Magasin de cigarettes électroniques »**. Sa répartition affichée était : 1 étoile **3 % (289)** ; 2 étoiles **1 % (115)** ; 3 étoiles **2 % (239)** ; 4 étoiles **9 % (1 030)** ; 5 étoiles **85 % (9 608)**. Les comptes proviennent des infobulles de l'interface, pas d'un calcul à partir des pourcentages arrondis.
+
+Cette observation live donne le contexte de la source. Elle reste distincte des **11 281 IDs** du corpus privé, collecté sur plusieurs sessions et réconcilié hors ligne ; la concordance numérique des comptes ne prouve pas un instantané identique. Aucun nouveau KPI du produit n'est calculé ici. Le nom juridique complet n'est pas démontré.
 
 Les outils logiciels libres et la VM scolaire existent déjà. Leur **coût marginal pour cette rédaction** n'implique pas un coût économique nul : temps humain, hébergement alloué et éventuelles licences bureautiques restent à chiffrer si le jury demande un budget complet.

@@ -1,0 +1,21 @@
+{
+  "synthetic_example": true,
+  "source_review_id": "synthetic-review-001",
+  "review_url": "https://example.invalid/reviews/synthetic-review-001",
+  "date": "2026-01-15",
+  "rating": 2,
+  "title": "Exemple fictif de titre",
+  "text": "Exemple fictif de commentaire, sans lien avec un avis réel.",
+  "verbatim": "Exemple fictif de commentaire, sans lien avec un avis réel.",
+  "company_responded": true,
+  "company_reply": {
+    "date": "2026-01-16",
+    "text": "Exemple fictif de réponse de l'entreprise."
+  },
+  "source_language": "fr",
+  "provenance": {
+    "platform": "synthetic_example",
+    "company": "example.invalid",
+    "collected_at": null
+  }
+}

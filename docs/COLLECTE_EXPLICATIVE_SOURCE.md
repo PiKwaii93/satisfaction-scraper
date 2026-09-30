@@ -1,36 +1,73 @@
-# Collecte des avis — protocole, JSON et limites de preuve
+# Collecte des avis — protocole, résultat et limites de preuve
 
-Source Markdown du **PDF explicatif** demandé par le sujet. État documentaire au 23 septembre 2026. Cette note décrit les données réellement disponibles ; elle ne certifie pas une collecte exhaustive.
+Source Markdown du PDF explicatif demandé par le sujet. Le résultat final concerne **www.vapoter.fr** sur Trustpilot. Les avis bruts et les réponses restent dans des corpus privés hors Git ; seuls les agrégats et empreintes sont publiés.
 
-## Exigence et champs attendus
+## Exigence et périmètre
 
-Le sujet demande les informations générales d'entreprises (dont domaine/thème), le nombre d'avis, TrustScore et répartition des notes, puis tous les commentaires d'une entreprise comptant plus de 10 000 avis, avec notes et information sur les réponses aux avis négatifs. Il demande un fichier explicatif DOC/PDF et un exemple JSON. Les champs du JSON doivent distinguer les **métadonnées affichées par la source**, les **avis réellement extraits** et les **résultats d'analyse**.
+Le sujet demande des métadonnées d'entreprises (domaine/thème, nombre d'avis, TrustScore, répartition des notes), puis les commentaires d'une entreprise comptant plus de 10 000 avis, leurs notes et l'information relative aux réponses aux avis négatifs. Il demande un PDF explicatif et un exemple JSON. La collecte technique et l'import dans l'application sont des étapes distinctes : le corpus Vapoter n'a pas été importé en base ni utilisé pour réentraîner le modèle.
 
-## Provenance et traitement actuel
+## Historique, distinct de la preuve finale
 
-Le code propose deux modes de collecte : `sampled` pour un échantillon équilibré par étoiles et `representative` suivant l'ordre naturel. Il enregistre pages traitées, volume unique, erreurs et raison d'arrêt. Le service d'analyse refuse de qualifier de représentatifs les KPI d'un échantillon filtré ou d'une collecte représentative incomplète : [analysis_service.py](../app/api/services/analysis_service.py). Le domaine d'entreprise peut être fourni par l'utilisateur ; il ne doit pas être annoncé comme une catégorie automatiquement déduite du site. Un import CSV/JSON constitue une autre provenance et nécessite de connaître l'autorisation associée au fichier.
+| Élément | Portée réelle |
+| --- | --- |
+| [JSON historique Showroomprivé](../data/showroom_reviews.json) | 1 200 objets ; provenance, parcours de pages et droits de réutilisation insuffisamment documentés. Exemple technique historique, sans preuve de collecte exhaustive. |
+| [Tentative Showroomprivé HTTP 403](../data/evidence/trustpilot_showroomprive_representative.json) | Zéro avis extrait. Trace d'une tentative bloquée, et non résultat final du projet. |
 
-Deux JSON ont des statuts de preuve différents :
+Le total d'avis affiché par Trustpilot lors de cette ancienne tentative ne représentait pas un nombre d'avis collectés. Les tests et la collecte finale n'ont pas contourné les protections de la plateforme. Le droit de réutilisation ou de publication des textes d'avis n'est pas établi par la seule accessibilité de la page : aucun verbatim n'est publié ici.
 
-| Fichier | Contenu vérifiable dans le dépôt | Provenance et portée |
-| --- | --- | --- |
-| [showroom_reviews.json](../data/showroom_reviews.json) | `target_company=www.showroomprive.com`, `total_extracted=1200` et **1 200 objets** `reviews` avec `author`, `company_responded`, `date`, `rating`, `verbatim`. SHA-256 `153d4bbd209bed50046a00c8e8d3cb8920fa0dcb7c05aa192c622404e512089d`. | Fichier historique versionné depuis mai 2026, exemple **non exhaustif** de la structure d'un lot d'avis. Il ne contient ni URL des avis, ni horodatage de collecte, ni pages parcourues, ni trace HTTP, ni autorisation de réutilisation. Le dépôt ne permet pas d'établir avec certitude comment ces 1 200 avis ont été acquis ; ne pas le présenter comme un scraping réussi ou autorisé démontré. |
-| [trustpilot_showroomprive_representative.json](../data/evidence/trustpilot_showroomprive_representative.json) | Métadonnées de plateforme `total_reviews=264792`, `trustscore=3.9` ; `reviews_extracted=0`, `unique_reviews=0`, `stop_reason=platform_limitation`, `error=http_403` et tableau `reviews` vide. | **Trace d'une tentative bloquée**, jamais un exemple d'avis effectivement récupérés. Le total affiché est une métadonnée du site et non un volume collecté. |
+## Métadonnées de plateforme observées ponctuellement
 
-Le fichier historique fournit donc un exemple JSON contenant réellement des avis, mais sa provenance technique et juridique reste insuffisamment tracée. Le JSON d'échec explique pourquoi la tentative directe récente n'a produit aucun avis. Aucun des deux ne prouve l'extraction exhaustive des commentaires d'une entreprise de plus de 10 000 avis.
+Le **30 septembre 2026 à 16:27 (Europe/Paris)**, le [profil Trustpilot canonique de Vapoter](https://fr.trustpilot.com/review/www.vapoter.fr) affichait le nom commercial **Vapoter**, un **TrustScore de 4,8 / 5** et **11 281 avis**. La catégorie était **« Magasin de cigarettes électroniques »**, dans la hiérarchie **« Aliments, boissons & tabac » → « Tabac & cigarettes » → « Magasin de cigarettes électroniques »**. Le nom juridique complet n'a pas été démontré.
 
-## Statut de l'exigence > 10 000 : NON CONFORME
+| Note | Pourcentage affiché | Compte affiché dans l'infobulle |
+| ---: | ---: | ---: |
+| 1 étoile | 3 % | 289 |
+| 2 étoiles | 1 % | 115 |
+| 3 étoiles | 2 % | 239 |
+| 4 étoiles | 9 % | 1 030 |
+| 5 étoiles | 85 % | 9 608 |
 
-Aucune preuve actuelle ne montre la récupération directe de tous les commentaires d'une entreprise comptant plus de 10 000 avis. Ne pas relancer Trustpilot pour contourner HTTP 403, modifier les protections ou présenter les métadonnées de la page comme des avis capturés.
+Ces valeurs sont des **métadonnées live affichées par Trustpilot lors d'une observation ponctuelle**. Elles sont distinctes des statistiques du corpus privé décrites ci-dessous. Les comptes par étoile concordent numériquement avec le corpus réconcilié, sans démontrer que les deux ensembles contiennent exactement les mêmes identifiants au même instant.
 
-Trois pistes admissibles à **étudier**, sans les déclarer conformes avant validation :
+## Collecte finale Vapoter
 
-1. **API officielle**, par exemple [Google Business Profile `reviews.list`](https://developers.google.com/my-business/reference/rest/v4/accounts.locations.reviews/list), avec accès accordé au compte propriétaire et établissement vérifié. Vérifier volume réellement disponible, pagination, droits d'export et correspondance avec « commentaires d'une entreprise » du sujet.
-2. **Export autorisé par l'entreprise** ou par la plateforme, accompagné de la permission, du périmètre, du nombre d'avis et de la méthode d'obtention. Un export n'est pas automatiquement une collecte web directe ; préciser ce point au jury.
-3. **Jeu public sous licence adaptée**, avec URL, licence, date, identifiant d'entreprise et couverture prouvée. Vérifier si le mode de collecte déjà effectué par un tiers est accepté par le sujet. Une simple présence en ligne n'établit pas le droit de réutilisation.
+Les **16 vues linguistiques disponibles** ont été parcourues séparément jusqu'à leur **fin naturelle constatée dans la pagination**. Chaque page a été vérifiée avant d'être marquée `completed` : statut et URL, filtre linguistique, expansion de toutes les *review stacks*, correspondance entre avis empilés attendus et identifiants révélés, champs obligatoires, puis écriture atomique et SHA-256. Les identifiants Trustpilot stables servent à la déduplication. Une réconciliation hors ligne a vérifié les pages et les collisions entre corpus.
 
-Pour chaque éventuelle piste, archiver : permission/licence et date, source, entreprise, total annoncé, nombre de lignes réellement disponibles, doublons, période, notes, réponses, format JSON d'exemple et raison de tout écart. Les recommandations [CNIL sur la réutilisation de données en ligne](https://www.cnil.fr/fr/recommandations-reutilisateurs-donnees-internet) et les [conditions Trustpilot](https://uk.corporate.trustpilot.com/legal/for-businesses/terms-of-use-and-sale-for-businesses/nov-2025) sont des points de contrôle, pas des autorisations implicites.
+| Contrôle | Résultat vérifié |
+| --- | ---: |
+| Vues linguistiques / pages `completed` | 16 / 476 |
+| Avis principaux / empilés | 9 261 / 2 020 |
+| Identifiants uniques après réconciliation | **11 281** |
+| Réponses d'entreprise présentes | 9 473 |
+| Avis avec champs obligatoires valides | 11 281 / 11 281 |
+| Doublons internes / collisions inter-corpus | 0 / 0 |
+| Piles incomplètes / pages en erreur persistante | 0 / 0 |
+
+L'égalité **9 261 + 2 020 = 11 281** porte sur les enregistrements réconciliés. La période de sauvegarde enregistrée s'étend du 29 au 30 septembre 2026 (UTC). Le collecteur correspond au commit `d19a0f9ebe6c1d4b07fdae9f86412f69890c1673`, validé par la CI `36713495695` (backend, frontend et Docker réussis ; E2E manuel ignoré sur push).
+
+La distribution suivante est **calculée sur les avis effectivement sauvegardés**, sans être présentée comme la distribution live de Trustpilot.
+
+| Note | Avis | Avec réponse | Sans réponse | Taux de réponse |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 étoile | 289 | 265 | 24 | 91,70 % |
+| 2 étoiles | 115 | 95 | 20 | 82,61 % |
+| 3 étoiles | 239 | 175 | 64 | 73,22 % |
+| 4 étoiles | 1 030 | 786 | 244 | 76,31 % |
+| 5 étoiles | 9 608 | 8 152 | 1 456 | 84,85 % |
+| **Total** | **11 281** | **9 473** | **1 808** | **83,97 %** |
+
+La définition opérationnelle principale des **avis négatifs** est : **notes 1 et 2 étoiles**. Le corpus en contient **404**, dont **360 avec réponse** et **44 sans réponse**, soit un taux de réponse visible de **89,11 %**. Le regroupement alternatif 1–3 étoiles donnerait 643 avis, 535 réponses et 108 sans réponse (83,20 %) ; il n'est pas qualifié automatiquement de négatif. Ces chiffres viennent des indicateurs de réponse enregistrés, sans publication des réponses ni des commentaires.
+
+La [preuve publique assainie](TRUSTPILOT_VAPOTER_EVIDENCE.md) et le [résumé JSON agrégé](../data/evidence/trustpilot_vapoter_collection_summary.json) donnent la méthode et les contrôles sans révéler les avis. Le corpus global privé `reviews.jsonl` a pour SHA-256 `8da01889b3fb156af1ae138ce44b689c12b6226af39fe75c35f8c0adfaaa479e` ; son manifeste privé a pour SHA-256 `e85fd46f8e79ef5753d280490605fc0c697e82f4d83b8298b648ac23a6b35be0`. Ces empreintes identifient les fichiers vérifiés ; elles ne rendent pas leurs textes publics.
+
+L'[exemple JSON synthétique](../data/evidence/trustpilot_review_example_synthetic.json), marqué `synthetic_example: true`, illustre les champs d'un avis, sa langue, sa provenance et une réponse éventuelle. Ce n'est **pas** un avis collecté. Le résumé agrégé et cet exemple ont des rôles distincts.
+
+## Statut de l'exigence > 10 000 : DÉMONTRÉ POUR LE PARCOURS DES VUES ACCESSIBLES LORS DE LA COLLECTE
+
+Les 16 vues linguistiques disponibles ont été parcourues jusqu'à leur fin naturelle. La réconciliation hors ligne des pages sauvegardées établit **11 281 identifiants Trustpilot uniques**, sans collision entre corpus. Cela démontre une collecte réelle de plus de 10 000 avis pour une entreprise ; ce n'est ni un instantané parfaitement simultané ni la preuve de tous les avis ayant jamais existé. Les compteurs live de l'interface ont évolué et ne servent pas de preuve de cardinalité. Les textes restent privés.
+
+Les manifestes privés démontrent l'identifiant d'entreprise `www.vapoter.fr`, les URL des pages et des compteurs UI datés : 11 282 le 29 septembre 2026 à 11:12 UTC puis 11 281 le 30 septembre à 08:27 UTC. Le TrustScore, la catégorie et la répartition affichée ci-dessus proviennent d'une observation live ultérieure, distincte des manifestes. La distribution calculée sur les avis collectés ne doit pas être confondue avec cette observation, même si leurs comptes concordent numériquement. L'autorisation de réutilisation publique des avis bruts reste à documenter si une publication était envisagée.
 
 ## Présentation honnête au jury
 
-« Le pipeline de collecte et les métadonnées sont implémentés, mais notre tentative documentée sur l'entreprise cible a reçu HTTP 403 avant l'extraction du premier avis. Nous n'avons donc pas démontré la collecte exhaustive de plus de 10 000 avis. Nous avons conservé l'erreur, distingué le total affiché du nombre extrait et limité les KPI au corpus réellement analysé. Une source sous autorisation explicite serait nécessaire pour fermer cet écart. »
+« L'ancienne tentative Showroomprivé a reçu HTTP 403 et n'a extrait aucun avis ; le JSON historique de 1 200 avis ne prouve pas sa provenance. La preuve finale est la collecte privée Vapoter : 16 vues linguistiques parcourues jusqu'à leur fin naturelle, 476 pages sauvegardées et 11 281 identifiants uniques réconciliés, sans collision. Les avis bruts ne sont pas publiés. La collecte a duré plusieurs sessions, donc ce nombre n'est pas un instantané simultané ; nous montrons séparément les métadonnées de profil observées ponctuellement, les agrégats et empreintes du corpus, ainsi que les droits de republication et le nom juridique qui restent à établir. »

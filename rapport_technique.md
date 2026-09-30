@@ -52,6 +52,12 @@ Donnees collectees :
 - indicateur de reponse entreprise ;
 - entreprise associee.
 
+Une collecte privee distincte du pipeline produit a ensuite parcouru les 16 vues linguistiques accessibles de `www.vapoter.fr` sur Trustpilot jusqu'a leur fin naturelle. Elle a sauvegarde 476 pages et, apres reconciliation hors ligne, 11 281 identifiants uniques (9 261 avis principaux et 2 020 empiles), dont 9 473 avec reponse d'entreprise. La [preuve assainie](docs/TRUSTPILOT_VAPOTER_EVIDENCE.md) publie les agregats et empreintes sans texte d'avis. Le corpus n'a pas ete importe en base ni utilise pour l'entrainement ML.
+
+Le controle hors ligne des notes donne 289 avis a 1 etoile, 115 a 2, 239 a 3, 1 030 a 4 et 9 608 a 5. La definition operationnelle retenue pour les avis negatifs est **1 ou 2 etoiles** : 404 avis, dont 360 avec reponse d'entreprise et 44 sans reponse, soit 89,11 % de reponses visibles. Ce resultat de collecte privee n'est pas un KPI produit calcule par le dashboard.
+
+Une observation ponctuelle du [profil Trustpilot Vapoter](https://fr.trustpilot.com/review/www.vapoter.fr), le 30 septembre 2026 a 16:27 (Europe/Paris), a releve le nom commercial Vapoter, la categorie « Magasin de cigarettes electroniques », un TrustScore de **4,8 / 5** et **11 281 avis affiches**. La repartition affichee etait : 1 etoile 3 % (289 avis), 2 etoiles 1 % (115), 3 etoiles 2 % (239), 4 etoiles 9 % (1 030), 5 etoiles 85 % (9 608) ; les comptes proviennent des infobulles. Cette concordance chiffree avec le corpus ne prouve pas un instantane identique d'identifiants. Le nom juridique complet reste non demontre.
+
 ### 3.2 CSV utilisateur
 
 L'utilisateur peut importer un fichier CSV d'avis. Ce mode permet d'analyser des exports clients ou des avis provenant d'autres plateformes sans dependre de Trustpilot.
@@ -119,9 +125,12 @@ historique ; ce flux ne doit pas etre presente comme le chemin produit valide.
 Le [diagramme ETL detaille](docs/SCHEMA_DONNEES_ETL.md) distingue la collecte
 Trustpilot, l'import CSV, la normalisation, les tables produit PostgreSQL,
 l'inference MLflow et la restitution API/frontend. Le lot historique de
-1 200 avis a une provenance d'acquisition incomplete ; la tentative HTTP 403
-plus recente n'a extrait aucun avis. Ces deux JSON ne prouvent pas la collecte
-exhaustive de plus de 10 000 commentaires.
+1 200 avis a une provenance d'acquisition incomplete ; l'ancienne tentative
+Showroomprive HTTP 403 n'a extrait aucun avis. Ces deux JSON ne sont pas la
+preuve finale. La collecte privee Vapoter a parcouru les 16 vues accessibles
+jusqu'a leur fin naturelle : 476 pages, 11 281 IDs uniques et 0 collision
+inter-corpus apres reconciliation. Les compteurs UI ont evolue durant la
+collecte ; ce resultat n'est pas un instantane parfaitement simultane.
 
 Les statuts principaux d'un run sont :
 
@@ -294,7 +303,7 @@ Points a renforcer pour une production reelle :
 ## 14. Limites connues
 
 - Le scraping Trustpilot depend de la structure HTML du site.
-- La tentative reelle versionnee a recu HTTP 403 et n'a extrait aucun avis ; la preuve d'une collecte directe de plus de 10 000 avis manque.
+- L'ancienne tentative Showroomprive a recu HTTP 403 ; la collecte privee Vapoter demontre ensuite plus de 10 000 IDs sur les vues accessibles. Les metadonnees de profil sont une observation ponctuelle ; le nom juridique complet et les droits de republication des textes restent a documenter.
 - Les avis ironiques ou tres courts restent difficiles a classer.
 - La classe `Neutre` est plus difficile a apprendre.
 - Les corrections humaines doivent rester coherentes pour ne pas degrader le modele.
@@ -310,7 +319,7 @@ Points a renforcer pour une production reelle :
 
 Les evolutions les plus pertinentes sont :
 
-1. completer les preuves de volumetrie et de representativite de collecte ;
+1. documenter les droits de reutilisation et, si necessaire, le nom juridique de l'entreprise, puis etudier la representativite temporelle du corpus prive ;
 2. enrichir le corpus avec plus d'entreprises et de secteurs ;
 3. ajouter une classification thematique plus robuste ;
 4. brancher d'autres sources d'avis via API ou CSV ;

@@ -9,7 +9,7 @@ Texte à valider avant toute génération du `.pptx`. Format cible du sujet : **
 
 ## Faiblesses
 
-- Collecte directe de tous les avis d'une entreprise comptant plus de 10 000 avis **non démontrée** : tentative Trustpilot bloquée par HTTP 403.
+- Droits de réutilisation et portée temporelle de la collecte Vapoter à cadrer.
 - Corpus et classe `Neutre` limités ; accessibilité et conformité RGPD non auditées de bout en bout.
 
 ## Opportunités

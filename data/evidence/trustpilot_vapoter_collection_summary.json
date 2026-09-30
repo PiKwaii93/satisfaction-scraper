@@ -1,0 +1,64 @@
+{
+  "evidence_type": "aggregate_collection_summary",
+  "company": "www.vapoter.fr",
+  "platform": "Trustpilot",
+  "collection_period_utc": {
+    "first_saved_at": "2026-09-29T11:12:09.298223+00:00",
+    "last_saved_at": "2026-09-30T11:25:40.274572+00:00"
+  },
+  "method": "natural pagination end per language; full review-stack expansion; stable review-ID deduplication; offline reconciliation",
+  "language_views": 16,
+  "completed_pages": 476,
+  "natural_end_reached_views": 16,
+  "main_reviews": 9261,
+  "stacked_reviews_expected": 2020,
+  "stacked_reviews_extracted": 2020,
+  "unique_review_ids": 11281,
+  "business_replies_present": 9473,
+  "negative_review_definition": "rating in [1, 2] on the Trustpilot five-star scale",
+  "rating_and_reply_counts_from_collected_corpus": {
+    "1": {"reviews": 289, "with_business_reply": 265, "without_business_reply": 24, "response_rate_percent": 91.70},
+    "2": {"reviews": 115, "with_business_reply": 95, "without_business_reply": 20, "response_rate_percent": 82.61},
+    "3": {"reviews": 239, "with_business_reply": 175, "without_business_reply": 64, "response_rate_percent": 73.22},
+    "4": {"reviews": 1030, "with_business_reply": 786, "without_business_reply": 244, "response_rate_percent": 76.31},
+    "5": {"reviews": 9608, "with_business_reply": 8152, "without_business_reply": 1456, "response_rate_percent": 84.85}
+  },
+  "negative_reviews_1_to_2_stars": {"reviews": 404, "with_business_reply": 360, "without_business_reply": 44, "response_rate_percent": 89.11},
+  "alternate_1_to_3_star_group_not_labeled_negative": {"reviews": 643, "with_business_reply": 535, "without_business_reply": 108, "response_rate_percent": 83.20},
+  "company_metadata_evidence": {
+    "trustpilot_url": "https://fr.trustpilot.com/review/www.vapoter.fr",
+    "displayed_review_count_observations": [
+      {"count": 11282, "observed_at_utc": "2026-09-29T11:12:09.298223+00:00"},
+      {"count": 11281, "observed_at_utc": "2026-09-30T08:27:57.273060+00:00"}
+    ],
+    "legal_name": null
+  },
+  "live_profile_observation": {
+    "observed_at_local": "2026-09-30 16:27 Europe/Paris",
+    "commercial_name": "Vapoter",
+    "trustpilot_url": "https://fr.trustpilot.com/review/www.vapoter.fr",
+    "trustscore": 4.8,
+    "displayed_total_reviews": 11281,
+    "displayed_rating_distribution": {"1": 289, "2": 115, "3": 239, "4": 1030, "5": 9608},
+    "displayed_rating_percentages": {"1": 3, "2": 1, "3": 2, "4": 9, "5": 85},
+    "category": "Magasin de cigarettes électroniques",
+    "category_hierarchy": [
+      "Aliments, boissons & tabac",
+      "Tabac & cigarettes",
+      "Magasin de cigarettes électroniques"
+    ],
+    "evidence_note": "Ces valeurs sont des métadonnées affichées par Trustpilot lors d'une observation ponctuelle. Elles sont distinctes des données réconciliées du corpus privé. La concordance numérique des comptes par étoile ne prouve pas un instantané identique d'identifiants."
+  },
+  "required_fields_valid": 11281,
+  "internal_duplicates": 0,
+  "cross_corpus_collisions": 0,
+  "incomplete_stacks": 0,
+  "persistent_page_errors": 0,
+  "page_sha256_checks_passed": 476,
+  "collector_commit": "d19a0f9ebe6c1d4b07fdae9f86412f69890c1673",
+  "ci_run_id": 36713495695,
+  "private_corpus_sha256": "8da01889b3fb156af1ae138ce44b689c12b6226af39fe75c35f8c0adfaaa479e",
+  "private_manifest_sha256": "e85fd46f8e79ef5753d280490605fc0c697e82f4d83b8298b648ac23a6b35be0",
+  "raw_reviews_published": false,
+  "scope_note": "The 16 accessible language views reached their natural pagination ends during collection; this is not a perfectly simultaneous snapshot or a claim about all reviews ever published."
+}

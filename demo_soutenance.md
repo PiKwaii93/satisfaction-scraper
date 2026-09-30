@@ -299,7 +299,7 @@ Chaque correction est stockee en base. Lors du reentrainement, ces corrections s
 - ironie et avis tres courts difficiles ;
 - dependance au HTML Trustpilot pour le scraping ;
 - besoin de plus de secteurs et d'entreprises ;
-- collecte directe de plus de 10 000 avis non prouvee : la tentative reelle versionnee a recu HTTP 403 ;
+- collecte privee Vapoter prouvee sur les vues accessibles : 16 langues, 476 pages et 11 281 IDs uniques apres reconciliation hors ligne ; les anciens fichiers Showroomprive et le HTTP 403 ne constituent pas cette preuve ;
 - supervision limitee a la VM de test ; un heartbeat planifie est prouve, mais
   aucune sonde planifiee active de la VM n'est encore demontree.
 

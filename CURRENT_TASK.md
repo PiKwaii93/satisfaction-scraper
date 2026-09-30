@@ -25,8 +25,9 @@ est démontrée, **pas** l'exécution d'une sonde VM planifiée.
 Les sources académiques Markdown et leurs rendus PPTX/PDF/DOCX sont indexés
 dans [deliverables/README.md](deliverables/README.md). Le schéma détaillé et
 l'ETL figurent dans [docs/SCHEMA_DONNEES_ETL.md](docs/SCHEMA_DONNEES_ETL.md).
-La collecte directe de plus de 10 000 avis reste non conforme à la preuve
-demandée. Les captures du registre MLflow v53 restent à constituer.
+Mise à jour au 30 septembre 2026 : la [preuve assainie Vapoter](docs/TRUSTPILOT_VAPOTER_EVIDENCE.md)
+établit 11 281 IDs uniques sur 16 vues accessibles parcourues jusqu'à leur fin
+naturelle. Le corpus brut reste privé. Les captures du registre MLflow v53 restent à constituer.
 
 ## Contraintes durables
 

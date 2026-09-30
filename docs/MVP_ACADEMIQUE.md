@@ -6,7 +6,7 @@ Source Markdown destinée à validation avant un éventuel rendu Word ou slides.
 
 Une équipe de service client ou de supply chain doit lire des avis après achat, distinguer note et verbatim, puis décider quels irritants méritent une investigation. Le MVP démontre l'import ou la collecte dans les limites autorisées, la persistance, la classification de sentiment, la restitution, les exports et une boucle de correction humaine. La proposition de valeur porte sur une **aide à la priorisation**, pas sur une décision automatique ni sur la preuve d'une cause logistique.
 
-Les quatre KPI de cadrage sont la note moyenne, la part d'avis négatifs, le taux de réponse visible lorsque son statut est fiable, et le volume d'avis analysés comme indicateur de couverture. Le rapport ne doit pas extrapoler des résultats d'un échantillon par étoiles ou d'une collecte interrompue. La tentative réelle Showroomprivé s'est arrêtée sur HTTP 403 : zéro avis extrait, donc pas de preuve de collecte exhaustive de plus de 10 000 avis.
+Les quatre KPI de cadrage sont la note moyenne, la part d'avis négatifs, le taux de réponse visible lorsque son statut est fiable, et le volume d'avis analysés comme indicateur de couverture. Le rapport ne doit pas extrapoler des résultats d'un échantillon par étoiles ou d'une collecte interrompue. L'ancienne tentative Showroomprivé s'est arrêtée sur HTTP 403 ; la [collecte privée Vapoter](TRUSTPILOT_VAPOTER_EVIDENCE.md) démontre ensuite 11 281 IDs sur les vues accessibles, sans intégration automatique au MVP.
 
 ## Choix et exclusions
 
@@ -31,4 +31,4 @@ Social : éviter qu'un sentiment automatique serve seul à juger un client ou un
 
 ## SWOT et réglementation dans l'arbitrage
 
-La [SWOT](SWOT_SOURCE.md) conserve comme faiblesse la collecte >10 000 non démontrée, et comme menace l'accès aux données et le cadre légal. La [veille](VEILLE_TECHNO_REGLEMENTAIRE.md) distingue obligation juridique, recommandation et pratique volontaire : présence possible de données personnelles dans les avis, restrictions contractuelles de plateformes, durée de conservation à définir, qualification AI Act et RGAA à examiner selon l'usage réel. Ces points bornent la démonstration ; ils ne déclenchent aucune nouvelle fonctionnalité dans ce chantier.
+La [SWOT](SWOT_SOURCE.md) conserve comme faiblesse les limites de provenance et de réutilisation des données, et comme menace l'accès aux données et le cadre légal. La [veille](VEILLE_TECHNO_REGLEMENTAIRE.md) distingue obligation juridique, recommandation et pratique volontaire : présence possible de données personnelles dans les avis, restrictions contractuelles de plateformes, durée de conservation à définir, qualification AI Act et RGAA à examiner selon l'usage réel. Ces points bornent la démonstration ; ils ne déclenchent aucune nouvelle fonctionnalité dans ce chantier.

@@ -752,7 +752,7 @@ Jobs actuels :
 
 ## Limites connues
 
-- La tentative réelle Trustpilot versionnée a reçu HTTP 403 : aucune collecte directe de plus de 10 000 avis n'est démontrée.
+- La tentative historique Showroomprivé a reçu HTTP 403 ; la [collecte privée Vapoter](docs/TRUSTPILOT_VAPOTER_EVIDENCE.md) démontre ensuite 11 281 IDs uniques sur 16 vues linguistiques accessibles, sans constituer un instantané simultané ni un import en base.
 - Le scraping Trustpilot depend aussi de la structure HTML du site.
 - Les vrais connecteurs Google/Zendesk/Shopify ne sont pas encore branches.
 - Le stockage JWT en `localStorage` est acceptable pour le MVP local, pas pour un SaaS durci.

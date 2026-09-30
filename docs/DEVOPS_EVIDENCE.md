@@ -66,7 +66,7 @@ Le workflow heartbeat de diagnostic a été retiré après cette preuve. Le cron
 
 ## Limites à annoncer au jury
 
-- La tentative réelle Trustpilot versionnée a reçu HTTP 403, sans avis extraits ; une collecte directe de plus de 10 000 avis n'est pas prouvée par [l'artefact](../data/evidence/trustpilot_showroomprive_representative.json).
+- L'[artefact HTTP 403 Showroomprivé](../data/evidence/trustpilot_showroomprive_representative.json) reste une tentative historique sans avis extraits. La [preuve Vapoter assainie](TRUSTPILOT_VAPOTER_EVIDENCE.md) démontre séparément 11 281 IDs uniques sur les vues accessibles ; elle ne constitue pas un test du déploiement ou du pipeline produit.
 - Le rollback de migration DB, la remise en service de fonctionnalités différentes et l'auto-rollback provoqué sur VM n'ont pas été démontrés.
 - `celery inspect ping` prouve la réponse du worker au moment de la sonde, pas le succès de toutes les tâches métier.
 - GitHub Actions donne une supervision de **test**, sans garantie de cadence ni SLA de production ; les événements `schedule` sont prouvés, mais pas une sonde planifiée active de la VM.
