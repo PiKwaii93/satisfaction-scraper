@@ -1,6 +1,6 @@
 # MVP académique — choix, RSE, handicap et limites
 
-Source Markdown destinée à validation avant un éventuel rendu Word ou slides. État au 22 septembre 2026 ; voir [Discovery](DISCOVERY_DONNEES_KPI.md), [veille](VEILLE_TECHNO_REGLEMENTAIRE.md), [SWOT source](SWOT_SOURCE.md) et [roadmap](ROADMAP_ACADEMIQUE.md).
+Source Markdown destinée à validation avant un éventuel rendu Word ou slides. Choix du MVP documentés le 22 septembre 2026 ; renvoi au scénario de ressources ajouté le 30 septembre 2026. Voir [Discovery](DISCOVERY_DONNEES_KPI.md), [veille](VEILLE_TECHNO_REGLEMENTAIRE.md), [SWOT source](SWOT_SOURCE.md) et [roadmap](ROADMAP_ACADEMIQUE.md).
 
 ## Problème et décision produit
 
@@ -19,7 +19,7 @@ Les quatre KPI de cadrage sont la note moyenne, la part d'avis négatifs, le tau
 
 ## Parties prenantes et ressources
 
-Profils envisagés : responsable service client, responsable supply chain, responsable expérience client, analyste data, direction ; aucun entretien réalisé. L'équipe projet utilise le dépôt Git, Python/scikit-learn, PostgreSQL, MLflow, FastAPI, React, Celery/Redis, Docker Compose, GitHub Actions et la VM scolaire déjà mise à disposition. Aucun abonnement nouveau n'est requis pour les livrables documentaires ; le temps humain et le coût alloué de la VM ne sont pas chiffrés. La [roadmap](ROADMAP_ACADEMIQUE.md) détaille jalons, validation et maintenance.
+Profils envisagés : responsable service client, responsable supply chain, responsable expérience client, analyste data, direction ; aucun entretien réalisé. L'équipe projet utilise le dépôt Git, Python/scikit-learn, PostgreSQL, MLflow, FastAPI, React, Celery/Redis, Docker Compose, GitHub Actions, une machine personnelle existante et la VM scolaire mise à disposition. La [roadmap](ROADMAP_ACADEMIQUE.md) détaille jalons, validation, maintenance et une valorisation humaine **strictement estimative** ; la dépense cash réelle totale n'est pas déterminable à partir des pièces du projet.
 
 ## Handicap et accessibilité — engagement réaliste
 

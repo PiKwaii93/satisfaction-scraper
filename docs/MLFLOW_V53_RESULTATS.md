@@ -21,7 +21,7 @@ Le [code d'entraînement](../app/train_model.py) utilise TF-IDF sur le verbatim,
 | Neutre | 137 | 110 | 27 |
 | Positif | 702 | 561 | 141 |
 
-Sources enregistrées : `manual_annotations,review_feedback`. Nom du snapshot déclaré : `sentiment_training_dataset.csv`. Empreinte **enregistrée** du dataset, concordante entre paramètre du run et résumé d'artefact : `deb2f21da31b6c64c999fd539b79192e26d2fd1c71e820f31884294c0e9984cd`. Le contenu du snapshot n'a pas été exporté ni réhaché indépendamment pour ce dossier.
+Sources enregistrées : `manual_annotations,review_feedback`. Nom du snapshot déclaré : `sentiment_training_dataset.csv`. Empreinte **enregistrée** du dataset, concordante entre paramètre du run et résumé d'artefact : `deb2f21da31b6c64c999fd539b79192e26d2fd1c71e820f31884294c0e9984cd`. Lors de l'export du registre du 24 septembre, le snapshot n'avait pas été réhaché indépendamment. Il a ensuite été retrouvé localement hors Git et son **hash logique** a été recalculé à l'identique le 30 septembre ; voir la [comparaison contrôlée](ML_OPTIMIZATION_EVIDENCE.md). Son SHA-256 physique de fichier est distinct du hash logique enregistré dans le run.
 
 ## Évaluation sur les 311 avis de test
 
@@ -45,7 +45,7 @@ Matrice de confusion ; **lignes = classe réelle, colonnes = prédiction** :
 | Neutre | 4 | 17 | 6 |
 | Positif | 3 | 7 | 131 |
 
-La diagonale totalise **262/311**, soit l'accuracy du run. Les précisions, rappels et F1 recalculés à partir de la matrice concordent avec le classification report et les métriques enregistrées. La classe **Neutre** est rare (137/1 554 ; support test 27) et son F1 de **0,441558** reste la limite principale. Le modèle est une référence méthodologiquement corrigée pour ce MVP ; ces preuves ne démontrent ni modèle optimal ni recherche exhaustive d'hyperparamètres.
+La diagonale totalise **262/311**, soit l'accuracy du run. Les précisions, rappels et F1 recalculés à partir de la matrice concordent avec le classification report et les métriques enregistrées. La classe **Neutre** est rare (137/1 554 ; support test 27) et son F1 de **0,441558** reste la limite principale. Le modèle est une référence méthodologiquement corrigée pour ce MVP. Une recherche contrôlée de cinq variantes a ensuite été menée sur le snapshot logique retrouvé, avec sélection par validation croisée stratifiée sur le train ; son candidat sélectionné ne démontre pas de gain final robuste justifiant le remplacement de v53. Cette preuve ne fait pas de v53 un modèle optimal.
 
 ## Ce que MLflow prouve, et ce qu'il ne prouve pas
 
@@ -55,4 +55,4 @@ Le tag `production_alias_promotion_status=not_attempted` décrit **l'entraîneme
 
 La v53 et la v52 appartiennent au **registre conservé**. Lors d'un cold start sur un **registre vierge**, le bootstrap du pickle versionné crée une nouvelle **v1**, sans reproduire l'historique ni les métriques de v53. Ces deux registres ne doivent pas être confondus.
 
-**Limites des preuves :** pas de capture authentique de l'interface ; pas de réhachage indépendant du contenu du snapshot ; pas de preuve nouvelle du chargement de l'alias par l'application ou de la synchronisation PostgreSQL ; pas de comparaison exhaustive des algorithmes. Les exports assainis prouvent l'état du registre **à la date de consultation** et les valeurs de ce run précis.
+**Limites des preuves :** pas de capture authentique de l'interface ; snapshot brut conservé hors Git ; pas de preuve nouvelle du chargement de l'alias par l'application ou de la synchronisation PostgreSQL ; comparaison de cinq pondérations, pas recherche exhaustive des algorithmes. Les exports assainis prouvent l'état du registre **à la date de consultation** et les valeurs de ce run précis. Le réhachage et le benchmark sont des vérifications locales postérieures, distinctes de l'export du registre.
