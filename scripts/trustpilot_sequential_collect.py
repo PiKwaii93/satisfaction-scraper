@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 from app.scraper import REVIEW_CARD_SELECTOR, extract_reviews_from_page, review_identity_from_card
 from scripts.trustpilot_manual_check import connect_existing_browser, is_challenge
@@ -57,19 +57,38 @@ class Config:
     output_dir: Path
     resume: bool = False
     until_natural_end: bool = False
+    language: str | None = None
 
     def validate(self):
         if not re.fullmatch(r"[A-Za-z0-9.-]+", self.company) or ".." in self.company:
             raise ValueError("Invalid company domain")
         if self.start_page < 1 or self.end_page < self.start_page:
             raise ValueError("Invalid page range")
+        if self.language is not None and not re.fullmatch(r"[a-z]{2,3}|all", self.language):
+            raise ValueError("Invalid language code")
         limit = MAX_NATURAL_PAGES if self.until_natural_end else MAX_PAGES
         if self.end_page - self.start_page + 1 > limit:
             raise ValueError(f"At most {limit} pages per run")
 
     def url(self, number):
         base = f"https://fr.trustpilot.com/review/{self.company}"
-        return base if number == 1 else f"{base}?page={number}"
+        params = {}
+        if self.language is not None:
+            params["languages"] = self.language
+        if number > 1:
+            params["page"] = number
+        return f"{base}?{urlencode(params)}" if params else base
+
+
+def same_review_url(actual, expected):
+    """Compare the complete review URL without depending on query order."""
+    actual, expected = urlparse(actual), urlparse(expected)
+    return (actual.scheme == expected.scheme == "https"
+            and actual.netloc == expected.netloc
+            and actual.path == expected.path
+            and not actual.fragment
+            and parse_qs(actual.query, keep_blank_values=True)
+            == parse_qs(expected.query, keep_blank_values=True))
 
 
 def utc_now():
@@ -181,7 +200,7 @@ def validate_capture(config, number, capture):
         raise CollectionStopped(f"Unexpected HTTP {capture['status']}")
     if capture.get("challenge"):
         raise CollectionStopped("CAPTCHA or verification page")
-    if capture.get("redirected") or capture["url"] != config.url(number):
+    if capture.get("redirected") or not same_review_url(capture["url"], config.url(number)):
         raise CollectionStopped("Redirect or unexpected final URL")
     ids = capture["card_ids"]
     reviews = capture["reviews"]
@@ -197,9 +216,12 @@ def validate_capture(config, number, capture):
         next_page = capture.get("next_page")
         if next_page is not None and next_page != number + 1:
             raise CollectionStopped("Unexpected next-page link")
-        if next_page is None and (capture.get("next_control_present")
-                                  or not capture.get("pagination_present")):
+        if next_page is None and not (capture.get("natural_end_proven") is True
+                                      and capture.get("next_control_present") is True
+                                      and capture.get("pagination_present") is True):
             raise CollectionStopped("Ambiguous natural end: pagination is not conclusive")
+        if next_page is not None and capture.get("natural_end_proven"):
+            raise CollectionStopped("Next-page link conflicts with natural end proof")
     displayed_total = capture.get("displayed_total")
     if displayed_total is not None and (type(displayed_total) is not int or displayed_total < 0):
         raise CollectionStopped("Invalid displayed review total")
@@ -235,6 +257,8 @@ def page_record(page, digest):
     if "pagination_present" in page:
         record["pagination_present"] = page["pagination_present"]
         record["next_control_present"] = page["next_control_present"]
+    if "natural_end_proven" in page:
+        record["natural_end_proven"] = page["natural_end_proven"]
     return record
 
 
@@ -263,7 +287,7 @@ def _load_existing(config):
     if not config.resume:
         if manifest_path.exists() or any(config.output_dir.glob("page_*.json")):
             raise CollectionStopped("Output already contains a collection; use --resume")
-        return {"company": config.company, "start_page": config.start_page,
+        manifest = {"company": config.company, "start_page": config.start_page,
                 "end_page": config.end_page, "created_at": utc_now(), "pages": {},
                 "unique_review_ids": [], "last_error": None,
                 "until_natural_end": config.until_natural_end, "natural_end_page": None,
@@ -271,11 +295,22 @@ def _load_existing(config):
                 "first_collected_at": None, "last_collected_at": None,
                 "displayed_total_at_start": None, "displayed_total_observed_at": None,
                 "displayed_total_at_end": None, "displayed_total_end_observed_at": None}
+        if config.language is not None:
+            manifest.update({"scope": "language", "language": config.language,
+                             "filter_params": {"languages": config.language}})
+        return manifest
     if not manifest_path.exists():
         raise CollectionStopped("No manifest to resume")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("company") != config.company or manifest.get("until_natural_end") != config.until_natural_end:
         raise CollectionStopped("Manifest configuration mismatch")
+    if config.language is None:
+        if any(key in manifest for key in ("scope", "language", "filter_params")):
+            raise CollectionStopped("Manifest language scope mismatch")
+    elif (manifest.get("scope") != "language"
+          or manifest.get("language") != config.language
+          or manifest.get("filter_params") != {"languages": config.language}):
+        raise CollectionStopped("Manifest language scope mismatch")
     saved_start = manifest.get("start_page")
     saved_end = manifest.get("end_page")
     if not isinstance(saved_start, int) or not isinstance(saved_end, int):
@@ -300,7 +335,8 @@ def _load_existing(config):
             break
         raw = path.read_bytes()
         page = json.loads(raw)
-        if page.get("page") != number or page.get("company") != config.company:
+        if (page.get("page") != number or page.get("company") != config.company
+                or not same_review_url(page.get("url", ""), config.url(number))):
             raise CollectionStopped("Saved page identity mismatch")
         if page.get("status") != 200 or not page.get("card_ids") or page.get("validation_status") != "completed":
             raise CollectionStopped("Saved page is incomplete")
@@ -318,8 +354,9 @@ def _load_existing(config):
                 raise CollectionStopped("Saved page stack counts are inconsistent")
         except (KeyError, TypeError):
             raise CollectionStopped("Saved page lacks verified review stack metadata") from None
-        if "pagination_present" in page and page.get("next_page") is None and (
-                not page["pagination_present"] or page.get("next_control_present")):
+        if page.get("next_page") is None and not (page.get("natural_end_proven") is True
+                                                   and page.get("pagination_present") is True
+                                                   and page.get("next_control_present") is True):
             raise CollectionStopped("Saved natural end lacks pagination proof")
         if set(page.get("new_review_ids", [])) != {r.get("source_review_id") for r in page.get("reviews", [])}:
             raise CollectionStopped("Saved page review IDs are inconsistent")
@@ -373,13 +410,24 @@ def _load_existing(config):
 def run_collection(config, navigator, *, dry_run=False):
     config.validate()
     if dry_run:
-        prior = _load_existing(config)
+        # Previewing a new private corpus with --resume must not create it.
+        preview_config = config
+        if config.resume and not (config.output_dir / MANIFEST_NAME).exists():
+            preview_config = Config(config.company, config.start_page, config.end_page,
+                                    config.output_dir, False, config.until_natural_end,
+                                    config.language)
+        prior = _load_existing(preview_config)
         completed = prior["pages"]
         return {"dry_run": True,
                 "pages": [number for number in range(config.start_page, config.end_page + 1)
                           if str(number) not in completed and
                           (prior.get("natural_end_page") is None or number <= prior["natural_end_page"])],
-                "output_dir": str(config.output_dir), "cdp_connected": False}
+                "output_dir": str(config.output_dir), "cdp_connected": False,
+                "company": config.company, "language": config.language,
+                "scope": "language" if config.language is not None else "default",
+                "first_url": config.url(config.start_page),
+                "last_url": config.url(config.end_page),
+                "manifest_found": (config.output_dir / MANIFEST_NAME).exists()}
     config.output_dir.mkdir(parents=True, exist_ok=True)
     manifest = _load_existing(config)
     atomic_write(config.output_dir / MANIFEST_NAME, json_bytes(manifest))
@@ -412,6 +460,7 @@ def run_collection(config, navigator, *, dry_run=False):
                     "validation_status": "completed", "next_page": capture.get("next_page"),
                     "pagination_present": capture.get("pagination_present"),
                     "next_control_present": capture.get("next_control_present"),
+                    "natural_end_proven": capture.get("natural_end_proven", False),
                     "displayed_total": capture.get("displayed_total"),
                     "displayed_total_observed_at": capture.get("displayed_total_observed_at")}
             raw = json_bytes(page)
@@ -477,8 +526,9 @@ def reconcile_collection(config):
         if number < terminal and page["next_page"] != number + 1:
             raise CollectionStopped(f"Broken next-page chain at page {number}")
         if number == terminal and (page["next_page"] is not None
-                                   or not page.get("pagination_present")
-                                   or page.get("next_control_present")):
+                                   or page.get("pagination_present") is not True
+                                   or page.get("next_control_present") is not True
+                                   or page.get("natural_end_proven") is not True):
             raise CollectionStopped("Last page lacks a demonstrated natural end")
         for review_id in page["card_ids"]:
             repeated_card_ids += review_id in seen_card_ids
@@ -509,9 +559,51 @@ def reconcile_collection(config):
             "exhaustiveness_claim": "not established automatically; review pagination shifts and count gaps"}
 
 
+def resolve_pagination(number, expected_url, controls, current_pages, page_hrefs,
+                       pagination_present):
+    """Accept a terminal page only with an explicit disabled-next DOM proof."""
+    if not pagination_present or len(controls) != 1:
+        raise CollectionStopped("Ambiguous natural end: pagination is not conclusive")
+    control = controls[0]
+    href = control["href"]
+    disabled = control["aria_disabled"] == "true" or control["disabled"]
+    expected = urlparse(expected_url)
+
+    def is_page_link(value, page_number):
+        params = parse_qs(expected.query, keep_blank_values=True)
+        params["page"] = [str(page_number)]
+        parsed = urlparse(urljoin(expected_url, value))
+        return (parsed.scheme == expected.scheme and parsed.netloc == expected.netloc
+                and parsed.path == expected.path and not parsed.fragment
+                and parse_qs(parsed.query, keep_blank_values=True) == params)
+
+    def is_any_next_page_link(value):
+        parsed = urlparse(urljoin(expected_url, value))
+        return (parsed.scheme == expected.scheme and parsed.netloc == expected.netloc
+                and parsed.path == expected.path
+                and parse_qs(parsed.query, keep_blank_values=True).get("page")
+                == [str(number + 1)])
+
+    if disabled:
+        current = current_pages[0] if len(current_pages) == 1 else None
+        current_url = urlparse(urljoin(expected_url, current["href"])) if current and current["href"] else None
+        if (href or any(is_any_next_page_link(value) for value in page_hrefs)
+                or not current or current["text"] != str(number)
+                or current["aria_current"] != "page" or not current_url
+                or not same_review_url(current_url.geturl(), expected_url)):
+            raise CollectionStopped("Disabled next control conflicts with pagination")
+        return None, True, True, True
+    if not href:
+        raise CollectionStopped("Ambiguous natural end: pagination is not conclusive")
+    if not is_page_link(href, number + 1):
+        raise CollectionStopped("Unexpected next-page link")
+    return number + 1, True, True, False
+
+
 class LiveNavigator:
-    def __init__(self, context):
+    def __init__(self, context, config):
         self.page = context.new_page()
+        self.config = config
         self.blocked = []
         self.page.on("response", self._on_response)
 
@@ -525,11 +617,15 @@ class LiveNavigator:
             raise CollectionStopped(f"HTTP {self.blocked[0]}")
         if is_challenge(self.page):
             raise CollectionStopped("CAPTCHA or verification page")
-        actual = urlparse(self.page.url)
-        expected = urlparse(expected_url)
-        if (actual.hostname != expected.hostname or actual.path != expected.path
-                or parse_qs(actual.query) != parse_qs(expected.query)):
+        if not same_review_url(self.page.url, expected_url):
             raise CollectionStopped("Unexpected final URL or login redirect")
+        if self.config.language is not None:
+            radios = self.page.query_selector_all('input[name="language"]')
+            if radios:
+                checked = [radio.get_attribute("value") for radio in radios
+                           if radio.is_checked()]
+                if checked != [self.config.language]:
+                    raise CollectionStopped("Active DOM language filter mismatch")
 
     def _next_page(self, number, expected_url):
         controls = [node for node in self.page.query_selector_all(
@@ -538,19 +634,19 @@ class LiveNavigator:
         pagination_present = any(node.is_visible() for node in self.page.query_selector_all(
             '[name^="pagination-button-"], [data-pagination-button-next-link="true"]'
         ))
-        hrefs = {node.get_attribute("href") for node in controls if node.get_attribute("href")}
-        if len(hrefs) > 1:
-            raise CollectionStopped("Conflicting next-page links")
-        if not hrefs:
-            return None, bool(controls), pagination_present
-        next_url = urljoin(expected_url, hrefs.pop())
-        parsed = urlparse(next_url)
-        expected = urlparse(expected_url)
-        next_values = parse_qs(parsed.query).get("page", [])
-        if (parsed.hostname != expected.hostname or parsed.path != expected.path
-                or len(next_values) != 1 or next_values[0] != str(number + 1)):
-            raise CollectionStopped("Unexpected next-page link")
-        return number + 1, True, pagination_present
+        current_pages = [node for node in self.page.query_selector_all(
+            'a[name^="pagination-button-"][aria-current="page"]'
+        ) if node.is_visible()]
+        return resolve_pagination(
+            number, expected_url,
+            [{"href": node.get_attribute("href"),
+              "aria_disabled": node.get_attribute("aria-disabled"),
+              "disabled": node.get_attribute("disabled") is not None} for node in controls],
+            [{"href": node.get_attribute("href"), "text": node.inner_text().strip(),
+              "aria_current": node.get_attribute("aria-current")} for node in current_pages],
+            [node.get_attribute("href") for node in self.page.query_selector_all('a[href]')],
+            pagination_present,
+        )
 
     def fetch(self, number, url):
         if self.blocked:
@@ -575,7 +671,7 @@ class LiveNavigator:
         ids = [identity[0] for card in cards if (identity := review_identity_from_card(card))]
         reviews = extract_reviews_from_page(self.page, include_author=False)
         self._ensure_clean(url)
-        next_page, next_control_present, pagination_present = self._next_page(number, url)
+        next_page, next_control_present, pagination_present, natural_end_proven = self._next_page(number, url)
         displayed_total = self.page.evaluate(DISPLAYED_TOTAL_JS)
         observed_at = utc_now() if displayed_total is not None else None
         return {"status": status, "url": self.page.url, "redirected": False,
@@ -583,6 +679,7 @@ class LiveNavigator:
                 "main_review_ids": main_ids, "stack_details": stack_details,
                 "next_page": next_page, "next_control_present": next_control_present,
                 "pagination_present": pagination_present,
+                "natural_end_proven": natural_end_proven,
                 "displayed_total": displayed_total, "displayed_total_observed_at": observed_at}
 
 
@@ -616,6 +713,7 @@ def ensure_private_dir(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--company", required=True)
+    parser.add_argument("--language", help="Trustpilot language code; keep each language in a separate private output directory")
     parser.add_argument("--start-page", type=int, required=True)
     parser.add_argument("--end-page", type=int, required=True)
     parser.add_argument("--until-natural-end", action="store_true",
@@ -628,7 +726,7 @@ def main():
     mode.add_argument("--reconcile", action="store_true", help="Verify a completed natural-end collection offline")
     args = parser.parse_args()
     config = Config(args.company, args.start_page, args.end_page, args.output_dir,
-                    args.resume, args.until_natural_end)
+                    args.resume, args.until_natural_end, args.language)
     config.validate()
     ensure_private_dir(config.output_dir)
     if args.dry_run:
@@ -636,7 +734,7 @@ def main():
         return
     if args.reconcile:
         report_config = Config(args.company, args.start_page, args.end_page, args.output_dir,
-                               True, args.until_natural_end)
+                               True, args.until_natural_end, args.language)
         print(json.dumps(reconcile_collection(report_config), ensure_ascii=False, indent=2))
         return
     from playwright.sync_api import sync_playwright
@@ -645,7 +743,7 @@ def main():
         browser = connect_existing_browser(playwright)
         if len(browser.contexts) != 1:
             raise CollectionStopped("Expected exactly one existing CDP context")
-        result = run_collection(config, LiveNavigator(browser.contexts[0]))
+        result = run_collection(config, LiveNavigator(browser.contexts[0], config))
         print(json.dumps({"completed_pages": len(result["pages"]),
                           "unique_reviews": len(result["unique_review_ids"]),
                           "collection_status": result["collection_status"],

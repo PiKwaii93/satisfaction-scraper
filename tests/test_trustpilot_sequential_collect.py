@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from scripts import trustpilot_sequential_collect as collector
+from scripts.trustpilot_manual_check import is_challenge
 
 
 def review(review_id, *, reply=False):
@@ -44,6 +45,7 @@ def capture(cfg, number, reviews, *, status=200, card_count=None, **changes):
              "main_review_ids": [r["source_review_id"] for r in reviews],
              "stack_details": [], "next_page": number + 1,
              "next_control_present": True, "pagination_present": True,
+             "natural_end_proven": False,
              "displayed_total": None, "displayed_total_observed_at": None}
     value.update(changes)
     return value
@@ -406,7 +408,7 @@ def test_natural_end_requires_pagination_and_never_accepts_404(tmp_path):
     cfg = collector.Config("example.com", 1, 3, tmp_path / "private", until_natural_end=True)
     nav = FakeNavigator({1: capture(cfg, 1, [review("a")]),
                          2: capture(cfg, 2, [review("b")], next_page=None,
-                                    next_control_present=False, pagination_present=True)})
+                                    natural_end_proven=True)})
     result = collector.run_collection(cfg, nav)
     assert nav.calls == [1, 2] and result["natural_end_page"] == 2
     no_fetch = FakeNavigator({})
@@ -418,6 +420,55 @@ def test_natural_end_requires_pagination_and_never_accepts_404(tmp_path):
                              2: capture(bad_cfg, 2, [], status=404)})
     with pytest.raises(collector.CollectionStopped, match="HTTP 404"):
         collector.run_collection(bad_cfg, bad_nav)
+
+
+def test_active_next_link_points_to_immediate_next_page():
+    url = "https://fr.trustpilot.com/review/example.com?page=454"
+    next_href = "/review/example.com?page=455"
+    assert collector.resolve_pagination(
+        454, url, [{"href": next_href, "aria_disabled": None, "disabled": False}],
+        [], [next_href], True) == (455, True, True, False)
+
+
+def test_disabled_next_and_current_page_prove_natural_end():
+    url = "https://fr.trustpilot.com/review/example.com?page=454"
+    assert collector.resolve_pagination(
+        454, url, [{"href": None, "aria_disabled": "true", "disabled": False}],
+        [{"href": "/review/example.com?page=454", "text": "454", "aria_current": "page"}],
+        ["/review/example.com?page=453"], True) == (None, True, True, True)
+
+
+def test_missing_next_without_disabled_state_is_ambiguous(tmp_path):
+    url = "https://fr.trustpilot.com/review/example.com?page=454"
+    with pytest.raises(collector.CollectionStopped, match="Ambiguous natural end"):
+        collector.resolve_pagination(
+            454, url, [{"href": None, "aria_disabled": None, "disabled": False}],
+            [{"href": "/review/example.com?page=454", "text": "454", "aria_current": "page"}],
+            [], True)
+    cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
+    with pytest.raises(collector.CollectionStopped, match="Ambiguous natural end"):
+        collector.run_collection(cfg, FakeNavigator({1: capture(
+            cfg, 1, [review("a")], next_page=None, natural_end_proven=False)}))
+    assert manifest(cfg)["pages"] == {}
+
+
+def test_disabled_next_conflicting_with_next_page_link_is_rejected():
+    url = "https://fr.trustpilot.com/review/example.com?page=454"
+    with pytest.raises(collector.CollectionStopped, match="conflicts with pagination"):
+        collector.resolve_pagination(
+            454, url, [{"href": None, "aria_disabled": "true", "disabled": False}],
+            [{"href": "/review/example.com?page=454", "text": "454", "aria_current": "page"}],
+            ["/review/example.com?page=455"], True)
+
+
+@pytest.mark.parametrize("current", [[],
+    [{"href": "/review/example.com?page=453", "text": "453", "aria_current": "page"}]])
+def test_disabled_next_requires_confirmed_current_page(current):
+    with pytest.raises(collector.CollectionStopped, match="conflicts with pagination"):
+        collector.resolve_pagination(
+            454, "https://fr.trustpilot.com/review/example.com?page=454",
+            [{"href": None, "aria_disabled": "true", "disabled": False}],
+            current, [], True)
 
 
 def test_natural_end_safety_ceiling_is_not_completion(tmp_path):
@@ -445,7 +496,7 @@ def test_checkpoint_extends_to_natural_end_with_displayed_totals(tmp_path):
     resumed = collector.Config("example.com", 3, 4, first.output_dir,
                                resume=True, until_natural_end=True)
     nav = FakeNavigator({3: capture(resumed, 3, [review("c", reply=True)],
-                                     next_page=None, next_control_present=False,
+                                     next_page=None, natural_end_proven=True,
                                      displayed_total=5,
                                      displayed_total_observed_at="2026-09-29T10:02:00+00:00")})
     finished = collector.run_collection(resumed, nav)
@@ -468,7 +519,7 @@ def test_checkpoint_extends_to_natural_end_with_displayed_totals(tmp_path):
 def test_reconciliation_does_not_write_private_files(tmp_path):
     cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
     collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")],
-                                                 next_page=None, next_control_present=False)}))
+                                                 next_page=None, natural_end_proven=True)}))
     files_before = {path.name: path.read_bytes() for path in cfg.output_dir.iterdir()}
     collector.reconcile_collection(collector.Config(
         "example.com", 1, 1, cfg.output_dir, resume=True, until_natural_end=True))
@@ -534,7 +585,7 @@ def test_recent_page_without_new_total_or_pagination_fields_can_resume(tmp_path)
 def test_reconciliation_detects_changed_page_hash(tmp_path):
     cfg = collector.Config("example.com", 1, 1, tmp_path / "private", until_natural_end=True)
     collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")],
-                                                 next_page=None, next_control_present=False)}))
+                                                 next_page=None, natural_end_proven=True)}))
     page_path = cfg.output_dir / "page_0001.json"
     page_path.write_bytes(page_path.read_bytes() + b" ")
     with pytest.raises(collector.CollectionStopped, match="hash or metadata mismatch"):
@@ -554,3 +605,187 @@ def test_legacy_manifest_cannot_claim_stack_completeness(tmp_path):
     page_path.write_text(json.dumps(old), encoding="utf-8")
     with pytest.raises(collector.CollectionStopped, match="incomplete"):
         collector.run_collection(config(tmp_path, end=1, resume=True), FakeNavigator({}))
+
+
+def language_config(tmp_path, *, language="en", start=1, end=2, resume=False):
+    return collector.Config("example.com", start, end, tmp_path / "private-en",
+                            resume=resume, until_natural_end=True, language=language)
+
+
+def test_language_urls_and_legacy_urls(tmp_path):
+    english = language_config(tmp_path)
+    assert english.url(1) == "https://fr.trustpilot.com/review/example.com?languages=en"
+    assert english.url(2) == "https://fr.trustpilot.com/review/example.com?languages=en&page=2"
+    assert config(tmp_path).url(1) == "https://fr.trustpilot.com/review/example.com"
+    assert config(tmp_path).url(2) == "https://fr.trustpilot.com/review/example.com?page=2"
+    with pytest.raises(ValueError, match="language code"):
+        language_config(tmp_path, language="en&page=3").validate()
+
+
+def test_language_capture_accepts_query_order_but_rejects_other_language(tmp_path):
+    cfg = language_config(tmp_path)
+    reordered = capture(cfg, 2, [review("b")],
+                        url="https://fr.trustpilot.com/review/example.com?page=2&languages=en")
+    collector.validate_capture(cfg, 2, reordered)
+    collector.validate_capture(cfg, 2, capture(cfg, 2, [review("b")]))
+    for wrong in ("https://fr.trustpilot.com/review/example.com?page=2&languages=es",
+                  "https://fr.trustpilot.com/review/example.com?page=2",
+                  "https://fr.trustpilot.com/review/example.com?page=2&languages=en&languages=es"):
+        with pytest.raises(collector.CollectionStopped, match="final URL"):
+            collector.validate_capture(cfg, 2, {**reordered, "url": wrong})
+
+
+def test_language_pagination_preserves_filter_and_accepts_query_order():
+    expected = "https://fr.trustpilot.com/review/example.com?languages=en&page=2"
+    correct = "/review/example.com?page=3&languages=en"
+    assert collector.resolve_pagination(
+        2, expected, [{"href": correct, "aria_disabled": None, "disabled": False}],
+        [], [correct], True) == (3, True, True, False)
+    for wrong in ("/review/example.com?page=3&languages=es",
+                  "/review/example.com?page=3"):
+        with pytest.raises(collector.CollectionStopped, match="Unexpected next-page"):
+            collector.resolve_pagination(
+                2, expected, [{"href": wrong, "aria_disabled": None, "disabled": False}],
+                [], [wrong], True)
+
+
+def test_language_natural_end_requires_same_filter_on_current_page():
+    expected = "https://fr.trustpilot.com/review/example.com?languages=en&page=2"
+    disabled = [{"href": None, "aria_disabled": "true", "disabled": False}]
+    current = [{"href": "/review/example.com?page=2&languages=en",
+                "text": "2", "aria_current": "page"}]
+    assert collector.resolve_pagination(2, expected, disabled, current, [], True) == (
+        None, True, True, True)
+    with pytest.raises(collector.CollectionStopped, match="conflicts with pagination"):
+        collector.resolve_pagination(
+            2, expected, disabled,
+            [{**current[0], "href": "/review/example.com?page=2&languages=es"}], [], True)
+    with pytest.raises(collector.CollectionStopped, match="conflicts with pagination"):
+        collector.resolve_pagination(
+            2, expected, disabled, current,
+            ["/review/example.com?page=3&languages=es"], True)
+
+
+def test_language_manifest_identity_rejects_other_scope_before_fetch(tmp_path):
+    cfg = language_config(tmp_path, end=1)
+    collector.run_collection(cfg, FakeNavigator({1: capture(cfg, 1, [review("a")])}))
+    saved = manifest(cfg)
+    assert (saved["company"], saved["scope"], saved["language"], saved["filter_params"]) == (
+        "example.com", "language", "en", {"languages": "en"})
+    before = (cfg.output_dir / "manifest.json").read_bytes()
+    for language in ("es", "fr", "all", None):
+        other = collector.Config("example.com", 1, 1, cfg.output_dir, True, True, language)
+        nav = FakeNavigator({})
+        with pytest.raises(collector.CollectionStopped, match="scope mismatch"):
+            collector.run_collection(other, nav, dry_run=True)
+        assert nav.calls == []
+    assert (cfg.output_dir / "manifest.json").read_bytes() == before
+
+
+def test_language_resume_and_natural_end_reconciliation(tmp_path):
+    initial = language_config(tmp_path, end=1)
+    collector.run_collection(initial, FakeNavigator({
+        1: capture(initial, 1, [review("a")])}))
+    resumed = language_config(tmp_path, start=2, end=3, resume=True)
+    nav = FakeNavigator({2: capture(resumed, 2, [review("b", reply=True)],
+                                    url="https://fr.trustpilot.com/review/example.com?page=2&languages=en",
+                                    next_page=None, natural_end_proven=True)})
+    result = collector.run_collection(resumed, nav)
+    assert nav.calls == [2]
+    assert result["collection_status"] == "natural_end_reached"
+    assert result["natural_end_page"] == 2
+    assert result["unique_review_ids"] == ["a", "b"]
+    report = collector.reconcile_collection(language_config(tmp_path, start=1, end=3, resume=True))
+    assert report["pages_verified"] == 2 and report["all_stacks_complete"]
+
+
+def test_live_navigator_rejects_detectable_wrong_dom_language(tmp_path, monkeypatch):
+    class Radio:
+        def __init__(self, value, checked):
+            self.value, self.checked = value, checked
+
+        def is_checked(self):
+            return self.checked
+
+        def get_attribute(self, name):
+            return self.value if name == "value" else None
+
+    class Page:
+        url = "https://fr.trustpilot.com/review/example.com?languages=en"
+
+        def __init__(self):
+            self.radios = []
+
+        def on(self, *_):
+            pass
+
+        def query_selector_all(self, _):
+            return self.radios
+
+    page = Page()
+    context = type("Context", (), {"new_page": lambda self: page})()
+    cfg = language_config(tmp_path)
+    navigator = collector.LiveNavigator(context, cfg)
+    monkeypatch.setattr(collector, "is_challenge", lambda _: False)
+    navigator._ensure_clean(cfg.url(1))  # No DOM proof available; URL remains strict.
+    page.radios = [Radio("en", False), Radio("es", True)]
+    with pytest.raises(collector.CollectionStopped, match="DOM language"):
+        navigator._ensure_clean(cfg.url(1))
+    page.radios = [Radio("en", True), Radio("es", False)]
+    navigator._ensure_clean(cfg.url(1))
+
+
+@pytest.mark.parametrize("change,reason", [({"status": 403}, "HTTP 403"),
+    ({"status": 429}, "HTTP 429"), ({"challenge": True}, "CAPTCHA")])
+def test_language_view_keeps_block_protection(tmp_path, change, reason):
+    cfg = language_config(tmp_path, end=1)
+    nav = FakeNavigator({1: capture(cfg, 1, [review("a")], **change)})
+    with pytest.raises(collector.CollectionStopped, match=reason):
+        collector.run_collection(cfg, nav)
+    assert nav.calls == [1] and manifest(cfg)["pages"] == {}
+
+
+def test_new_language_resume_dry_run_does_not_create_corpus(tmp_path):
+    cfg = language_config(tmp_path, end=20, resume=True)
+    plan = collector.run_collection(cfg, None, dry_run=True)
+    assert plan["pages"] == list(range(1, 21))
+    assert plan["first_url"] == cfg.url(1)
+    assert plan["last_url"] == cfg.url(20)
+    assert plan["scope"] == "language" and plan["language"] == "en"
+    assert plan["manifest_found"] is False and plan["cdp_connected"] is False
+    assert not cfg.output_dir.exists()
+
+
+@pytest.mark.parametrize("source,in_badge,expected", [
+    ("https://www.google.com/recaptcha/enterprise/anchor", True, False),
+    ("https://www.google.com/recaptcha/enterprise/anchor", False, True),
+    ("https://www.google.com/recaptcha/enterprise/bframe", False, True),
+])
+def test_passive_recaptcha_badge_is_not_a_challenge(source, in_badge, expected):
+    class Locator:
+        def __init__(self, frames):
+            self.frames = frames
+
+        def count(self):
+            return len(self.frames)
+
+        def all(self):
+            return self.frames
+
+    class Frame:
+        def get_attribute(self, name):
+            return source if name == "src" else None
+
+        def evaluate(self, _):
+            return in_badge
+
+    class Page:
+        url = "https://fr.trustpilot.com/review/example.com?languages=en"
+
+        def title(self):
+            return "Avis de Example"
+
+        def locator(self, selector):
+            return Locator([Frame()] if selector == "iframe[src*='recaptcha']:visible" else [])
+
+    assert is_challenge(Page()) is expected

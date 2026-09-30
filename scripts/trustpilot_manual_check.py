@@ -16,7 +16,7 @@ PAGES = (11, 50)
 CDP_ENDPOINT = "http://127.0.0.1:9223"
 CARD_SELECTOR = "article[class*='styles_reviewCard']:visible"
 CHALLENGE_SELECTOR = (
-    "iframe[src*='recaptcha']:visible, iframe[src*='hcaptcha']:visible, "
+    "iframe[src*='hcaptcha']:visible, "
     "iframe[src*='challenges.cloudflare.com']:visible, "
     "[id='captcha']:visible, [id='challenge-running']:visible, "
     "form[action*='challenge' i]:visible"
@@ -35,7 +35,16 @@ def is_challenge(page) -> bool:
     if "captcha" in location or "challenge" in location:
         return True
     title = page.title().lower()
-    return any(marker in title for marker in CHALLENGE_MARKERS) or page.locator(CHALLENGE_SELECTOR).count() > 0
+    if any(marker in title for marker in CHALLENGE_MARKERS) or page.locator(CHALLENGE_SELECTOR).count() > 0:
+        return True
+    for frame in page.locator("iframe[src*='recaptcha']:visible").all():
+        source = frame.get_attribute("src") or ""
+        # Trustpilot's passive 256x60 badge uses an /anchor iframe inside
+        # .grecaptcha-badge. Other visible reCAPTCHA frames remain blocking.
+        if "/anchor" in source and frame.evaluate("node => !!node.closest('.grecaptcha-badge')"):
+            continue
+        return True
+    return False
 
 
 def connect_existing_browser(playwright):
