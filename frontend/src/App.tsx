@@ -134,11 +134,11 @@ const CUSTOMER_ACTION_FILTERS: Array<{
 }> = [
   { value: "active", label: "Actives" },
   { value: "overdue", label: "En retard" },
-  { value: "due_soon", label: "Echeance proche" },
-  { value: "open", label: "A faire" },
+  { value: "due_soon", label: "Échéance proche" },
+  { value: "open", label: "À faire" },
   { value: "in_progress", label: "En cours" },
-  { value: "resolved", label: "Resolues" },
-  { value: "ignored", label: "Ignorees" },
+  { value: "resolved", label: "Résolues" },
+  { value: "ignored", label: "Ignorées" },
   { value: "all", label: "Toutes" }
 ];
 
@@ -190,43 +190,43 @@ const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
   {
     id: "home",
     label: "Accueil",
-    description: "Priorites et alertes",
+    description: "Priorités et alertes",
     icon: ListChecks
   },
   {
     id: "sources",
     label: "Sources",
-    description: "Connecteurs et mappings",
+    description: "Connexions et imports",
     icon: TableProperties
   },
   {
     id: "analyses",
     label: "Analyses",
-    description: "Runs, rapports et avis",
+    description: "Analyses, rapports et avis",
     icon: FileText
   },
   {
     id: "benchmark",
     label: "Benchmark",
-    description: "Comparaison multi-runs",
+    description: "Comparaison d'analyses",
     icon: BarChart3
   },
   {
     id: "ai",
-    label: "Qualite IA",
-    description: "Corrections et modele",
+    label: "Qualité IA",
+    description: "Corrections et modèle",
     icon: Database
   },
   {
     id: "admin",
     label: "Administration",
-    description: "Equipe et espace client",
+    description: "Équipe et espace client",
     icon: Users
   },
   {
     id: "platform",
     label: "Plateforme",
-    description: "Clients et upgrades",
+    description: "Clients et changements de plan",
     icon: Building2
   }
 ];
@@ -288,7 +288,7 @@ const CSV_MAPPING_FIELDS: Array<{
   { key: "rating", label: "Note" },
   { key: "author", label: "Auteur" },
   { key: "date", label: "Date" },
-  { key: "company_responded", label: "Reponse entreprise" }
+  { key: "company_responded", label: "Réponse entreprise" }
 ];
 
 const sentimentClass: Record<SentimentLabel, string> = {
@@ -313,6 +313,10 @@ function formatNumber(value: number | null | undefined, digits = 1) {
     maximumFractionDigits: digits,
     minimumFractionDigits: digits
   });
+}
+
+function countLabel(count: number, singular: string, plural = `${singular}s`) {
+  return `${count.toLocaleString("fr-FR")} ${count === 1 ? singular : plural}`;
 }
 
 function compactText(value: string | null | undefined, maxLength = 230) {
@@ -372,8 +376,8 @@ function formatSourceStatus(status: ReviewSource["status"]) {
   const labels: Record<ReviewSource["status"], string> = {
     active: "Actif",
     error: "Erreur",
-    not_configured: "A configurer",
-    planned: "Bientot"
+    not_configured: "À configurer",
+    planned: "Bientôt"
   };
 
   return labels[status];
@@ -495,12 +499,12 @@ function emptyRunGuidance(run: AnalysisRun) {
 
 function runLogEmptyMessage(status: AnalysisRun["status"]) {
   if (status === "failed" || status === "empty") {
-    return "Aucun événement journalisé pour ce run. Le message affiché au-dessus reste la référence.";
+    return "Aucun événement journalisé pour cette analyse. Le message affiché au-dessus reste la référence.";
   }
   if (status === "pending" || status === "running") {
     return "Aucun événement pour le moment. Le journal se mettra à jour pendant l'exécution.";
   }
-  return "Aucun événement pour ce run.";
+  return "Aucun événement pour cette analyse.";
 }
 
 function formatTopic(value: string | null | undefined) {
@@ -603,7 +607,7 @@ function CustomerActionImpactBlock({ impact }: { impact: CustomerActionImpact })
         <span>{impact.metric_label}</span>
         {impact.baseline_run_id && impact.comparison_run_id ? (
           <span>
-            Run #{impact.baseline_run_id} -&gt; Run #{impact.comparison_run_id}
+            Analyse nº {impact.baseline_run_id} → Analyse nº {impact.comparison_run_id}
           </span>
         ) : null}
         {impact.baseline_value !== null || impact.comparison_value !== null ? (
@@ -773,7 +777,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Rapport ${escapeHtml(run.company_name)} - Run #${run.run_id}</title>
+  <title>Rapport ${escapeHtml(run.company_name)} - Analyse nº ${run.run_id}</title>
   <style>
     :root {
       color: #18202c;
@@ -939,7 +943,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
       <div>
         <span class="eyebrow">Rapport entreprise</span>
         <h1>${escapeHtml(run.company_name)}</h1>
-        <p>${SOURCE_LABELS[run.source]} - Run #${run.run_id} - Rapport généré le ${escapeHtml(createdAt)}</p>
+        <p>${SOURCE_LABELS[run.source]} - Analyse nº ${run.run_id} - Rapport généré le ${escapeHtml(createdAt)}</p>
       </div>
       <div class="score">
         <span>${escapeHtml(corpusScopedLabel("Score santé", summary.run))}</span>
@@ -1021,7 +1025,7 @@ function buildPrintableReport(run: AnalysisRun, summary: RunSummary) {
 
     <section class="limits">
       <h2>Limites de lecture</h2>
-      <p>Ce rapport repose sur les avis collectés lors du run, les verbatims disponibles et le modèle de sentiment actuellement déployé. Les recommandations et KPI portent sur ce corpus et doivent être relus avec le contexte métier avant arbitrage opérationnel.</p>
+      <p>Ce rapport repose sur les avis collectés lors de l'analyse, les verbatims disponibles et le modèle de sentiment actuellement déployé. Les recommandations et KPI portent sur ce corpus et doivent être relus avec le contexte métier avant arbitrage opérationnel.</p>
     </section>
   </main>
 </body>
@@ -1035,7 +1039,7 @@ function benchmarkCompanyRows(companies: BenchmarkCompany[]) {
         <tr>
           <td>
             <strong>${escapeHtml(company.company_name)}</strong>
-            <span>Run #${company.run_id}</span>
+            <span>Analyse nº ${company.run_id}</span>
           </td>
           <td>${company.health_score}</td>
           <td>${escapeHtml(formatRisk(company.risk_level))}</td>
@@ -1116,7 +1120,7 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Rapport benchmark - Runs ${escapeHtml(comparison.run_ids.join(", "))}</title>
+  <title>Rapport benchmark - Analyses ${escapeHtml(comparison.run_ids.join(", "))}</title>
   <style>
     :root {
       color: #18202c;
@@ -1260,7 +1264,7 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
       <div>
         <span class="eyebrow">Benchmark concurrentiel</span>
         <h1>Comparaison multi-entreprises</h1>
-        <p>${comparison.companies.length} entreprises comparées sur les runs ${escapeHtml(
+        <p>${comparison.companies.length} entreprises comparées sur les analyses ${escapeHtml(
           comparison.run_ids.join(", ")
         )} - Rapport généré le ${escapeHtml(createdAt)}</p>
       </div>
@@ -1273,7 +1277,7 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
 
     ${
       scopedCompanies.length > 0
-        ? `<section class="scope-warning"><strong>Portée du benchmark</strong><p>${scopedCompanies.length} run(s) ne sont pas représentatifs pour les KPI métier. Les écarts affichés décrivent uniquement les corpus analysés.</p></section>`
+        ? `<section class="scope-warning"><strong>Portée du benchmark</strong><p>KPI métier non représentatifs pour ${countLabel(scopedCompanies.length, "analyse")}. Les écarts affichés décrivent uniquement les corpus analysés.</p></section>`
         : ""
     }
 
@@ -1345,7 +1349,7 @@ function buildPrintableBenchmarkReport(comparison: RunsComparison) {
           comparison.common_topics.length === 0
             ? "<p>Aucun irritant commun fort détecté.</p>"
             : `<table>
-                <thead><tr><th>Sujet</th><th>Total</th><th>Runs</th><th>Détail</th></tr></thead>
+                <thead><tr><th>Sujet</th><th>Total</th><th>Analyses</th><th>Détail</th></tr></thead>
                 <tbody>${benchmarkCommonTopicRows(comparison)}</tbody>
               </table>`
         }
@@ -1537,6 +1541,7 @@ export default function App() {
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   const [feedbackQuality, setFeedbackQuality] = useState<FeedbackQuality | null>(null);
   const [isFeedbackQualityLoading, setIsFeedbackQualityLoading] = useState(false);
+  const [feedbackQualityError, setFeedbackQualityError] = useState<string | null>(null);
   const [trainingOverview, setTrainingOverview] =
     useState<ModelTrainingOverview | null>(null);
   const [isTrainingOverviewLoading, setIsTrainingOverviewLoading] = useState(false);
@@ -1573,9 +1578,13 @@ export default function App() {
 
   async function refreshFeedbackQuality() {
     setIsFeedbackQualityLoading(true);
+    setFeedbackQualityError(null);
     try {
       const quality = await getFeedbackQuality();
       setFeedbackQuality(quality);
+    } catch (err) {
+      setFeedbackQuality(null);
+      setFeedbackQualityError(err instanceof Error ? err.message : "Qualité IA indisponible.");
     } finally {
       setIsFeedbackQualityLoading(false);
     }
@@ -1962,8 +1971,8 @@ export default function App() {
         key: "first-run",
         title: "Lancer une analyse",
         description: hasAnyRun
-          ? "Une analyse existe deja dans l'historique client."
-          : "Demarre par un CSV client ou une URL Trustpilot.",
+          ? "Une analyse existe déjà dans l'historique client."
+          : "Démarre par un CSV client ou une URL Trustpilot.",
         completed: hasAnyRun,
         actionLabel: "Nouvelle analyse",
         targetId: "new_analysis",
@@ -1984,8 +1993,8 @@ export default function App() {
         key: "feedback",
         title: "Corriger des avis",
         description: hasFeedback
-          ? "Des corrections humaines alimentent deja la qualite IA."
-          : "Corrige quelques avis pour preparer le prochain reentrainement.",
+          ? "Des corrections humaines alimentent déjà la qualité IA."
+          : "Corrige quelques avis pour préparer le prochain réentraînement.",
         completed: hasFeedback,
         actionLabel: "Voir les avis",
         targetId: hasCompletedRun ? "reviews_feedback" : "ai_quality",
@@ -1994,12 +2003,12 @@ export default function App() {
       },
       {
         key: "team",
-        title: "Inviter l'equipe",
+        title: "Inviter l'équipe",
         description: hasTeamMate
-          ? "L'espace client n'est plus limite a un seul utilisateur."
+          ? "L'espace client n'est plus limité à un seul utilisateur."
           : "Ajoute un membre pour valider le parcours multi-utilisateur.",
         completed: hasTeamMate,
-        actionLabel: "Gerer les membres",
+        actionLabel: "Gérer les membres",
         targetId: "client_space",
         requiresAdmin: true
       }
@@ -2029,18 +2038,18 @@ export default function App() {
     WORKSPACE_NAV_ITEMS[0];
   const workspaceNavStats = useMemo<Record<WorkspaceView, string>>(
     () => ({
-      home: `${actionCenter?.counts.open_alerts ?? 0} action(s)`,
-      sources: `${reviewSources.filter((source) => source.status === "active").length} active(s)`,
-      analyses: `${runs.length} run(s)`,
+      home: countLabel(actionCenter?.counts.open_alerts ?? 0, "action"),
+      sources: countLabel(reviewSources.filter((source) => source.status === "active").length, "source active", "sources actives"),
+      analyses: countLabel(runs.length, "analyse"),
       benchmark: `${comparisonRunIds.length}/4`,
-      ai: `${feedbackQuality?.training_ready_count ?? 0} correction(s)`,
-      admin: `${organizationUsers.length} membre(s)`,
-      platform: `${platformOrganizations.length} client(s)`
+      ai: feedbackQuality ? countLabel(feedbackQuality.training_ready_count, "correction") : "—",
+      admin: countLabel(organizationUsers.length, "membre"),
+      platform: countLabel(platformOrganizations.length, "client")
     }),
     [
       actionCenter?.counts.open_alerts,
+      feedbackQuality,
       comparisonRunIds.length,
-      feedbackQuality?.training_ready_count,
       organizationUsers.length,
       platformOrganizations.length,
       reviewSources,
@@ -2079,7 +2088,7 @@ export default function App() {
       setCurrentUser(token.user);
       window.history.replaceState({}, document.title, window.location.pathname);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invitation impossible a accepter");
+      setError(err instanceof Error ? err.message : "Invitation impossible à accepter");
     } finally {
       setIsAcceptingInvitation(false);
     }
@@ -2170,8 +2179,8 @@ export default function App() {
       setOrganizationUserRole("member");
       setOrganizationUserMessage(
         invitedUser.invitation_accept_url
-          ? `Invitation creee pour ${invitedUser.email}. Lien: ${invitedUser.invitation_accept_url}`
-          : `Invitation creee pour ${invitedUser.email}.`
+          ? `Invitation créée pour ${invitedUser.email}. Lien : ${invitedUser.invitation_accept_url}`
+          : `Invitation créée pour ${invitedUser.email}.`
       );
       await refreshOrganizationUsers();
       await refreshOrganizationUsage();
@@ -2190,7 +2199,7 @@ export default function App() {
     event.preventDefault();
     if (!canManageWorkspace) {
       setOrganizationSettingsError(
-        "Seul un administrateur peut modifier les parametres de l'organisation."
+        "Seul un administrateur peut modifier les paramètres de l'organisation."
       );
       return;
     }
@@ -2222,11 +2231,11 @@ export default function App() {
             }
           : current
       );
-      setOrganizationSettingsMessage("Parametres sauvegardes.");
+      setOrganizationSettingsMessage("Paramètres sauvegardés.");
       await refreshAdminAuditEvents();
     } catch (err) {
       setOrganizationSettingsError(
-        err instanceof Error ? err.message : "Parametres impossibles a sauvegarder"
+        err instanceof Error ? err.message : "Paramètres impossibles à sauvegarder"
       );
     } finally {
       setIsOrganizationSettingsSaving(false);
@@ -2261,10 +2270,10 @@ export default function App() {
         refreshActionCenter(),
         refreshPlatformBackoffice()
       ]);
-      setOrganizationSettingsMessage(`Plan ${formatPlan(plan)} applique.`);
+      setOrganizationSettingsMessage(`Plan ${formatPlan(plan)} appliqué.`);
     } catch (err) {
       setOrganizationSettingsError(
-        err instanceof Error ? err.message : "Plan impossible a modifier"
+        err instanceof Error ? err.message : "Plan impossible à modifier"
       );
     } finally {
       setIsOrganizationPlanSaving(false);
@@ -2292,7 +2301,7 @@ export default function App() {
         }
       });
       setUpgradeRequestMessage(
-        `Demande d'upgrade vers ${formatPlan(request.requested_plan)} creee.`
+        `Demande de changement de plan vers ${formatPlan(request.requested_plan)} créée.`
       );
       await Promise.all([
         refreshActionCenter(),
@@ -2303,7 +2312,7 @@ export default function App() {
       scrollToWorkspaceSection("upgrade_requests", 120);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Demande d'upgrade impossible";
+        err instanceof Error ? err.message : "Demande de changement de plan impossible";
       setUpgradeRequestsError(message);
       setError(message);
     } finally {
@@ -2317,7 +2326,7 @@ export default function App() {
   ) {
     if (!isPlatformAdmin) {
       setUpgradeRequestsError(
-        "Seul un administrateur plateforme peut traiter les demandes d'upgrade."
+        "Seul un administrateur plateforme peut traiter les demandes de changement de plan."
       );
       return;
     }
@@ -2328,7 +2337,7 @@ export default function App() {
 
     try {
       await updatePlatformUpgradeRequestStatus(upgradeRequestId, status);
-      setUpgradeRequestMessage(`Demande d'upgrade ${formatUpgradeRequestStatus(status)}.`);
+      setUpgradeRequestMessage(`Demande de changement de plan ${formatUpgradeRequestStatus(status)}.`);
       await Promise.all([
         refreshUpgradeRequests(),
         refreshActionCenter(),
@@ -2337,7 +2346,7 @@ export default function App() {
       ]);
     } catch (err) {
       setUpgradeRequestsError(
-        err instanceof Error ? err.message : "Demande d'upgrade impossible a mettre a jour"
+        err instanceof Error ? err.message : "Demande de changement de plan impossible à mettre à jour"
       );
     } finally {
       setUpdatingUpgradeRequestId(null);
@@ -2368,7 +2377,7 @@ export default function App() {
       ]);
     } catch (err) {
       setPlatformError(
-        err instanceof Error ? err.message : "Plan client impossible a modifier"
+        err instanceof Error ? err.message : "Plan client impossible à modifier"
       );
     } finally {
       setUpdatingPlatformOrganizationId(null);
@@ -2386,7 +2395,7 @@ export default function App() {
     try {
       await updatePlatformUpgradeRequestStatus(upgradeRequestId, status);
       setPlatformMessage(
-        `Demande d'upgrade ${formatUpgradeRequestStatus(status)}.`
+        `Demande de changement de plan ${formatUpgradeRequestStatus(status)}.`
       );
       await Promise.all([
         refreshPlatformBackoffice(),
@@ -2396,7 +2405,7 @@ export default function App() {
       ]);
     } catch (err) {
       setPlatformError(
-        err instanceof Error ? err.message : "Demande d'upgrade impossible a mettre a jour"
+        err instanceof Error ? err.message : "Demande de changement de plan impossible à mettre à jour"
       );
     } finally {
       setUpdatingPlatformUpgradeRequestId(null);
@@ -2459,7 +2468,7 @@ export default function App() {
       await refreshAdminAuditEvents();
     } catch (err) {
       setReviewSourcesError(
-        err instanceof Error ? err.message : "Source impossible a mettre a jour"
+        err instanceof Error ? err.message : "Source impossible à mettre à jour"
       );
     } finally {
       setUpdatingReviewSourceId(null);
@@ -2503,11 +2512,11 @@ export default function App() {
           normalizeCsvColumnMapping(config.column_mapping)
         );
         setCsvColumnMapping(profileMapping);
-        setCsvProfileMessage("Profil CSV enregistre pour cette organisation.");
+        setCsvProfileMessage("Profil CSV enregistré pour cette organisation.");
       }
     } catch (err) {
       setReviewSourcesError(
-        err instanceof Error ? err.message : "Configuration impossible a enregistrer"
+        err instanceof Error ? err.message : "Configuration impossible à enregistrer"
       );
     } finally {
       setUpdatingReviewSourceId(null);
@@ -2533,10 +2542,10 @@ export default function App() {
       });
       await refreshReviewSources();
       await refreshAdminAuditEvents();
-      setCsvProfileMessage("Profil CSV enregistre pour cette organisation.");
+      setCsvProfileMessage("Profil CSV enregistré pour cette organisation.");
     } catch (err) {
       setCsvPreviewError(
-        err instanceof Error ? err.message : "Profil CSV impossible a enregistrer"
+        err instanceof Error ? err.message : "Profil CSV impossible à enregistrer"
       );
     } finally {
       setUpdatingReviewSourceId(null);
@@ -2588,7 +2597,7 @@ export default function App() {
 
   async function handleStartModelTraining() {
     if (!canManageWorkspace) {
-      setError("Seul un administrateur peut lancer un reentrainement.");
+      setError("Seul un administrateur peut lancer un réentraînement.");
       return;
     }
     if (modelTrainingPlanGate) {
@@ -2636,7 +2645,7 @@ export default function App() {
       await refreshAdminAuditEvents();
     } catch (err) {
       setBusinessAlertsError(
-        err instanceof Error ? err.message : "Alerte impossible a mettre a jour"
+        err instanceof Error ? err.message : "Alerte impossible à mettre à jour"
       );
     } finally {
       setUpdatingAlertId(null);
@@ -2653,7 +2662,7 @@ export default function App() {
     }
     if (selectedRun.status !== "completed") {
       setBusinessAlertsError(
-        "Les alertes sont disponibles uniquement pour une analyse terminee."
+        "Les alertes sont disponibles uniquement pour une analyse terminée."
       );
       return;
     }
@@ -2671,7 +2680,7 @@ export default function App() {
       await refreshAdminAuditEvents();
     } catch (err) {
       setBusinessAlertsError(
-        err instanceof Error ? err.message : "Alertes impossibles a recalculer"
+        err instanceof Error ? err.message : "Alertes impossibles à recalculer"
       );
     } finally {
       setIsRefreshingRunAlerts(false);
@@ -2680,7 +2689,7 @@ export default function App() {
 
   async function handleCreateCustomerActionFromAlert(alert: BusinessAlert) {
     if (!canManageWorkspace) {
-      setCustomerActionsError("Seul un administrateur peut creer une action.");
+      setCustomerActionsError("Seul un administrateur peut créer une action.");
       return;
     }
 
@@ -2695,7 +2704,7 @@ export default function App() {
       await refreshAdminAuditEvents();
     } catch (err) {
       setCustomerActionsError(
-        err instanceof Error ? err.message : "Action impossible a creer"
+        err instanceof Error ? err.message : "Action impossible à créer"
       );
     } finally {
       setCreatingActionAlertId(null);
@@ -2732,7 +2741,7 @@ export default function App() {
       await refreshAdminAuditEvents();
     } catch (err) {
       setCustomerActionsError(
-        err instanceof Error ? err.message : "Action impossible a mettre a jour"
+        err instanceof Error ? err.message : "Action impossible à mettre à jour"
       );
     } finally {
       setUpdatingCustomerActionId(null);
@@ -2754,7 +2763,7 @@ export default function App() {
       }));
     } catch (err) {
       setCustomerActionsError(
-        err instanceof Error ? err.message : "Suivi impossible a charger"
+        err instanceof Error ? err.message : "Suivi impossible à charger"
       );
     } finally {
       setLoadingCustomerActionTimeline((current) => ({
@@ -2796,7 +2805,7 @@ export default function App() {
         actor_email: null,
         author_user_id: comment.author_user_id,
         author_name: comment.author_name,
-        summary: "Note de suivi ajoutee.",
+        summary: "Note de suivi ajoutée.",
         body: comment.body,
         metadata: {},
         created_at: comment.created_at
@@ -2819,7 +2828,7 @@ export default function App() {
       await refreshAdminAuditEvents();
     } catch (err) {
       setCustomerActionsError(
-        err instanceof Error ? err.message : "Commentaire impossible a ajouter"
+        err instanceof Error ? err.message : "Commentaire impossible à ajouter"
       );
     } finally {
       setUpdatingCustomerActionId(null);
@@ -2918,7 +2927,7 @@ export default function App() {
       }
     } catch (err) {
       setCsvPreviewError(
-        err instanceof Error ? err.message : "CSV impossible a previsualiser"
+        err instanceof Error ? err.message : "CSV impossible à prévisualiser"
       );
     } finally {
       setIsCsvPreviewLoading(false);
@@ -2927,7 +2936,7 @@ export default function App() {
 
   async function handleCsvFileChange(file: File | null) {
     if (!canManageWorkspace) {
-      setError("Mode lecture seule: un administrateur doit importer les fichiers CSV.");
+      setError("Mode lecture seule : un administrateur doit importer les fichiers CSV.");
       return;
     }
 
@@ -3091,7 +3100,7 @@ export default function App() {
     event.preventDefault();
 
     if (!canManageWorkspace) {
-      setError("Mode lecture seule: un administrateur doit lancer les analyses.");
+      setError("Mode lecture seule : un administrateur doit lancer les analyses.");
       return;
     }
     if (analysisPlanGate) {
@@ -3106,16 +3115,16 @@ export default function App() {
         return;
       }
     } else if (company.trim().length < 2) {
-      setError("Renseigne le nom de l'entreprise a analyser.");
+      setError("Renseigne le nom de l'entreprise à analyser.");
       return;
     } else if (!csvFile) {
-      setError("Selectionne un fichier CSV d'avis clients.");
+      setError("Sélectionne un fichier CSV d'avis clients.");
       return;
     } else if (isCsvPreviewLoading) {
-      setError("Attends la fin de la previsualisation du CSV.");
+      setError("Attends la fin de la prévisualisation du CSV.");
       return;
     } else if (csvPreviewError || !csvPreview) {
-      setError(csvPreviewError ?? "Previsualise le CSV avant de lancer l'analyse.");
+      setError(csvPreviewError ?? "Prévisualise le CSV avant de lancer l'analyse.");
       return;
     } else if (csvImportPlanGate) {
       setError(csvImportPlanGate.message);
@@ -3332,7 +3341,7 @@ export default function App() {
 
     const reportWindow = window.open("", "_blank");
     if (!reportWindow) {
-      setError("Le navigateur a bloque l'ouverture du rapport imprimable.");
+      setError("Le navigateur a bloqué l'ouverture du rapport imprimable.");
       return;
     }
 
@@ -3350,7 +3359,7 @@ export default function App() {
   function handleBenchmarkReportExport(comparisonToExport: RunsComparison) {
     const reportWindow = window.open("", "_blank");
     if (!reportWindow) {
-      setError("Le navigateur a bloque l'ouverture du rapport benchmark.");
+      setError("Le navigateur a bloqué l'ouverture du rapport benchmark.");
       return;
     }
 
@@ -3378,7 +3387,7 @@ export default function App() {
           </div>
           <div className="loading-line">
             <Loader2 className="spin" size={18} />
-            Verification de l'utilisateur connecte...
+            Vérification de l'utilisateur connecté...
           </div>
         </section>
       </main>
@@ -3400,8 +3409,8 @@ export default function App() {
           <div className="section-heading">
             <div>
               <span>CONNEXION</span>
-              <h3>Acceder a ton espace entreprise</h3>
-              <p>Compte demo local cree automatiquement au demarrage de l'API.</p>
+              <h3>Accéder à ton espace entreprise</h3>
+              <p>Connecte-toi pour accéder à ton espace entreprise.</p>
             </div>
           </div>
 
@@ -3439,11 +3448,11 @@ export default function App() {
               <strong>Accepter une invitation</strong>
               <span>Nouvel utilisateur</span>
             </div>
-            <label htmlFor="invitation-token">Token d'invitation</label>
+            <label htmlFor="invitation-token">Code d'invitation</label>
             <input
               id="invitation-token"
               onChange={(event) => setInvitationToken(event.target.value)}
-              placeholder="Token recu dans le lien"
+              placeholder="Code reçu dans le lien"
               type="text"
               value={invitationToken}
               disabled={isAcceptingInvitation}
@@ -3507,7 +3516,8 @@ export default function App() {
             className="icon-button"
             type="button"
             onClick={handleLogout}
-            title="Se deconnecter"
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
           >
             <LogOut size={18} />
           </button>
@@ -3569,7 +3579,7 @@ export default function App() {
           </div>
           {!canManageWorkspace && (
             <p className="permission-hint">
-              Mode lecture seule: demande a un administrateur de lancer ou importer
+              Mode lecture seule : demande à un administrateur de lancer ou importer
               une analyse.
             </p>
           )}
@@ -3590,7 +3600,7 @@ export default function App() {
 
           <label htmlFor="company">
             {sourceMode === "csv"
-              ? "Entreprise a analyser"
+              ? "Entreprise à analyser"
               : "Entreprise ou URL Trustpilot"}
           </label>
           <div className="input-with-icon">
@@ -3641,12 +3651,12 @@ export default function App() {
               {csvPreview && (
                 <div className="csv-preview-card">
                   <div className="csv-preview-heading">
-                    <strong>Controle avant import</strong>
+                    <strong>Contrôle avant import</strong>
                     <span>{csvPreview.review_count} avis</span>
                   </div>
                   <div className="csv-preview-stats">
                     <span>{csvPreview.review_count} exploitables</span>
-                    <span>{csvPreview.skipped_rows} ignores</span>
+                    <span>{countLabel(csvPreview.skipped_rows, "ligne ignorée", "lignes ignorées")}</span>
                   </div>
                   <div className="csv-mapping-grid">
                     {CSV_MAPPING_FIELDS.map((field) => (
@@ -3669,7 +3679,7 @@ export default function App() {
                             <option value="">Ignorer</option>
                           )}
                           {field.required && (
-                            <option value="">Selectionner</option>
+                            <option value="">Sélectionner</option>
                           )}
                           {csvPreview.available_columns.map((column) => (
                             <option key={column} value={column}>
@@ -3776,6 +3786,7 @@ export default function App() {
             <button
               className="icon-button"
               onClick={() => refreshRuns(true)}
+              aria-label="Rafraîchir les analyses"
               title="Rafraîchir les analyses"
               type="button"
             >
@@ -3802,7 +3813,7 @@ export default function App() {
               >
                 <span>
                   <strong>{run.company_name}</strong>
-                  <small>Run #{run.run_id} - {formatDate(run.created_at)}</small>
+                  <small>Analyse nº {run.run_id} - {formatDate(run.created_at)}</small>
                 </span>
                 <StatusBadge status={run.status} />
               </button>
@@ -3833,7 +3844,7 @@ export default function App() {
 
           <div className="benchmark-select-list">
             {completedRuns.length === 0 && (
-              <p className="muted">Aucun run termine disponible.</p>
+              <p className="muted">Aucune analyse terminée disponible.</p>
             )}
             {completedRuns.slice(0, 8).map((run) => {
               const isSelected = comparisonRunIds.includes(run.run_id);
@@ -3847,7 +3858,7 @@ export default function App() {
                 >
                   <span aria-hidden="true">{isSelected ? "✓" : "+"}</span>
                   <strong>{run.company_name}</strong>
-                  <small>Run #{run.run_id}</small>
+                  <small>Analyse nº {run.run_id}</small>
                 </button>
               );
             })}
@@ -3880,7 +3891,7 @@ export default function App() {
               }}
               type="button"
             >
-              Reset
+              Effacer la sélection
             </button>
           </div>
           </div>
@@ -3984,10 +3995,10 @@ export default function App() {
             ) : (
               <div className="empty-state">
                 <BarChart3 size={32} />
-                <h2>Selectionne des analyses a comparer</h2>
+                <h2>Sélectionne des analyses à comparer</h2>
                 <p>
-                  Utilise le panneau Benchmark dans la barre laterale pour choisir
-                  2 a 4 runs termines.
+                  Utilise le panneau Benchmark dans la barre latérale pour choisir
+                  2 à 4 analyses terminées.
                 </p>
               </div>
             )}
@@ -3997,6 +4008,7 @@ export default function App() {
         {activeView === "ai" && (
           <>
             <AIQualityPanel
+              error={feedbackQualityError}
               isLoading={isFeedbackQualityLoading}
               onRefresh={() =>
                 refreshFeedbackQuality().catch((err: Error) => setError(err.message))
@@ -4136,7 +4148,7 @@ export default function App() {
                 <span className="eyebrow">Rapport entreprise</span>
                 <h2>{selectedRun.company_name}</h2>
                 <p>
-                  {SOURCE_LABELS[selectedRun.source]} - Run #{selectedRun.run_id} -{" "}
+                  {SOURCE_LABELS[selectedRun.source]} - Analyse nº {selectedRun.run_id} -{" "}
                   {selectedRun.total_reviews} avis
                   {selectedRunDuration ? ` - ${selectedRunDuration}` : ""}
                 </p>
@@ -4151,7 +4163,7 @@ export default function App() {
                     title={
                       canManageWorkspace
                         ? "Relancer cette analyse"
-                        : "Reserve aux administrateurs"
+                        : "Réservé aux administrateurs"
                     }
                     type="button"
                   >
@@ -4190,7 +4202,7 @@ export default function App() {
                   title={
                     canManageWorkspace
                       ? "Exporter les corrections humaines"
-                      : "Reserve aux administrateurs"
+                      : "Réservé aux administrateurs"
                   }
                   type="button"
                 >
@@ -4218,8 +4230,7 @@ export default function App() {
                       : "Analyse en cours"}
                   </h3>
                   <p>
-                    Le scraping et la prediction tournent dans le worker Celery.
-                    Le rapport se mettra a jour automatiquement.
+                    Les avis sont traités et le rapport se mettra à jour automatiquement.
                   </p>
                   <button
                     className="secondary-action compact-action"
@@ -4323,7 +4334,7 @@ export default function App() {
                     <AlertTriangle size={18} />
                   </div>
                   <ReviewCards
-                    emptyMessage="Aucun avis critique détecté dans ce run."
+                    emptyMessage="Aucun avis critique détecté dans cette analyse."
                     reviews={summary.critical_reviews}
                   />
                 </section>
@@ -4334,7 +4345,7 @@ export default function App() {
                     <CheckCircle2 size={18} />
                   </div>
                   <ReviewCards
-                    emptyMessage="Aucun décalage note/texte détecté dans ce run."
+                    emptyMessage="Aucun décalage note/texte détecté dans cette analyse."
                     reviews={summary.rating_text_mismatches}
                   />
                 </section>
@@ -4345,7 +4356,7 @@ export default function App() {
                       <h3>Avis analysés</h3>
                       <p>
                         {formatReviewRange(reviewsOffset, reviews.length, reviewsTotal)} ·{" "}
-                        {summary.kpis.feedback_count ?? 0} correction(s)
+                        {countLabel(summary.kpis.feedback_count ?? 0, "correction")}
                       </p>
                     </div>
                     <div className="review-toolbar">
@@ -4418,11 +4429,11 @@ export default function App() {
 
 function StatusBadge({ status }: { status: AnalysisRun["status"] }) {
   const labels: Record<AnalysisRun["status"], string> = {
-    pending: "pending",
-    running: "running",
-    completed: "completed",
-    failed: "failed",
-    empty: "aucune donnee"
+    pending: "En attente",
+    running: "En cours",
+    completed: "Terminée",
+    failed: "Échec",
+    empty: "Aucune donnée"
   };
   return <span className={`status-badge ${status}`}>{labels[status]}</span>;
 }
@@ -4438,7 +4449,7 @@ function EmptyRunState({ run }: { run: AnalysisRun }) {
         <p>{details.message}</p>
         {backendMessage ? <p>{backendMessage}</p> : null}
         <p className="state-context">
-          Ce run n'est pas en échec technique, mais il ne contient pas assez de
+          Cette analyse n'est pas en échec technique, mais elle ne contient pas assez de
           données exploitables pour afficher les KPI et irritants.
         </p>
         <ul className="state-guidance-list">
@@ -4468,12 +4479,12 @@ function FailedRunState({
       <div>
         <h3>Analyse échouée</h3>
         <p className="state-context">
-          Le run a bien été créé, mais l'exécution s'est arrêtée avant de produire
+          L'analyse a bien été créée, mais l'exécution s'est arrêtée avant de produire
           un rapport.
         </p>
         <p>
           {errorMessage?.trim() ||
-            "Le worker n'a pas pu terminer cette analyse. Consulte le journal d'exécution pour identifier l'étape bloquante."}
+            "Le traitement n'a pas pu terminer cette analyse. Consulte le journal d'exécution pour identifier l'étape bloquante."}
         </p>
         <ul className="state-guidance-list">
           <li>Consulte le journal d'exécution pour repérer l'étape bloquante.</li>
@@ -4481,7 +4492,7 @@ function FailedRunState({
         </ul>
         {!canRetry && (
           <p className="permission-hint">
-            Mode lecture seule: seul un administrateur peut relancer ce run.
+            Mode lecture seule : seul un administrateur peut relancer cette analyse.
           </p>
         )}
         <button
@@ -4583,17 +4594,17 @@ function OnboardingPanel({
     <section className="onboarding-panel insight-section wide">
       <div className="section-heading onboarding-heading">
         <div>
-          <span className="eyebrow">Demarrage client</span>
+          <span className="eyebrow">Démarrage client</span>
           <h3>Parcours de configuration</h3>
           <p>
             {nextStep
-              ? `Prochaine action recommandee: ${nextStep.title}.`
-              : "L'espace client est pret pour un usage recurrent."}
+              ? `Prochaine action recommandée : ${nextStep.title}.`
+              : "L'espace client est prêt pour un usage récurrent."}
           </p>
         </div>
         <div className="onboarding-score">
           <strong>{completedCount}/{totalSteps}</strong>
-          <span>{progress}% pret</span>
+          <span>{progress}% prêt</span>
         </div>
       </div>
 
@@ -4625,7 +4636,7 @@ function OnboardingPanel({
                 onClick={() => onStepAction(step)}
                 title={
                   isLocked
-                    ? "Reserve aux administrateurs de l'espace client"
+                    ? "Réservé aux administrateurs de l'espace client"
                     : step.actionLabel
                 }
                 type="button"
@@ -4715,7 +4726,7 @@ function SourcesWorkspacePanel({
           <span className="section-kicker">Sources d'avis</span>
           <h2>Catalogue des connecteurs</h2>
           <p>
-            Configure les entrees de donnees que l'espace client peut utiliser pour
+            Configure les entrées de données que l'espace client peut utiliser pour
             lancer ses analyses.
           </p>
         </div>
@@ -4742,17 +4753,17 @@ function SourcesWorkspacePanel({
         <Kpi
           label="Sources actives"
           value={String(activeSources.length)}
-          helper={`${analysisSources.length} prete(s) a analyser`}
+          helper={countLabel(analysisSources.length, "source prête à analyser", "sources prêtes à analyser")}
         />
         <Kpi
-          label="Sources configurees"
+          label="Sources configurées"
           value={String(configuredSources.length)}
           helper="Connecteurs disponibles dans cet espace"
         />
         <Kpi
           label="Profil CSV"
-          value={hasCsvProfile ? "Pret" : "A completer"}
-          helper={hasCsvProfile ? "Mapping reutilisable" : "Mapping a sauvegarder"}
+          value={hasCsvProfile ? "Prêt" : "À compléter"}
+          helper={hasCsvProfile ? "Colonnes réutilisables" : "Colonnes à enregistrer"}
         />
         <Kpi
           label="Connecteurs futurs"
@@ -4807,14 +4818,14 @@ function SourcesWorkspacePanel({
                     <div className="connector-config-summary">
                       <span>Configuration actuelle</span>
                       <strong>
-                        {trustpilotConfig.defaultCompany || "Aucune entreprise par defaut"}
+                        {trustpilotConfig.defaultCompany || "Aucune entreprise par défaut"}
                       </strong>
-                      <small>{trustpilotConfig.pagesPerStar} page(s) par note</small>
+                      <small>{countLabel(trustpilotConfig.pagesPerStar, "page")} par note</small>
                     </div>
                     {source.can_configure && !isReadOnly ? (
                       <div className="source-config-form connector-form">
                         <label>
-                          <span>Entreprise par defaut</span>
+                          <span>Entreprise par défaut</span>
                           <input
                             onChange={(event) =>
                               updateConfigDraft(
@@ -4884,7 +4895,7 @@ function SourcesWorkspacePanel({
                           : "Mapping Texte requis"}
                       </strong>
                       <small>
-                        Configure le mapping pendant le controle avant import CSV.
+                        Configure les colonnes pendant le contrôle avant import CSV.
                       </small>
                     </div>
                     <div className="csv-profile-list">
@@ -4925,7 +4936,7 @@ function SourcesWorkspacePanel({
                       {isUpdating ? (
                         <Loader2 className="spin" size={16} />
                       ) : source.status === "active" ? (
-                        "Desactiver"
+                        "Désactiver"
                       ) : (
                         "Activer"
                       )}
@@ -4939,7 +4950,7 @@ function SourcesWorkspacePanel({
 
       <section className="sources-reference">
         <div>
-          <span className="section-kicker">Format CSV supporte</span>
+          <span className="section-kicker">Format CSV accepté</span>
           <h3>Colonnes reconnues</h3>
           <p>
             Le fichier peut venir d'un export support, e-commerce ou BI. Le texte de
@@ -5051,12 +5062,13 @@ function ReviewSourcesPanel({
       <div className="panel-heading compact-heading">
         <div>
           <span>Sources d'avis</span>
-          <small>{activeSources.length} active(s)</small>
+          <small>{countLabel(activeSources.length, "source active", "sources actives")}</small>
         </div>
         <button
           className="icon-button"
           disabled={isLoading}
           onClick={onRefresh}
+          aria-label="Actualiser les sources"
           title="Actualiser les sources"
           type="button"
         >
@@ -5067,7 +5079,7 @@ function ReviewSourcesPanel({
       {error ? <p className="form-error">{error}</p> : null}
       {isReadOnly ? (
         <p className="permission-hint">
-          Sources consultables. Le lancement d'analyse est reserve aux admins.
+          Sources consultables. Le lancement d'analyse est réservé aux administrateurs.
         </p>
       ) : null}
 
@@ -5097,7 +5109,7 @@ function ReviewSourcesPanel({
                 <span className="source-card-body">
                   <strong>{source.label}</strong>
                   <small>{source.category}</small>
-                  <span>{source.primary_action ?? source.setup_hint ?? "Connecteur a configurer"}</span>
+                  <span>{source.primary_action ?? source.setup_hint ?? "Connecteur à configurer"}</span>
                   {choiceDescription ? <span>{choiceDescription}</span> : null}
                   {source.last_error ? <em>{source.last_error}</em> : null}
                 </span>
@@ -5115,7 +5127,7 @@ function ReviewSourcesPanel({
                   {isUpdating ? (
                     <Loader2 className="spin" size={14} />
                   ) : source.status === "active" ? (
-                    "Desactiver"
+                    "Désactiver"
                   ) : (
                     "Activer"
                   )}
@@ -5124,7 +5136,7 @@ function ReviewSourcesPanel({
               {source.source_id === "trustpilot" && source.can_configure && !isReadOnly ? (
                 <div className="source-config-form">
                   <label>
-                    <span>Entreprise par defaut</span>
+                    <span>Entreprise par défaut</span>
                     <input
                       onChange={(event) =>
                         updateConfigDraft(
@@ -5303,7 +5315,7 @@ function ClientSpacePanel({
           <span className="eyebrow">Espace client</span>
           <h3>{currentUser.organization.name}</h3>
           <p>
-            Gestion des membres, des preferences et du journal d'activite de
+            Gestion des membres, des préférences et du journal d'activité de
             cette organisation.
           </p>
         </div>
@@ -5341,9 +5353,9 @@ function ClientSpacePanel({
         <div className="client-card">
           <Database size={20} />
           <div>
-            <span>Source par defaut</span>
+            <span>Source par défaut</span>
             <strong>{SOURCE_LABELS[settings?.default_source ?? defaultSource]}</strong>
-            <small>{settings?.default_pages_per_star ?? defaultPagesPerStar} page(s) par note</small>
+            <small>{countLabel(settings?.default_pages_per_star ?? defaultPagesPerStar, "page")} par note</small>
           </div>
         </div>
         <div className="client-card">
@@ -5352,7 +5364,7 @@ function ClientSpacePanel({
             <span>Membres</span>
             <strong>{users.length}</strong>
             <small>
-              {activeUsers.length} actif(s), {pendingUsers.length} en attente
+              {countLabel(activeUsers.length, "membre actif", "membres actifs")}, {pendingUsers.length} en attente
             </small>
           </div>
         </div>
@@ -5396,7 +5408,7 @@ function ClientSpacePanel({
       <div className="client-ops-layout">
         <form className="organization-settings-form" onSubmit={onSaveSettings}>
           <div className="mini-heading">
-            <strong>Parametres organisation</strong>
+            <strong>Paramètres de l'organisation</strong>
             <span>{isOrgAdmin ? "Admin" : "Lecture seule"}</span>
           </div>
           <label htmlFor="organization-name">Nom de l'organisation</label>
@@ -5407,7 +5419,7 @@ function ClientSpacePanel({
             type="text"
             value={settingsName}
           />
-          <label htmlFor="organization-default-source">Source par defaut</label>
+          <label htmlFor="organization-default-source">Source par défaut</label>
           <select
             disabled={!isOrgAdmin || isSavingSettings || isLoadingSettings}
             id="organization-default-source"
@@ -5419,7 +5431,7 @@ function ClientSpacePanel({
             <option value="trustpilot">Trustpilot</option>
             <option value="csv">CSV</option>
           </select>
-          <label htmlFor="organization-pages">Pages par note par defaut</label>
+          <label htmlFor="organization-pages">Pages par note par défaut</label>
           <input
             disabled={!isOrgAdmin || isSavingSettings || isLoadingSettings}
             id="organization-pages"
@@ -5440,21 +5452,22 @@ function ClientSpacePanel({
             Sauvegarder
           </button>
           {!isOrgAdmin ? (
-            <p className="muted">Seuls les administrateurs modifient ces preferences.</p>
+            <p className="muted">Seuls les administrateurs modifient ces préférences.</p>
           ) : (
             <p className="muted">
-              Ces preferences pre-remplissent les prochaines analyses de l'espace client.
+              Ces préférences préremplissent les prochaines analyses de l'espace client.
             </p>
           )}
         </form>
 
         <div className="audit-events-card">
           <div className="mini-heading">
-            <strong>Journal d'activite</strong>
+            <strong>Journal d'activité</strong>
             <button
               className="icon-button"
               disabled={!isOrgAdmin || isLoadingAudit}
               onClick={onRefreshAudit}
+              aria-label="Actualiser le journal d'activité"
               type="button"
             >
               {isLoadingAudit ? (
@@ -5466,9 +5479,9 @@ function ClientSpacePanel({
           </div>
           {auditError ? <p className="form-error">{auditError}</p> : null}
           {!isOrgAdmin ? (
-            <p className="muted">Le journal d'activite est reserve aux administrateurs.</p>
+            <p className="muted">Le journal d'activité est réservé aux administrateurs.</p>
           ) : auditEvents.length === 0 && !isLoadingAudit ? (
-            <p className="muted">Aucune activite admin enregistree pour le moment.</p>
+            <p className="muted">Aucune activité d'administration enregistrée pour le moment.</p>
           ) : (
             <div className="audit-event-list">
               {auditEvents.map((event) => (
@@ -5492,10 +5505,10 @@ function ClientSpacePanel({
         <div className="client-members-list">
           <div className="mini-heading">
             <strong>Utilisateurs de l'organisation</strong>
-            <span>{isLoadingUsers ? "Chargement..." : `${users.length} compte(s)`}</span>
+            <span>{isLoadingUsers ? "Chargement..." : countLabel(users.length, "compte")}</span>
           </div>
           {users.length === 0 && !isLoadingUsers ? (
-            <p className="muted">Aucun utilisateur rattache pour le moment.</p>
+            <p className="muted">Aucun utilisateur rattaché pour le moment.</p>
           ) : (
             <div className="member-table">
               {users.map((user) => (
@@ -5530,21 +5543,27 @@ function ClientSpacePanel({
               onUpgrade={() => onRequestUpgrade(invitePlanGate)}
             />
           ) : null}
+          <label htmlFor="invite-email">Adresse e-mail</label>
           <input
+            id="invite-email"
             disabled={!isOrgAdmin || isCreatingUser}
             onChange={(event) => onUpdateNewUserEmail(event.target.value)}
             placeholder="email@entreprise.fr"
             type="email"
             value={newUserEmail}
           />
+          <label htmlFor="invite-full-name">Nom complet</label>
           <input
+            id="invite-full-name"
             disabled={!isOrgAdmin || isCreatingUser}
             onChange={(event) => onUpdateNewUserFullName(event.target.value)}
             placeholder="Nom complet"
             type="text"
             value={newUserFullName}
           />
+          <label htmlFor="invite-role">Rôle</label>
           <select
+            id="invite-role"
             disabled={!isOrgAdmin || isCreatingUser}
             onChange={(event) =>
               onUpdateNewUserRole(event.target.value as OrganizationMemberRole)
@@ -5624,7 +5643,7 @@ function PlatformBackofficePanel({
           <h3>Backoffice clients</h3>
           <p>
             Vue interne pour suivre les espaces clients, les plans et les demandes
-            d'upgrade.
+            de changement de plan.
           </p>
         </div>
         <button
@@ -5647,13 +5666,13 @@ function PlatformBackofficePanel({
           <div>
             <span>Organisations</span>
             <strong>{organizations.length}</strong>
-            <small>{organizations.length} client(s) suivi(s)</small>
+            <small>{countLabel(organizations.length, "client suivi", "clients suivis")}</small>
           </div>
         </div>
         <div className="client-card">
           <ListChecks size={20} />
           <div>
-            <span>Demandes upgrade</span>
+            <span>Demandes de changement de plan</span>
             <strong>{requests.length}</strong>
             <small>{pendingRequests} en attente</small>
           </div>
@@ -5669,7 +5688,7 @@ function PlatformBackofficePanel({
         <div className="client-card">
           <Database size={20} />
           <div>
-            <span>Avis analyses</span>
+            <span>Avis analysés</span>
             <strong>{totalReviews.toLocaleString("fr-FR")}</strong>
             <small>Historique plateforme</small>
           </div>
@@ -5680,7 +5699,7 @@ function PlatformBackofficePanel({
         <div className="platform-card">
           <div className="mini-heading">
             <strong>Organisations clientes</strong>
-            <span>{organizations.length} client(s)</span>
+            <span>{countLabel(organizations.length, "client")}</span>
           </div>
           {organizations.length === 0 && !isLoading ? (
             <p className="muted">Aucune organisation cliente.</p>
@@ -5697,8 +5716,8 @@ function PlatformBackofficePanel({
                     <div>
                       <strong>{organization.name}</strong>
                       <small>
-                        {organization.slug} - {organization.active_users} utilisateur(s)
-                        actif(s) - {organization.analysis_runs} run(s)
+                        {organization.slug} - {countLabel(organization.active_users, "utilisateur actif", "utilisateurs actifs")}
+                        - {countLabel(organization.analysis_runs, "analyse")}
                       </small>
                     </div>
                     <span className={`plan-pill ${organization.plan}`}>
@@ -5728,11 +5747,11 @@ function PlatformBackofficePanel({
 
         <div className="platform-card">
           <div className="mini-heading">
-            <strong>Demandes d'upgrade ouvertes</strong>
-            <span>{requests.length} demande(s)</span>
+            <strong>Demandes de changement de plan ouvertes</strong>
+            <span>{countLabel(requests.length, "demande")}</span>
           </div>
           {requests.length === 0 && !isLoading ? (
-            <p className="muted">Aucune demande d'upgrade ouverte.</p>
+            <p className="muted">Aucune demande de changement de plan ouverte.</p>
           ) : (
             <div className="upgrade-request-list">
               {requests.map((request) => {
@@ -5751,7 +5770,7 @@ function PlatformBackofficePanel({
                       </strong>
                       <p>
                         {request.requested_by_email ?? "Utilisateur"} -{" "}
-                        {request.note ?? request.source ?? "Demande d'upgrade"}
+                        {request.note ?? request.source ?? "Demande de changement de plan"}
                       </p>
                       <small>
                         {formatUpgradeRequestStatus(request.status)} -{" "}
@@ -5814,7 +5833,7 @@ function PlatformBackofficePanel({
                           ) : (
                             <CheckCircle2 size={14} />
                           )}
-                          Marquer traite
+                          Marquer traité
                         </button>
                       ) : null}
                     </div>
@@ -5845,13 +5864,13 @@ function OrganizationUsagePanel({
       label: "Analyses ce mois-ci",
       used: usage.usage.monthly_runs,
       limit: usage.limits.monthly_runs,
-      helper: "Runs Trustpilot ou CSV crees sur la periode courante."
+      helper: "Analyses Trustpilot ou CSV créées sur la période courante."
     },
     {
-      label: "Avis analyses ce mois-ci",
+      label: "Avis analysés ce mois-ci",
       used: usage.usage.monthly_reviews,
       limit: usage.limits.monthly_reviews,
-      helper: "Volume d'avis traites dans les analyses terminees."
+      helper: "Volume d'avis traités dans les analyses terminées."
     },
     {
       label: "Membres",
@@ -5863,7 +5882,7 @@ function OrganizationUsagePanel({
       label: "Avis par import CSV",
       used: 0,
       limit: usage.limits.csv_reviews_per_import,
-      helper: "Limite appliquee a chaque fichier CSV importe."
+      helper: "Limite appliquée à chaque fichier CSV importé."
     }
   ];
 
@@ -5928,7 +5947,7 @@ function OrganizationUsagePanel({
           Benchmark {usage.features.benchmark ? "inclus" : "non inclus"}
         </span>
         <span className={usage.features.model_training ? "feature-on" : "feature-off"}>
-          Reentrainement IA {usage.features.model_training ? "inclus" : "non inclus"}
+          Réentraînement IA {usage.features.model_training ? "inclus" : "non inclus"}
         </span>
       </div>
       {!canManagePlan ? (
@@ -5937,7 +5956,7 @@ function OrganizationUsagePanel({
         </p>
       ) : (
         <p className="muted">
-          Changement interne MVP: les limites sont appliquees immediatement et journalisees.
+          Changement interne MVP : les limites sont appliquées immédiatement et journalisées.
         </p>
       )}
     </div>
@@ -5970,13 +5989,14 @@ function UpgradeRequestsPanel({
     <div className="upgrade-requests-panel" id="upgrade_requests">
       <div className="mini-heading">
         <div>
-          <strong>Demandes d'upgrade</strong>
-          <span>{requests.length} ouverte(s)</span>
+          <strong>Demandes de changement de plan</strong>
+          <span>{countLabel(requests.length, "demande ouverte", "demandes ouvertes")}</span>
         </div>
         <button
           className="icon-button"
           disabled={isLoading}
           onClick={onRefresh}
+          aria-label="Actualiser les demandes de changement de plan"
           type="button"
         >
           {isLoading ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
@@ -5987,15 +6007,15 @@ function UpgradeRequestsPanel({
       {error ? <p className="form-error">{error}</p> : null}
       {!canUpdate ? (
         <p className="permission-hint">
-          Lecture seule: un administrateur plateforme peut traiter les demandes
-          d'upgrade.
+          Lecture seule : un administrateur plateforme peut traiter les demandes
+          de changement de plan.
         </p>
       ) : null}
 
       {requests.length === 0 && !isLoading ? (
         <div className="empty-inline-state">
           <strong>Aucune demande ouverte.</strong>
-          <span>Les CTA d'upgrade alimenteront ce panneau automatiquement.</span>
+          <span>Les demandes de changement de plan apparaîtront ici.</span>
         </div>
       ) : (
         <div className="upgrade-request-list">
@@ -6009,7 +6029,7 @@ function UpgradeRequestsPanel({
                   </strong>
                   <p>
                     {request.requested_by_email ?? "Utilisateur"} -{" "}
-                    {request.note ?? request.source ?? "Demande d'upgrade"}
+                    {request.note ?? request.source ?? "Demande de changement de plan"}
                   </p>
                   <small>
                     {formatUpgradeRequestStatus(request.status)} -{" "}
@@ -6063,7 +6083,7 @@ function UpgradeRequestsPanel({
                       ) : (
                         <CheckCircle2 size={14} />
                       )}
-                      Marquer traite
+                      Marquer traité
                     </button>
                   ) : null}
                 </div>
@@ -6313,7 +6333,7 @@ function HomeCockpitPanel({
             <strong>{action.title}</strong>
             <span>
               {action.company_name ?? "Entreprise"}{" "}
-              {action.run_id ? `- Run #${action.run_id}` : ""}
+              {action.run_id ? `- Analyse nº ${action.run_id}` : ""}
             </span>
           </div>
           <span className={`alert-severity ${customerActionSeverity(action.priority)}`}>
@@ -6338,7 +6358,7 @@ function HomeCockpitPanel({
             <span className="customer-action-source">Alerte : {alertLabel}</span>
           ) : null}
           {isOverdue ? <span className="overdue-pill">En retard</span> : null}
-          {isDueSoon ? <span className="due-soon-pill">A relancer</span> : null}
+          {isDueSoon ? <span className="due-soon-pill">À relancer</span> : null}
         </div>
         {action.impact ? <CustomerActionImpactBlock impact={action.impact} /> : null}
         {isEditing ? (
@@ -6358,7 +6378,7 @@ function HomeCockpitPanel({
                 />
               </label>
               <label>
-                <span>Echeance</span>
+                <span>Échéance</span>
                 <input
                   onChange={(event) =>
                     setActionDraft((draft) => ({
@@ -6371,7 +6391,7 @@ function HomeCockpitPanel({
                 />
               </label>
               <label>
-                <span>Priorite</span>
+                <span>Priorité</span>
                 <select
                   onChange={(event) =>
                     setActionDraft((draft) => ({
@@ -6398,10 +6418,10 @@ function HomeCockpitPanel({
                   }
                   value={actionDraft.status ?? action.status}
                 >
-                  <option value="open">A faire</option>
+                  <option value="open">À faire</option>
                   <option value="in_progress">En cours</option>
-                  <option value="resolved">Resolue</option>
-                  <option value="ignored">Ignoree</option>
+                  <option value="resolved">Résolue</option>
+                  <option value="ignored">Ignorée</option>
                 </select>
               </label>
             </div>
@@ -6458,7 +6478,7 @@ function HomeCockpitPanel({
             {timelineLoading ? (
               <p className="muted">Chargement du suivi...</p>
             ) : timelineItems.length === 0 ? (
-              <p className="muted">Aucun element de suivi.</p>
+              <p className="muted">Aucun élément de suivi.</p>
             ) : (
               timelineItems.map((item) => {
                 const details = customerActionTimelineDetails(item);
@@ -6541,7 +6561,7 @@ function HomeCockpitPanel({
                 ) : (
                   <Play size={14} />
                 )}
-                Demarrer
+                Démarrer
               </button>
             ) : null}
             {action.status !== "resolved" ? (
@@ -6554,7 +6574,7 @@ function HomeCockpitPanel({
                 type="button"
               >
                 <CheckCircle2 size={14} />
-                Resoudre
+                Résoudre
               </button>
             ) : null}
           </div>
@@ -6568,9 +6588,9 @@ function HomeCockpitPanel({
       <div className="section-heading home-cockpit-heading">
         <div>
           <span className="eyebrow">Cockpit</span>
-          <h3>Priorites operationnelles</h3>
+          <h3>Priorités opérationnelles</h3>
           <p>
-            Les signaux les plus utiles pour savoir quoi verifier, corriger ou
+            Les signaux les plus utiles pour savoir quoi vérifier, corriger ou
             relancer dans cet espace client.
           </p>
         </div>
@@ -6590,8 +6610,8 @@ function HomeCockpitPanel({
             onClick={onRefreshRunAlerts}
             title={
               canRefreshSelectedRun
-                ? "Recalculer les alertes du run selectionne"
-                : "Selectionne un run termine avec un compte admin"
+                ? "Recalculer les alertes de l'analyse sélectionnée"
+                : "Sélectionne une analyse terminée avec un compte administrateur"
             }
             type="button"
           >
@@ -6600,7 +6620,7 @@ function HomeCockpitPanel({
             ) : (
               <AlertTriangle size={16} />
             )}
-            Regenerer run
+            Recalculer les alertes
           </button>
         </div>
       </div>
@@ -6615,32 +6635,32 @@ function HomeCockpitPanel({
         <Kpi
           label="Actions ouvertes"
           value={String(counts.open_customer_actions)}
-          helper={`${urgentCount} critique(s)`}
+          helper={countLabel(urgentCount, "signal critique", "signaux critiques")}
         />
         <Kpi
-          label="Alertes metier"
+          label="Alertes métier"
           value={String(businessAlerts.length)}
-          helper={`${criticalAlerts} critique(s), ${warningAlerts} a surveiller`}
+          helper={`${countLabel(criticalAlerts, "alerte critique", "alertes critiques")}, ${warningAlerts} à surveiller`}
         />
         <Kpi
           label="Analyses actives"
           value={String(counts.active_runs)}
-          helper={`${counts.failed_runs} echouee(s)`}
+          helper={countLabel(counts.failed_runs, "analyse échouée", "analyses échouées")}
         />
         <Kpi
           label={canManage ? "File admin" : "Infos recentes"}
           value={String(canManage ? adminQueue : counts.recent_completed_runs)}
           helper={
             canManage
-              ? `${counts.pending_upgrade_requests} upgrade(s), ${counts.training_ready_corrections} correction(s) IA`
-              : "analyse(s) terminee(s)"
+              ? `${countLabel(counts.pending_upgrade_requests, "demande de changement de plan", "demandes de changement de plan")}, ${countLabel(counts.training_ready_corrections, "correction IA", "corrections IA")}`
+              : "analyses terminées"
           }
         />
       </div>
 
       {!canManage ? (
         <p className="permission-hint">
-          Lecture seule: un administrateur peut acquitter ou resoudre les alertes.
+          Lecture seule : un administrateur peut acquitter ou résoudre les alertes.
         </p>
       ) : null}
 
@@ -6648,8 +6668,8 @@ function HomeCockpitPanel({
         <div className="mini-heading">
           <strong>Plan d'action client</strong>
           <span>
-            {activeCustomerActions.length} active(s), {overdueCount} en retard,{" "}
-            {dueSoonCount} a relancer
+            {countLabel(activeCustomerActions.length, "action active", "actions actives")}, {overdueCount} en retard,{" "}
+            {dueSoonCount} à relancer
           </span>
         </div>
 
@@ -6667,7 +6687,7 @@ function HomeCockpitPanel({
             ))}
           </div>
           <span className="customer-action-counts">
-            {filteredCustomerActions.length} action(s) affichee(s)
+            {countLabel(filteredCustomerActions.length, "action affichée", "actions affichées")}
           </span>
         </div>
 
@@ -6681,7 +6701,7 @@ function HomeCockpitPanel({
         {!isCustomerActionsLoading && filteredCustomerActions.length === 0 ? (
           <div className="empty-inline-state">
             <strong>Aucune action pour ce filtre.</strong>
-            <span>Cree une action depuis une alerte metier ou change le filtre.</span>
+            <span>Crée une action depuis une alerte métier ou change le filtre.</span>
           </div>
         ) : actionStatusFilter === "active" ? (
           <div className="customer-action-triage">
@@ -6694,7 +6714,7 @@ function HomeCockpitPanel({
                 >
                   <div className="customer-action-triage-heading">
                     <strong>{section.title}</strong>
-                    <span>{section.actions.length} action(s)</span>
+                    <span>{countLabel(section.actions.length, "action")}</span>
                   </div>
                   <div className="customer-action-grid">
                     {section.actions.map(renderCustomerActionCard)}
@@ -6713,8 +6733,8 @@ function HomeCockpitPanel({
       <div className="home-cockpit-layout">
         <div className="home-cockpit-column">
           <div className="mini-heading">
-            <strong>A faire maintenant</strong>
-            <span>{actionItems.length} signal(aux)</span>
+            <strong>À faire maintenant</strong>
+            <span>{countLabel(actionItems.length, "signal", "signaux")}</span>
           </div>
 
           {actionItems.length === 0 && !isActionCenterLoading ? (
@@ -6772,9 +6792,9 @@ function HomeCockpitPanel({
 
         <div className="home-cockpit-column" id="business_alerts">
           <div className="mini-heading">
-            <strong>Alertes metier ouvertes</strong>
+            <strong>Alertes métier ouvertes</strong>
             <span>
-              {businessAlerts.length} ouverte(s), {criticalAlerts} critique(s)
+              {countLabel(businessAlerts.length, "alerte ouverte", "alertes ouvertes")}, {countLabel(criticalAlerts, "critique")}
             </span>
           </div>
 
@@ -6788,7 +6808,7 @@ function HomeCockpitPanel({
           {!isBusinessAlertsLoading && businessAlerts.length === 0 ? (
             <div className="empty-inline-state">
               <strong>Aucune alerte ouverte.</strong>
-              <span>Les prochains runs termines alimenteront ce panneau.</span>
+              <span>Les prochaines analyses terminées alimenteront ce panneau.</span>
             </div>
           ) : (
             <div className="business-alert-list compact-list">
@@ -6812,7 +6832,7 @@ function HomeCockpitPanel({
                       <p>{alert.message}</p>
                       <small>
                         {alert.company_name ?? "Entreprise"}{" "}
-                        {alert.run_id ? `- Run #${alert.run_id}` : ""}{" "}
+                        {alert.run_id ? `- Analyse nº ${alert.run_id}` : ""}{" "}
                         {alert.created_at ? `- ${formatDate(alert.created_at)}` : ""}
                       </small>
                     </div>
@@ -6831,7 +6851,7 @@ function HomeCockpitPanel({
                           ) : (
                             <ListChecks size={14} />
                           )}
-                          Creer action
+                          Créer une action
                         </button>
                       ) : null}
                       {canManage && alert.status === "open" ? (
@@ -6858,7 +6878,7 @@ function HomeCockpitPanel({
                           onClick={() => onUpdateStatus(alert.alert_id, "resolved")}
                           type="button"
                         >
-                          Resoudre
+                          Résoudre
                         </button>
                       ) : null}
                     </div>
@@ -6909,10 +6929,10 @@ function ActionCenterPanel({
     <section className="action-center-panel insight-section wide" id="action_center">
       <div className="section-heading action-center-heading">
         <div>
-          <span className="eyebrow">A traiter</span>
+          <span className="eyebrow">À traiter</span>
           <h3>Centre d'action client</h3>
           <p>
-            Les signaux les plus utiles pour savoir quoi verifier, corriger ou
+            Les signaux les plus utiles pour savoir quoi vérifier, corriger ou
             relancer dans cet espace client.
           </p>
         </div>
@@ -6933,25 +6953,25 @@ function ActionCenterPanel({
         <Kpi
           label="Actions ouvertes"
           value={String(items.length)}
-          helper={`${urgentCount} critique(s)`}
+          helper={countLabel(urgentCount, "signal critique", "signaux critiques")}
         />
         <Kpi
-          label="Alertes metier"
+          label="Alertes métier"
           value={String(counts.open_alerts)}
-          helper={`${counts.critical_alerts} critique(s)`}
+          helper={countLabel(counts.critical_alerts, "alerte critique", "alertes critiques")}
         />
         <Kpi
           label="Analyses actives"
           value={String(counts.active_runs)}
-          helper={`${counts.failed_runs} echouee(s)`}
+          helper={countLabel(counts.failed_runs, "analyse échouée", "analyses échouées")}
         />
         <Kpi
           label={canManage ? "File admin" : "Infos recentes"}
           value={String(canManage ? adminQueue : counts.recent_completed_runs)}
           helper={
             canManage
-              ? `${counts.training_ready_corrections} correction(s) IA`
-              : "analyse(s) terminee(s)"
+              ? countLabel(counts.training_ready_corrections, "correction IA", "corrections IA")
+              : "analyses terminées"
           }
         />
       </div>
@@ -7042,10 +7062,10 @@ function BusinessAlertsPanel({
     <section className="business-alerts-panel insight-section wide" id="business_alerts">
       <div className="section-heading alert-heading">
         <div>
-          <span className="eyebrow">Alertes metier</span>
-          <h3>Signaux a traiter</h3>
+          <span className="eyebrow">Alertes métier</span>
+          <h3>Signaux à traiter</h3>
           <p>
-            {alerts.length} alerte(s) ouverte(s), dont {criticalCount} critique(s)
+            {countLabel(alerts.length, "alerte ouverte", "alertes ouvertes")}, dont {countLabel(criticalCount, "critique")}
             et {warningCount} a surveiller.
           </p>
         </div>
@@ -7065,8 +7085,8 @@ function BusinessAlertsPanel({
             onClick={onRefreshRunAlerts}
             title={
               canRefreshSelectedRun
-                ? "Recalculer les alertes du run selectionne"
-                : "Selectionne un run termine avec un compte admin"
+                ? "Recalculer les alertes de l'analyse sélectionnée"
+                : "Sélectionne une analyse terminée avec un compte administrateur"
             }
             type="button"
           >
@@ -7075,7 +7095,7 @@ function BusinessAlertsPanel({
             ) : (
               <AlertTriangle size={16} />
             )}
-            Regenerer run
+            Recalculer les alertes
           </button>
         </div>
       </div>
@@ -7083,7 +7103,7 @@ function BusinessAlertsPanel({
       {error ? <p className="form-error">{error}</p> : null}
       {!canManage ? (
         <p className="permission-hint">
-          Lecture seule: un administrateur peut acquitter ou resoudre les alertes.
+          Lecture seule : un administrateur peut acquitter ou résoudre les alertes.
         </p>
       ) : null}
 
@@ -7097,7 +7117,7 @@ function BusinessAlertsPanel({
       {!isLoading && alerts.length === 0 ? (
         <div className="empty-inline-state">
           <strong>Aucune alerte ouverte.</strong>
-          <span>Les prochains runs termines alimenteront ce panneau automatiquement.</span>
+          <span>Les prochaines analyses terminées alimenteront ce panneau automatiquement.</span>
         </div>
       ) : (
         <div className="business-alert-list">
@@ -7121,7 +7141,7 @@ function BusinessAlertsPanel({
                   <p>{alert.message}</p>
                   <small>
                     {alert.company_name ?? "Entreprise"}{" "}
-                    {alert.run_id ? `- Run #${alert.run_id}` : ""}{" "}
+                    {alert.run_id ? `- Analyse nº ${alert.run_id}` : ""}{" "}
                     {alert.created_at ? `- ${formatDate(alert.created_at)}` : ""}
                   </small>
                 </div>
@@ -7150,7 +7170,7 @@ function BusinessAlertsPanel({
                       onClick={() => onUpdateStatus(alert.alert_id, "resolved")}
                       type="button"
                     >
-                      Resoudre
+                      Résoudre
                     </button>
                   ) : null}
                 </div>
@@ -7172,7 +7192,7 @@ function formatAlertSeverity(severity: string) {
     critical: "Critique",
     warning: "A surveiller",
     info: "Info",
-    success: "Termine"
+    success: "Terminé"
   };
   return labels[severity] ?? severity;
 }
@@ -7203,17 +7223,17 @@ function formatCustomerActionPriority(priority: string) {
 
 function formatCustomerActionStatus(status: string) {
   const labels: Record<string, string> = {
-    open: "A faire",
+    open: "À faire",
     in_progress: "En cours",
-    resolved: "Resolue",
-    ignored: "Ignoree"
+    resolved: "Résolue",
+    ignored: "Ignorée"
   };
   return labels[status] ?? status;
 }
 
 function customerActionTimelineActor(item: CustomerActionTimelineItem) {
   if (item.item_type === "comment") {
-    return item.author_name ?? "Equipe";
+    return item.author_name ?? "Équipe";
   }
   return item.actor_email ?? "Journal";
 }
@@ -7226,10 +7246,10 @@ function customerActionTimelineLabel(item: CustomerActionTimelineItem) {
   const labels: Record<string, string> = {
     "customer_action.created": "Action créée",
     "customer_action.updated": "Action mise à jour",
-    "customer_action.comment_created": "Note ajoutee"
+    "customer_action.comment_created": "Note ajoutée"
   };
   const eventType = item.event_type ?? "";
-  return labels[eventType] ?? "Evenement de suivi";
+  return labels[eventType] ?? "Événement de suivi";
 }
 
 function customerActionTimelineDetails(item: CustomerActionTimelineItem) {
@@ -7242,7 +7262,7 @@ function customerActionTimelineDetails(item: CustomerActionTimelineItem) {
     details.push(`Statut ${formatCustomerActionStatus(item.metadata.status)}`);
   }
   if (typeof item.metadata.priority === "string") {
-    details.push(`Priorite ${formatCustomerActionPriority(item.metadata.priority)}`);
+    details.push(`Priorité ${formatCustomerActionPriority(item.metadata.priority)}`);
   }
   return details;
 }
@@ -7405,7 +7425,7 @@ function formatUpgradeRequestStatus(status: string) {
     pending: "en attente",
     approved: "acceptee",
     rejected: "refusee",
-    completed: "traitee",
+    completed: "traitée",
     cancelled: "annulee"
   };
   return labels[status] ?? status;
@@ -7441,7 +7461,7 @@ function getUsagePlanGate(
     return isUsageLimitReached(usage.usage.monthly_runs, usage.limits.monthly_runs)
       ? {
           title: "Limite d'analyses atteinte",
-          message: `${usage.usage.monthly_runs.toLocaleString("fr-FR")} analyse(s) utilisee(s) sur ${formatLimit(usage.limits.monthly_runs)} avec le plan ${usage.plan_label}. Passe au plan Pro ou Business pour continuer ce mois-ci.`,
+          message: `${countLabel(usage.usage.monthly_runs, "analyse utilisée", "analyses utilisées")} sur ${formatLimit(usage.limits.monthly_runs)} avec le plan ${usage.plan_label}. Passe au plan Pro ou Business pour continuer ce mois-ci.`,
           requiredPlan: usage.plan === "free" ? "pro" : "business",
           actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
         }
@@ -7452,7 +7472,7 @@ function getUsagePlanGate(
     return isUsageLimitReached(usage.usage.members, usage.limits.members)
       ? {
           title: "Limite de membres atteinte",
-          message: `${usage.usage.members.toLocaleString("fr-FR")} membre(s) actif(s) ou invite(s) sur ${formatLimit(usage.limits.members)} avec le plan ${usage.plan_label}. Passe au plan superieur pour inviter l'equipe.`,
+          message: `${countLabel(usage.usage.members, "membre actif ou invité", "membres actifs ou invités")} sur ${formatLimit(usage.limits.members)} avec le plan ${usage.plan_label}. Passe au plan supérieur pour inviter l'équipe.`,
           requiredPlan: usage.plan === "business" ? "business" : "pro",
           actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
         }
@@ -7466,7 +7486,7 @@ function getUsagePlanGate(
     )
       ? {
           title: "Limite d'avis atteinte",
-          message: `${usage.usage.monthly_reviews.toLocaleString("fr-FR")} avis analyse(s) sur ${formatLimit(usage.limits.monthly_reviews)} avec le plan ${usage.plan_label}. Passe au plan superieur pour poursuivre les analyses.`,
+          message: `${countLabel(usage.usage.monthly_reviews, "avis analysé", "avis analysés")} sur ${formatLimit(usage.limits.monthly_reviews)} avec le plan ${usage.plan_label}. Passe au plan supérieur pour poursuivre les analyses.`,
           requiredPlan: usage.plan === "free" ? "pro" : "business",
           actionLabel: usage.plan === "free" ? "Passer au Pro" : "Passer au Business"
         }
@@ -7506,16 +7526,16 @@ function getFeaturePlanGate(
 
   if (feature === "benchmark") {
     return {
-      title: "Benchmark reserve aux plans Pro et Business",
-      message: `Le plan ${usage.plan_label} permet de lire les rapports, mais la comparaison multi-runs commence au plan Pro.`,
+      title: "Benchmark réservé aux plans Pro et Business",
+      message: `Le plan ${usage.plan_label} permet de lire les rapports, mais la comparaison d'analyses commence au plan Pro.`,
       requiredPlan: "pro",
       actionLabel: "Passer au Pro"
     };
   }
 
   return {
-    title: "Reentrainement IA reserve au plan Business",
-    message: `Le plan ${usage.plan_label} conserve les corrections humaines, mais le reentrainement pilote depuis l'interface est inclus avec Business.`,
+    title: "Réentraînement IA réservé au plan Business",
+    message: `Le plan ${usage.plan_label} conserve les corrections humaines, mais le réentraînement piloté depuis l'interface est inclus avec Business.`,
     requiredPlan: "business",
     actionLabel: "Passer au Business"
   };
@@ -7524,17 +7544,19 @@ function getFeaturePlanGate(
 function formatAccountStatus(status: string) {
   const labels: Record<string, string> = {
     active: "Actif",
-    pending: "Invite",
+    pending: "Invité",
     inactive: "Inactif"
   };
   return labels[status] ?? status;
 }
 
 function AIQualityPanel({
+  error,
   isLoading,
   onRefresh,
   quality
 }: {
+  error: string | null;
   isLoading: boolean;
   onRefresh: () => void;
   quality: FeedbackQuality | null;
@@ -7548,8 +7570,10 @@ function AIQualityPanel({
           <span className="eyebrow">Qualité IA</span>
           <h3>Boucle de correction humaine</h3>
           <p>
-            {hasCorrections
-              ? `${quality?.training_ready_count ?? 0} correction(s) prête(s) pour le prochain entraînement.`
+            {error || (!isLoading && !quality)
+              ? "Les indicateurs ne sont pas disponibles pour le moment."
+              : hasCorrections
+              ? `${countLabel(quality?.training_ready_count ?? 0, "correction utilisable", "corrections utilisables")} pour le prochain entraînement.`
               : "Aucune correction humaine enregistrée pour le moment."}
           </p>
         </div>
@@ -7569,26 +7593,28 @@ function AIQualityPanel({
           <Loader2 className="spin" size={18} />
           Chargement de la qualité IA...
         </div>
+      ) : error || !quality ? (
+        <p className="form-error" role="alert">Qualité IA indisponible{error ? ` : ${error}` : "."}</p>
       ) : (
         <>
           <div className="ai-quality-kpis">
             <Kpi
               label="Corrections"
               value={String(quality?.total_corrections ?? 0)}
-              helper={`${quality?.corrected_company_count ?? 0} entreprise(s)`}
+              helper={countLabel(quality?.corrected_company_count ?? 0, "entreprise")}
             />
             <Kpi
               label="Labels modifiés"
               value={String(quality?.changed_label_count ?? 0)}
-              helper={`${quality?.confirmed_label_count ?? 0} confirmation(s)`}
+              helper={countLabel(quality?.confirmed_label_count ?? 0, "confirmation")}
             />
             <Kpi
-              label="Erreur apparente"
+              label="Corrections ayant changé le sentiment"
               value={formatPercent(quality?.apparent_error_rate ?? 0)}
-              helper="Sur les avis corrigés"
+              helper="Parmi les corrections humaines"
             />
             <Kpi
-              label="Prêt entraînement"
+              label="Corrections utilisables pour l'entraînement"
               value={String(quality?.training_ready_count ?? 0)}
               helper={quality?.latest_feedback_at ? formatDate(quality.latest_feedback_at) : "Aucune date"}
             />
@@ -7609,8 +7635,7 @@ function AIQualityPanel({
                       <div>
                         <strong>{company.company_name}</strong>
                         <small>
-                          {company.run_count} run(s) · {company.changed_label_count} label(s)
-                          modifié(s)
+                          {countLabel(company.run_count, "analyse")} · {countLabel(company.changed_label_count, "sentiment modifié", "sentiments modifiés")}
                         </small>
                       </div>
                       <span>{company.correction_count}</span>
@@ -7655,7 +7680,7 @@ function AIQualityPanel({
                     <article className="recent-correction" key={correction.feedback_id}>
                       <div className="review-meta">
                         <span>{correction.company_name}</span>
-                        <span>Run #{correction.run_id}</span>
+                        <span>Analyse nº {correction.run_id}</span>
                         <span>{formatDate(correction.feedback_updated_at)}</span>
                       </div>
                       <div className="transition-row compact">
@@ -7709,10 +7734,10 @@ function ModelTrainingPanel({
     <section className="model-training-panel insight-section wide" id="model_training">
       <div className="section-heading model-training-heading">
         <div>
-          <span className="eyebrow">Entrainement IA</span>
-          <h3>Pilotage du modele de sentiment</h3>
+          <span className="eyebrow">Entraînement IA</span>
+          <h3>Pilotage du modèle de sentiment</h3>
           <p>
-            Lance un reentrainement avec les corrections humaines et suis la
+            Lance un réentraînement avec les corrections humaines et suis la
             version MLflow de production.
           </p>
         </div>
@@ -7734,8 +7759,8 @@ function ModelTrainingPanel({
               planGate
                 ? planGate.message
                 : canManage
-                ? "Lancer un reentrainement"
-                : "Reserve aux administrateurs"
+                ? "Lancer un réentraînement"
+                : "Réservé aux administrateurs"
             }
             type="button"
           >
@@ -7744,14 +7769,14 @@ function ModelTrainingPanel({
             ) : (
               <Play size={16} />
             )}
-            {hasActiveRun ? "Entrainement en cours" : "Reentrainer"}
+            {hasActiveRun ? "Entraînement en cours" : "Réentraîner"}
           </button>
         </div>
       </div>
 
       {!canManage && (
         <p className="permission-hint wide-hint">
-          Mode lecture seule: le reentrainement du modele est reserve aux
+          Mode lecture seule : le réentraînement du modèle est réservé aux
           administrateurs.
         </p>
       )}
@@ -7765,14 +7790,14 @@ function ModelTrainingPanel({
 
       <div className="model-training-kpis">
         <Kpi
-          label="Modele production"
+          label="Modèle en production"
           value={productionModel ? `v${productionModel.version}` : "Non detecte"}
           helper={productionModel?.model_uri ?? "Alias MLflow production"}
         />
         <Kpi
           label="Dernier entrainement"
           value={latestRun ? `#${latestRun.training_run_id}` : "Aucun"}
-          helper={latestRun ? formatTrainingStatus(latestRun.status) : "Pas encore lance"}
+          helper={latestRun ? formatTrainingStatus(latestRun.status) : "Pas encore lancé"}
         />
         <Kpi
           label="Accuracy"
@@ -7780,7 +7805,7 @@ function ModelTrainingPanel({
           helper={`Macro F1 ${formatPercent((latestRun?.macro_f1 ?? 0) * 100)}`}
         />
         <Kpi
-          label="Corrections pretes"
+          label="Corrections prêtes"
           value={String(feedbackQuality?.training_ready_count ?? 0)}
           helper={`Poids x${formatNumber(latestRun?.feedback_sample_weight ?? 6, 1)}`}
         />
@@ -7790,10 +7815,10 @@ function ModelTrainingPanel({
         <div className="training-active-state">
           <Hourglass size={22} />
           <div>
-            <strong>Run d'entrainement #{activeRun.training_run_id}</strong>
+            <strong>Entraînement nº {activeRun.training_run_id}</strong>
             <p>
-              Le worker Celery reentraine le modele. Cette zone se rafraichit
-              automatiquement jusqu'a la fin du run.
+              Le modèle est réentraîné. Cette zone se rafraîchit
+              automatiquement jusqu'à la fin de l'entraînement.
             </p>
           </div>
           <TrainingStatusBadge status={activeRun.status} />
@@ -7803,14 +7828,14 @@ function ModelTrainingPanel({
       {latestRun?.status === "failed" && (
         <div className="training-error">
           <AlertTriangle size={18} />
-          <span>{latestRun.error_message || "Le dernier entrainement a echoue."}</span>
+          <span>{latestRun.error_message || "Le dernier entraînement a échoué."}</span>
         </div>
       )}
 
       <div className="training-history">
         <div className="training-history-heading">
           <h4>Historique des entrainements</h4>
-          {latestDuration && <small>Derniere duree: {latestDuration}</small>}
+            {latestDuration && <small>Dernière durée : {latestDuration}</small>}
         </div>
 
         {isLoading && !overview ? (
@@ -7823,20 +7848,20 @@ function ModelTrainingPanel({
             {overview.runs.map((run) => (
               <div className="training-run-row" key={run.training_run_id}>
                 <div>
-                  <strong>Run #{run.training_run_id}</strong>
+                  <strong>Entraînement nº {run.training_run_id}</strong>
                   <small>{formatDate(run.created_at)}</small>
                 </div>
                 <TrainingStatusBadge status={run.status} />
                 <span>{run.model_version ? `v${run.model_version}` : "-"}</span>
                 <span>{formatPercent((run.accuracy ?? 0) * 100)}</span>
-                <span>{run.training_feedback_rows} correction(s)</span>
+                <span>{countLabel(run.training_feedback_rows, "correction")}</span>
                 <span>{formatDuration(run.execution_duration_seconds) ?? "-"}</span>
               </div>
             ))}
           </div>
         ) : (
           <p className="muted">
-            Aucun entrainement lance depuis l'interface pour le moment.
+            Aucun entraînement lancé depuis l'interface pour le moment.
           </p>
         )}
       </div>
@@ -7850,10 +7875,10 @@ function TrainingStatusBadge({ status }: { status: ModelTrainingRun["status"] })
 
 function formatTrainingStatus(status: ModelTrainingRun["status"]) {
   const labels: Record<ModelTrainingRun["status"], string> = {
-    pending: "pending",
-    running: "running",
-    completed: "completed",
-    failed: "failed"
+    pending: "En attente",
+    running: "En cours",
+    completed: "Terminé",
+    failed: "Échec"
   };
   return labels[status];
 }
@@ -7894,7 +7919,7 @@ function BenchmarkPanel({
           <span className="eyebrow">Benchmark concurrentiel</span>
           <h3>Comparaison multi-entreprises</h3>
           <p>
-            {comparison.companies.length} entreprises comparées sur les runs{" "}
+            {comparison.companies.length} entreprises comparées sur les analyses{" "}
             {comparison.run_ids.join(", ")}.
           </p>
         </div>
@@ -7903,7 +7928,7 @@ function BenchmarkPanel({
             <FileText size={16} />
             Rapport benchmark
           </button>
-          <button className="icon-button" onClick={onClose} title="Fermer" type="button">
+          <button className="icon-button" onClick={onClose} aria-label="Fermer le benchmark" title="Fermer" type="button">
           ×
           </button>
         </div>
@@ -7915,8 +7940,8 @@ function BenchmarkPanel({
           <div>
             <strong>Benchmark limité aux corpus collectés</strong>
             <p>
-              {scopedCompanies.length} run(s) ne sont pas représentatifs pour les KPI
-              métier. Les écarts affichés décrivent les corpus analysés.
+              KPI métier non représentatifs pour {countLabel(scopedCompanies.length, "analyse")}.
+              Les écarts affichés décrivent les corpus analysés.
             </p>
           </div>
         </section>
@@ -7973,7 +7998,7 @@ function BenchmarkPanel({
               <tr key={company.run_id}>
                 <td>
                   <strong>{company.company_name}</strong>
-                  <small>Run #{company.run_id} - {company.review_count} avis</small>
+                  <small>Analyse nº {company.run_id} - {company.review_count} avis</small>
                 </td>
                 <td>{company.health_score}</td>
                 <td>{formatNumber(company.average_rating)} / 5</td>
@@ -7998,7 +8023,7 @@ function BenchmarkPanel({
               <article className="compact-item" key={topic.topic}>
                 <strong>{formatTopic(topic.topic)}</strong>
                 <p>
-                  {topic.total_count} occurrences dans {topic.run_count} runs.
+                  {topic.total_count} occurrences dans {countLabel(topic.run_count, "analyse")}.
                 </p>
                 <small>
                   {topic.companies
@@ -8069,7 +8094,7 @@ function TrendPanel({
     { title: "En hausse", rows: trend?.rising_topics ?? [], tone: "negative" },
     { title: "En baisse", rows: trend?.falling_topics ?? [], tone: "positive" },
     { title: "Nouveaux", rows: trend?.new_topics ?? [], tone: "warning" },
-    { title: "Resolus", rows: trend?.resolved_topics ?? [], tone: "positive" }
+    { title: "Résolus", rows: trend?.resolved_topics ?? [], tone: "positive" }
   ];
 
   return (
@@ -8077,7 +8102,7 @@ function TrendPanel({
       <div className="section-heading">
         <div>
           <span className="eyebrow">Tendance</span>
-          <h3>Evolution depuis la derniere analyse</h3>
+          <h3>Évolution depuis la dernière analyse</h3>
         </div>
         <BarChart3 size={18} />
       </div>
@@ -8113,7 +8138,7 @@ function TrendPanel({
           <div className="trend-summary">
             <p>{trend.executive_summary}</p>
             <span>
-              Comparaison avec run #{trend.previous_run?.run_id} du{" "}
+              Comparaison avec l'analyse nº {trend.previous_run?.run_id} du{" "}
               {formatDate(trend.previous_run?.created_at ?? null)}
             </span>
           </div>
@@ -8331,8 +8356,7 @@ function CompletedReportReadout({
                 </em>
               </div>
               <p>
-                {linkedAlerts.length} alerte(s) ouverte(s) rattachée(s) à ce run
-                dans le cockpit.
+                Alertes rattachées à cette analyse dans le cockpit : {countLabel(linkedAlerts.length, "alerte ouverte", "alertes ouvertes")}.
               </p>
               <button
                 className="secondary-action compact-action"
@@ -8345,8 +8369,8 @@ function CompletedReportReadout({
             </>
           ) : (
             <>
-              <strong>Aucune alerte ouverte liée à ce run</strong>
-              <p>Les alertes ouvertes générées par les runs apparaissent dans le cockpit.</p>
+              <strong>Aucune alerte ouverte liée à cette analyse</strong>
+              <p>Les alertes ouvertes générées par les analyses apparaissent dans le cockpit.</p>
             </>
           )}
         </div>
@@ -8416,7 +8440,7 @@ function WatchpointList({ watchpoints }: { watchpoints: BusinessWatchpoint[] }) 
 const eventStepLabels: Record<string, string> = {
   queued: "File d'attente",
   worker_start: "Worker",
-  prepare_outputs: "Preparation",
+  prepare_outputs: "Préparation",
   scrape_start: "Scraping",
   scrape_star: "Scraping",
   scrape_page: "Page",
@@ -8426,11 +8450,11 @@ const eventStepLabels: Record<string, string> = {
   scrape_complete: "Scraping",
   scrape_skipped: "JSON existant",
   load_reviews: "Chargement",
-  predict: "Prediction",
+  predict: "Prédiction",
   persist_reviews: "Sauvegarde",
   export: "Export",
-  completed: "Termine",
-  failed: "Echec"
+  completed: "Terminée",
+  failed: "Échec"
 };
 
 function RunEventLog({
@@ -8456,9 +8480,9 @@ function RunEventLog({
       ) : (
         <>
           <div className="run-log-summary">
-            <span>{events.length} événement(s)</span>
-            {errorCount > 0 ? <span>{errorCount} erreur(s)</span> : null}
-            {warningCount > 0 ? <span>{warningCount} avertissement(s)</span> : null}
+            <span>{countLabel(events.length, "événement")}</span>
+            {errorCount > 0 ? <span>{countLabel(errorCount, "erreur")}</span> : null}
+            {warningCount > 0 ? <span>{countLabel(warningCount, "avertissement")}</span> : null}
             {latestEvent ? (
               <small>
                 Dernière étape :{" "}
@@ -8553,7 +8577,7 @@ function TopicBars({ rows }: { rows: DistributionRow[] }) {
   if (rows.length === 0) {
     return (
       <p className="muted">
-        Aucun irritant détecté dans ce run. Consulte la synthèse et les avis
+        Aucun irritant détecté dans cette analyse. Consulte la synthèse et les avis
         analysés pour confirmer les signaux faibles.
       </p>
     );

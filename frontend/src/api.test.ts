@@ -36,7 +36,7 @@ describe("API authentication", () => {
     );
 
     await expect(listRuns()).rejects.toThrow(
-      "API indisponible. Verifie que le service backend est lance sur http://localhost:8000."
+      "Service momentanément indisponible. Réessaie plus tard."
     );
   });
 

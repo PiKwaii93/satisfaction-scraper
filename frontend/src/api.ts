@@ -120,9 +120,7 @@ async function safeFetch(path: string, init?: RequestInit) {
     return await fetch(`${API_BASE_URL}${path}`, init);
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error(
-        `API indisponible. Verifie que le service backend est lance sur ${API_BASE_URL}.`
-      );
+      throw new Error("Service momentanément indisponible. Réessaie plus tard.");
     }
     throw error;
   }

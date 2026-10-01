@@ -588,7 +588,7 @@ describe("App authentication and permissions", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Acceder a ton espace entreprise"
+        name: "Accéder à ton espace entreprise"
       })
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toHaveValue(
@@ -626,7 +626,7 @@ describe("App authentication and permissions", () => {
     await user.click(screen.getByRole("button", { name: /Analyses/ }));
 
     expect(
-      screen.getByText(/Mode lecture seule: demande a un administrateur/)
+      screen.getByText(/Mode lecture seule : demande à un administrateur/)
     ).toBeInTheDocument();
     const heading = await screen.findByRole("heading", {
       name: "Aucune analyse lancée"
@@ -707,7 +707,7 @@ describe("App authentication and permissions", () => {
     await screen.findByRole("heading", { name: "Aucune analyse lancée" });
 
     await user.click(firstRunEmptyState().getByRole("button", { name: /CSV/ }));
-    expect(screen.getByLabelText("Entreprise a analyser")).toHaveValue("");
+    expect(screen.getByLabelText("Entreprise à analyser")).toHaveValue("");
 
     await user.click(firstRunEmptyState().getByRole("button", { name: /Trustpilot/ }));
     const trustpilotInput = screen.getByLabelText("Entreprise ou URL Trustpilot");
@@ -717,7 +717,7 @@ describe("App authentication and permissions", () => {
     );
 
     await user.click(firstRunEmptyState().getByRole("button", { name: /CSV/ }));
-    expect(screen.getByLabelText("Entreprise a analyser")).toHaveValue(
+    expect(screen.getByLabelText("Entreprise à analyser")).toHaveValue(
       "https://fr.trustpilot.com/review/acme.example"
     );
   });
@@ -772,7 +772,7 @@ describe("App authentication and permissions", () => {
       })
     );
     expect(
-      await screen.findByRole("button", { name: /example\.com.*Run #21/i })
+      await screen.findByRole("button", { name: /example\.com.*Analyse nº 21/i })
     ).toBeInTheDocument();
   });
 
@@ -799,7 +799,7 @@ describe("App authentication and permissions", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /example\.com.*Run #21/i })
+      screen.getByRole("button", { name: /example\.com.*Analyse nº 21/i })
     ).toBeInTheDocument();
   });
 
@@ -819,14 +819,14 @@ describe("App authentication and permissions", () => {
     await user.type(companyInput, "https://fr.trustpilot.com/review/example.com");
     await user.click(screen.getByRole("button", { name: "Lancer l'analyse" }));
 
-    await screen.findByRole("button", { name: /example\.com.*Run #21/i });
+    await screen.findByRole("button", { name: /example\.com.*Analyse nº 21/i });
     await waitFor(() => expect(apiMocks.listRuns).toHaveBeenCalledTimes(2));
     const historyPanel = screen.getByText("Historique").closest(".run-panel");
     expect(historyPanel).not.toBeNull();
     await waitFor(() =>
       expect(
         within(historyPanel as HTMLElement).getAllByRole("button", {
-          name: /Run #21/i
+          name: /Analyse nº 21/i
         })
       ).toHaveLength(1)
     );
@@ -853,14 +853,14 @@ describe("App authentication and permissions", () => {
     await user.click(screen.getByRole("button", { name: "Lancer l'analyse" }));
 
     expect(
-      await screen.findByRole("button", { name: /example\.com.*Run #21/i })
+      await screen.findByRole("button", { name: /example\.com.*Analyse nº 21/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByText("pending").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("En attente").length).toBeGreaterThan(0);
     await waitFor(
       () => expect(apiMocks.listRuns.mock.calls.length).toBeGreaterThanOrEqual(3),
       { timeout: 4500 }
     );
-    expect(screen.getAllByText("running").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("En cours").length).toBeGreaterThan(0);
   });
 
   it("lets an admin save the Trustpilot source defaults", async () => {
@@ -934,7 +934,7 @@ describe("App authentication and permissions", () => {
       type: "text/csv"
     });
     await user.upload(screen.getByLabelText("Fichier CSV d'avis"), file);
-    await screen.findByText("Controle avant import");
+    await screen.findByText("Contrôle avant import");
     expect(
       screen.getByText("Mapping prêt à être réutilisé par l'organisation.")
     ).toBeInTheDocument();
@@ -1010,14 +1010,14 @@ describe("App authentication and permissions", () => {
     const emptyState = heading.closest(".first-run-empty-state");
     expect(emptyState).not.toBeNull();
     await user.click(within(emptyState as HTMLElement).getByRole("button", { name: /CSV/ }));
-    expect(screen.getByLabelText("Entreprise a analyser")).toHaveValue("");
+    expect(screen.getByLabelText("Entreprise à analyser")).toHaveValue("");
 
-    await user.type(screen.getByLabelText("Entreprise a analyser"), "Client CSV");
+    await user.type(screen.getByLabelText("Entreprise à analyser"), "Client CSV");
     const file = new File(["commentaire,note\nProduit conforme,5\n"], "avis.csv", {
       type: "text/csv"
     });
     await user.upload(screen.getByLabelText("Fichier CSV d'avis"), file);
-    await screen.findByText("Controle avant import");
+    await screen.findByText("Contrôle avant import");
     await user.click(screen.getByRole("button", { name: "Importer le CSV" }));
 
     await waitFor(() =>
@@ -1033,7 +1033,7 @@ describe("App authentication and permissions", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Client CSV.*Run #31/i })
+      screen.getByRole("button", { name: /Client CSV.*Analyse nº 31/i })
     ).toBeInTheDocument();
   });
 
@@ -1071,11 +1071,11 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Ce run n'est pas en échec technique, mais il ne contient pas assez de données exploitables pour afficher les KPI et irritants."
+        "Cette analyse n'est pas en échec technique, mais elle ne contient pas assez de données exploitables pour afficher les KPI et irritants."
       )
     ).toBeInTheDocument();
-    expect(screen.getByText("1 événement(s)")).toBeInTheDocument();
-    expect(screen.getByText("1 avertissement(s)")).toBeInTheDocument();
+    expect(screen.getByText("1 événement")).toBeInTheDocument();
+    expect(screen.getByText("1 avertissement")).toBeInTheDocument();
     expect(screen.getByText(/Dernière étape : Scraping/)).toBeInTheDocument();
     expect(screen.queryByText("Analyse échouée")).not.toBeInTheDocument();
     expect(
@@ -1138,12 +1138,12 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Aucun événement journalisé pour ce run. Le message affiché au-dessus reste la référence."
+        "Aucun événement journalisé pour cette analyse. Le message affiché au-dessus reste la référence."
       )
     ).toBeInTheDocument();
-    expect(screen.queryByText("0 événement(s)")).not.toBeInTheDocument();
-    expect(screen.queryByText("0 erreur(s)")).not.toBeInTheDocument();
-    expect(screen.queryByText("0 avertissement(s)")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 événement")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 erreur")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 avertissement")).not.toBeInTheDocument();
     expect(screen.queryByText(/Dernière étape/)).not.toBeInTheDocument();
   });
 
@@ -1174,7 +1174,7 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Ce run n'est pas en échec technique, mais il ne contient pas assez de données exploitables pour afficher les KPI et irritants."
+        "Cette analyse n'est pas en échec technique, mais elle ne contient pas assez de données exploitables pour afficher les KPI et irritants."
       )
     ).toBeInTheDocument();
   });
@@ -1254,7 +1254,7 @@ describe("App authentication and permissions", () => {
       withinReadout.queryByText("Alerte d'un autre run")
     ).not.toBeInTheDocument();
     expect(
-      withinReadout.getByText("1 alerte(s) ouverte(s) rattachée(s) à ce run dans le cockpit.")
+      withinReadout.getByText("Alertes rattachées à cette analyse dans le cockpit : 1 alerte ouverte.")
     ).toBeInTheDocument();
     expect(screen.getAllByText("Avis analysés").length).toBeGreaterThan(0);
     expect(screen.getByText("10 verbatims")).toBeInTheDocument();
@@ -1265,7 +1265,7 @@ describe("App authentication and permissions", () => {
       withinReadout.getByRole("button", { name: "Ouvrir le cockpit" })
     );
     expect(
-      await screen.findByRole("heading", { name: "Priorites operationnelles" })
+      await screen.findByRole("heading", { name: "Priorités opérationnelles" })
     ).toBeInTheDocument();
   });
 
@@ -1363,7 +1363,7 @@ describe("App authentication and permissions", () => {
       withinReadout.queryByText(/signal classé prioritaire/i)
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("Aucune alerte ouverte liée à ce run")
+      screen.getByText("Aucune alerte ouverte liée à cette analyse")
     ).toBeInTheDocument();
     expect(screen.getAllByText("Aucune priorité critique détectée").length).toBeGreaterThan(0);
     expect(
@@ -1371,14 +1371,14 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Aucun irritant détecté dans ce run. Consulte la synthèse et les avis analysés pour confirmer les signaux faibles."
+        "Aucun irritant détecté dans cette analyse. Consulte la synthèse et les avis analysés pour confirmer les signaux faibles."
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Aucun avis critique détecté dans ce run.")
+      screen.getByText("Aucun avis critique détecté dans cette analyse.")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Aucun décalage note/texte détecté dans ce run.")
+      screen.getByText("Aucun décalage note/texte détecté dans cette analyse.")
     ).toBeInTheDocument();
     expect(screen.getByText("La livraison est arrivee trop tard et sans information claire.")).toBeInTheDocument();
   });
@@ -1424,18 +1424,18 @@ describe("App authentication and permissions", () => {
     expect(await screen.findByText("Analyse échouée")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Le run a bien été créé, mais l'exécution s'est arrêtée avant de produire un rapport."
+        "L'analyse a bien été créée, mais l'exécution s'est arrêtée avant de produire un rapport."
       )
     ).toBeInTheDocument();
     expect(screen.getAllByText("Timeout Trustpilot.").length).toBeGreaterThan(0);
-    expect(screen.getByText("2 événement(s)")).toBeInTheDocument();
-    expect(screen.getByText("1 erreur(s)")).toBeInTheDocument();
-    expect(screen.getByText(/Dernière étape : Echec/)).toBeInTheDocument();
+    expect(screen.getByText("2 événements")).toBeInTheDocument();
+    expect(screen.getByText("1 erreur")).toBeInTheDocument();
+    expect(screen.getByText(/Dernière étape : Échec/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Relancer l'analyse" }));
     await waitFor(() => expect(apiMocks.executeRun).toHaveBeenCalledWith(21));
     expect(await screen.findByText("Analyse en cours")).toBeInTheDocument();
-    expect(screen.getAllByText("running").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("En cours").length).toBeGreaterThan(0);
   });
 
   it("keeps failed analysis retry read-only for a member", async () => {
@@ -1452,12 +1452,12 @@ describe("App authentication and permissions", () => {
     expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Analyses/ }));
     await user.click(
-      await screen.findByRole("button", { name: /example\.com.*Run #21/i })
+      await screen.findByRole("button", { name: /example\.com.*Analyse nº 21/i })
     );
 
     expect(await screen.findByText("Analyse échouée")).toBeInTheDocument();
     expect(
-      screen.getByText("Mode lecture seule: seul un administrateur peut relancer ce run.")
+      screen.getByText("Mode lecture seule : seul un administrateur peut relancer cette analyse.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Relancer l'analyse" })).toBeDisabled();
   });
@@ -1546,7 +1546,7 @@ describe("App authentication and permissions", () => {
     );
     expect(await screen.findByText("Action créée")).toBeInTheDocument();
     expect(screen.getByText("Action mise à jour")).toBeInTheDocument();
-    expect(screen.getByText("Statut Resolue - Priorite Critique")).toBeInTheDocument();
+    expect(screen.getByText("Statut Résolue - Priorité Critique")).toBeInTheDocument();
     expect(
       screen.queryByText("Action client creee: Traiter les avis negatifs.")
     ).not.toBeInTheDocument();
@@ -1554,8 +1554,8 @@ describe("App authentication and permissions", () => {
       await screen.findByText("Transporteur contacte ce matin.")
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Modifier" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Demarrer" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Resoudre" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Démarrer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Résoudre" })).not.toBeInTheDocument();
 
     await user.type(
       screen.getByPlaceholderText("Ajouter une note de suivi..."),
@@ -1620,7 +1620,7 @@ describe("App authentication and permissions", () => {
     expect(
       await screen.findByText("Part d'avis negatifs a surveiller")
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Creer action" }));
+    await user.click(screen.getByRole("button", { name: "Créer une action" }));
 
     await waitFor(() =>
       expect(apiMocks.createCustomerAction).toHaveBeenCalledWith({ alert_id: 9 })
@@ -1734,7 +1734,7 @@ describe("App authentication and permissions", () => {
       await screen.findByText("Part d'avis negatifs a surveiller")
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Creer action" }));
+    await user.click(screen.getByRole("button", { name: "Créer une action" }));
     await waitFor(() =>
       expect(apiMocks.createCustomerAction).toHaveBeenCalledWith({ alert_id: 9 })
     );
@@ -1768,7 +1768,7 @@ describe("App authentication and permissions", () => {
     expect(screen.getAllByText(noteBody)).toHaveLength(1);
 
     currentAction = await actionCard();
-    await user.click(currentAction.getByRole("button", { name: "Demarrer" }));
+    await user.click(currentAction.getByRole("button", { name: "Démarrer" }));
     await waitFor(() =>
       expect(apiMocks.updateCustomerAction).toHaveBeenCalledWith(4, {
         status: "in_progress"
@@ -1776,13 +1776,13 @@ describe("App authentication and permissions", () => {
     );
     expect((await actionCard()).getByText("En cours")).toBeInTheDocument();
     expect(
-      await screen.findByText("Statut En cours - Priorite Haute")
+      await screen.findByText("Statut En cours - Priorité Haute")
     ).toBeInTheDocument();
     expect(screen.queryByText(/Action impossible/)).not.toBeInTheDocument();
 
     currentAction = await actionCard();
     await user.click(currentAction.getByRole("button", { name: "Modifier" }));
-    await user.selectOptions(currentAction.getByLabelText("Priorite"), "critical");
+    await user.selectOptions(currentAction.getByLabelText("Priorité"), "critical");
     await user.click(currentAction.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() =>
       expect(apiMocks.updateCustomerAction).toHaveBeenLastCalledWith(
@@ -1792,27 +1792,27 @@ describe("App authentication and permissions", () => {
     );
     expect((await actionCard()).getByText("Critique")).toBeInTheDocument();
     expect(
-      await screen.findByText("Statut En cours - Priorite Critique")
+      await screen.findByText("Statut En cours - Priorité Critique")
     ).toBeInTheDocument();
 
     currentAction = await actionCard();
-    await user.click(currentAction.getByRole("button", { name: "Resoudre" }));
+    await user.click(currentAction.getByRole("button", { name: "Résoudre" }));
     await waitFor(() =>
       expect(apiMocks.updateCustomerAction).toHaveBeenLastCalledWith(4, {
         status: "resolved"
       })
     );
-    await user.click(screen.getByRole("button", { name: "Resolues" }));
+    await user.click(screen.getByRole("button", { name: "Résolues" }));
 
     currentAction = await actionCard();
-    expect(currentAction.getByText("Resolue")).toBeInTheDocument();
+    expect(currentAction.getByText("Résolue")).toBeInTheDocument();
     expect(currentAction.getByText("Amelioration")).toBeInTheDocument();
-    expect(currentAction.getByText("Run #21 -> Run #24")).toBeInTheDocument();
+    expect(currentAction.getByText("Analyse nº 21 → Analyse nº 24")).toBeInTheDocument();
     expect(
       currentAction.getByText(/42,0 pts.*31,0 pts.*-11,0 pts/)
     ).toBeInTheDocument();
     expect(
-      await screen.findByText("Statut Resolue - Priorite Critique")
+      await screen.findByText("Statut Résolue - Priorité Critique")
     ).toBeInTheDocument();
     expect(screen.getAllByText(noteBody)).toHaveLength(1);
   });
@@ -1933,8 +1933,8 @@ describe("App authentication and permissions", () => {
       .closest(".customer-action-card") as HTMLElement;
     expect(within(planCard).getByRole("button", { name: /Suivi/ })).toBeEnabled();
     expect(within(planCard).getByRole("button", { name: "Modifier" })).toBeEnabled();
-    expect(within(planCard).getByRole("button", { name: "Demarrer" })).toBeEnabled();
-    expect(within(planCard).getByRole("button", { name: "Resoudre" })).toBeEnabled();
+    expect(within(planCard).getByRole("button", { name: "Démarrer" })).toBeEnabled();
+    expect(within(planCard).getByRole("button", { name: "Résoudre" })).toBeEnabled();
   });
 
   it("surfaces overdue and due-soon customer actions", async () => {
@@ -1964,7 +1964,7 @@ describe("App authentication and permissions", () => {
     expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Accueil/ }));
 
-    expect(await screen.findByText(/1 en retard, 1 a relancer/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 en retard, 1 à relancer/)).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "À traiter maintenant" })
     ).toBeInTheDocument();
@@ -1976,10 +1976,10 @@ describe("App authentication and permissions", () => {
     expect(screen.getByText("Relancer le transporteur")).toBeInTheDocument();
     expect(screen.queryByText("Verifier la promesse SAV")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Echeance proche" }));
+    await user.click(screen.getByRole("button", { name: "Échéance proche" }));
     expect(screen.getByText("Verifier la promesse SAV")).toBeInTheDocument();
     expect(screen.queryByText("Relancer le transporteur")).not.toBeInTheDocument();
-    expect(screen.getByText("A relancer")).toBeInTheDocument();
+    expect(screen.getByText("À relancer")).toBeInTheDocument();
   });
 
   it("shows an upgrade gate for model training outside Business", async () => {
@@ -1989,11 +1989,48 @@ describe("App authentication and permissions", () => {
 
     render(<App />);
     expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Qualite IA/ }));
+    await user.click(screen.getByRole("button", { name: /Qualité IA/ }));
 
     expect(
-      screen.getByText("Reentrainement IA reserve au plan Business")
+      screen.getByText("Réentraînement IA réservé au plan Business")
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reentrainer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Réentraîner" })).toBeDisabled();
+  });
+
+  it("labels the human correction metric without implying a model error rate", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getFeedbackQuality.mockResolvedValue({
+      ...feedbackQuality,
+      total_corrections: 42,
+      changed_label_count: 41,
+      apparent_error_rate: 41 / 42
+    });
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Qualité IA/ }));
+
+    expect(screen.getByText("Corrections ayant changé le sentiment")).toBeInTheDocument();
+    expect(screen.getByText("Parmi les corrections humaines")).toBeInTheDocument();
+    expect(screen.queryByText("Erreur apparente")).not.toBeInTheDocument();
+  });
+
+  it("shows an unavailable state instead of zero quality KPIs when the request fails", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getFeedbackQuality.mockRejectedValue(new Error("Service momentanément indisponible"));
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Qualité IA/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Qualité IA indisponible : Service momentanément indisponible"
+    );
+    expect(screen.queryByText("Corrections ayant changé le sentiment")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("button", { name: /Qualité IA/ })).getByText("—")
+    ).toBeInTheDocument();
   });
 });
