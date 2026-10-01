@@ -969,6 +969,107 @@ describe("App authentication and permissions", () => {
     );
   });
 
+  it("keeps configured Sources compact and restores the saved Trustpilot values on cancel", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listReviewSources.mockResolvedValue([
+      { ...reviewSources[0], config: { default_company: "example.com", pages_per_star: 3 } },
+      { ...reviewSources[1], config: { column_mapping: { verbatim: "commentaire", rating: "note" } } },
+      { ...reviewSources[0], source_id: "google", label: "Google Reviews", status: "planned", supports_analysis: false, can_configure: false }
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Sources/ }));
+    const workspace = screen.getByRole("heading", { name: "Catalogue des connecteurs" }).closest(".sources-workspace") as HTMLElement;
+
+    expect(within(workspace).getByText("example.com")).toBeInTheDocument();
+    expect(within(workspace).getByText("3 pages par note")).toBeInTheDocument();
+    expect(within(workspace).getByText(/Texte : commentaire/)).toBeInTheDocument();
+    expect(within(workspace).getByText("Google Reviews")).toBeInTheDocument();
+    expect(within(workspace).getByText("Bientôt")).toBeInTheDocument();
+    expect(within(workspace).queryByLabelText("Entreprise par défaut")).not.toBeInTheDocument();
+    expect(within(workspace).getAllByRole("button", { name: "Utiliser pour une analyse" })).toHaveLength(2);
+
+    const trustpilotCard = within(workspace).getByText("example.com").closest(".connector-card") as HTMLElement;
+    const editButton = within(trustpilotCard).getByRole("button", { name: "Modifier" });
+    expect(editButton).toHaveAttribute("aria-expanded", "false");
+    await user.click(editButton);
+    expect(within(trustpilotCard).getByRole("button", { name: "Masquer la configuration" })).toHaveAttribute("aria-expanded", "true");
+    const companyInput = within(trustpilotCard).getByLabelText("Entreprise par défaut");
+    expect(companyInput).toHaveValue("example.com");
+    await user.clear(companyInput);
+    await user.type(companyInput, "changed.example");
+    await user.click(within(trustpilotCard).getByRole("button", { name: "Annuler" }));
+    expect(within(trustpilotCard).queryByLabelText("Entreprise par défaut")).not.toBeInTheDocument();
+    await user.click(within(trustpilotCard).getByRole("button", { name: "Modifier" }));
+    expect(within(trustpilotCard).getByLabelText("Entreprise par défaut")).toHaveValue("example.com");
+    expect(apiMocks.updateReviewSource).not.toHaveBeenCalled();
+
+    const details = within(workspace).getByRole("button", { name: "Voir les détails" });
+    expect(details).toHaveAttribute("aria-expanded", "false");
+    await user.click(details);
+    expect(within(workspace).getByRole("button", { name: "Masquer les détails" })).toHaveAttribute("aria-expanded", "true");
+    expect(within(workspace).getByText("Champs et format CSV")).toBeInTheDocument();
+    expect(within(workspace).getAllByText(/Champs requis :/)).toHaveLength(2);
+    await user.click(within(workspace).getByRole("button", { name: "Masquer les détails" }));
+    expect(within(workspace).getByRole("button", { name: "Voir les détails" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("saves Sources edits through the existing source API and keeps a failed editor open", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listReviewSources.mockResolvedValue([
+      { ...reviewSources[0], config: { default_company: "example.com", pages_per_star: 2 } },
+      { ...reviewSources[1], config: { column_mapping: { verbatim: "commentaire" } } }
+    ]);
+    apiMocks.updateReviewSource.mockResolvedValue(reviewSources[0]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Sources/ }));
+    const workspace = screen.getByRole("heading", { name: "Catalogue des connecteurs" }).closest(".sources-workspace") as HTMLElement;
+    const trustpilotCard = within(workspace).getByText("example.com").closest(".connector-card") as HTMLElement;
+    await user.click(within(trustpilotCard).getByRole("button", { name: "Modifier" }));
+    await user.click(within(trustpilotCard).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(apiMocks.updateReviewSource).toHaveBeenCalledWith("trustpilot", {
+      enabled: true,
+      config: { default_company: "example.com", pages_per_star: 2 }
+    }));
+    await waitFor(() => expect(within(trustpilotCard).queryByLabelText("Entreprise par défaut")).not.toBeInTheDocument());
+
+    const csvCard = within(workspace).getByText(/Texte : commentaire/).closest(".connector-card") as HTMLElement;
+    await user.click(within(csvCard).getByRole("button", { name: "Modifier" }));
+    expect(within(csvCard).getByLabelText("Texte *")).toHaveValue("commentaire");
+    await user.click(within(csvCard).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(apiMocks.updateReviewSource).toHaveBeenCalledWith("csv", {
+      enabled: true,
+      config: { column_mapping: { verbatim: "commentaire" } }
+    }));
+    await waitFor(() => expect(within(csvCard).queryByLabelText("Texte *")).not.toBeInTheDocument());
+    apiMocks.updateReviewSource.mockRejectedValueOnce(new Error("Sauvegarde indisponible"));
+    await user.click(within(csvCard).getByRole("button", { name: "Modifier" }));
+    await user.click(within(csvCard).getByRole("button", { name: "Enregistrer" }));
+    expect(await within(workspace).findByText("Sauvegarde indisponible")).toBeInTheDocument();
+    expect(within(csvCard).getByLabelText("Texte *")).toHaveValue("commentaire");
+  });
+
+  it("shows Trustpilot configuration immediately when the connector is not configured", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listReviewSources.mockResolvedValue([
+      { ...reviewSources[0], status: "not_configured", is_configured: false, config: {} },
+      reviewSources[1]
+    ]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Sources/ }));
+    const workspace = screen.getByRole("heading", { name: "Catalogue des connecteurs" }).closest(".sources-workspace") as HTMLElement;
+    expect(within(workspace).getByLabelText("Entreprise par défaut")).toBeInTheDocument();
+    expect(within(workspace).getByRole("button", { name: "Configurer le mapping" })).toBeInTheDocument();
+  });
+
   it("lets an admin save a reusable CSV mapping profile", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);

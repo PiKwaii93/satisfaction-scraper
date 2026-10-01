@@ -2480,7 +2480,7 @@ export default function App() {
     config: Record<string, unknown>
   ) {
     if (!canManageWorkspace || !source.can_configure) {
-      return;
+      return false;
     }
 
     setUpdatingReviewSourceId(source.source_id);
@@ -2514,10 +2514,12 @@ export default function App() {
         setCsvColumnMapping(profileMapping);
         setCsvProfileMessage("Profil CSV enregistré pour cette organisation.");
       }
+      return true;
     } catch (err) {
       setReviewSourcesError(
         err instanceof Error ? err.message : "Configuration impossible à enregistrer"
       );
+      return false;
     } finally {
       setUpdatingReviewSourceId(null);
     }
@@ -4697,7 +4699,7 @@ function SourcesWorkspacePanel({
   isReadOnly: boolean;
   onOpenAnalysis: (sourceId: string) => void;
   onRefresh: () => void;
-  onSaveSourceConfig: (source: ReviewSource, config: Record<string, unknown>) => void;
+  onSaveSourceConfig: (source: ReviewSource, config: Record<string, unknown>) => Promise<boolean>;
   onToggleSource: (source: ReviewSource) => void;
   sources: ReviewSource[];
   updatingSourceId: string | null;
@@ -4705,6 +4707,9 @@ function SourcesWorkspacePanel({
   const [sourceConfigDrafts, setSourceConfigDrafts] = useState<
     Record<string, { default_company: string; pages_per_star: string }>
   >({});
+  const [csvMappingDraft, setCsvMappingDraft] = useState<CsvColumnMapping>({});
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const activeSources = sources.filter((source) => source.status === "active");
   const analysisSources = sources.filter(
     (source) => source.status === "active" && source.supports_analysis
@@ -4744,6 +4749,28 @@ function SourcesWorkspacePanel({
         [field]: value
       }
     }));
+  }
+
+  function openEditor(source: ReviewSource) {
+    if (source.source_id === "trustpilot") {
+      const config = getTrustpilotSourceConfig(source);
+      setSourceConfigDrafts((drafts) => ({
+        ...drafts,
+        [source.source_id]: {
+          default_company: config.defaultCompany,
+          pages_per_star: String(config.pagesPerStar)
+        }
+      }));
+    } else if (source.source_id === "csv") {
+      setCsvMappingDraft(getCsvSourceConfig(source).columnMapping);
+    }
+    setEditingSourceId(source.source_id);
+  }
+
+  async function saveEditor(source: ReviewSource, config: Record<string, unknown>) {
+    if (await onSaveSourceConfig(source, config)) {
+      setEditingSourceId(null);
+    }
   }
 
   return (
@@ -4811,6 +4838,7 @@ function SourcesWorkspacePanel({
               isAnalysisSource(source.source_id);
             const trustpilotConfig = getTrustpilotSourceConfig(source);
             const sourceCsvMapping = getCsvSourceConfig(source).columnMapping;
+            const isEditing = editingSourceId === source.source_id;
 
             return (
               <article
@@ -4829,28 +4857,17 @@ function SourcesWorkspacePanel({
                   </span>
                 </div>
 
-                <div className="connector-meta-grid">
-                  <div>
-                    <span>Champs requis</span>
-                    <strong>{source.required_fields.join(", ") || "Aucun"}</strong>
-                  </div>
-                  <div>
-                    <span>Champs optionnels</span>
-                    <strong>{source.optional_fields.join(", ") || "Aucun"}</strong>
-                  </div>
-                </div>
-
                 {source.source_id === "trustpilot" ? (
                   <div className="connector-config-block">
                     <div className="connector-config-summary">
-                      <span>Configuration actuelle</span>
+                      <span>{source.is_configured ? "Configuration actuelle" : "À configurer"}</span>
                       <strong>
                         {trustpilotConfig.defaultCompany || "Aucune entreprise par défaut"}
                       </strong>
                       <small>{countLabel(trustpilotConfig.pagesPerStar, "page")} par note</small>
                     </div>
-                    {source.can_configure && !isReadOnly ? (
-                      <div className="source-config-form connector-form">
+                    {source.can_configure && !isReadOnly && (isEditing || !source.is_configured) ? (
+                      <div className="source-config-form connector-form" id="trustpilot-source-editor">
                         <label>
                           <span>Entreprise par défaut</span>
                           <input
@@ -4886,27 +4903,30 @@ function SourcesWorkspacePanel({
                             }
                           />
                         </label>
-                        <button
-                          className="source-config-save"
-                          disabled={isUpdating}
-                          onClick={() =>
-                            onSaveSourceConfig(source, {
-                              default_company:
-                                sourceConfigDrafts[source.source_id]?.default_company ??
-                                "",
-                              pages_per_star: Number(
-                                sourceConfigDrafts[source.source_id]?.pages_per_star ?? 1
-                              )
-                            })
-                          }
-                          type="button"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="spin" size={14} />
-                          ) : (
-                            "Enregistrer"
-                          )}
-                        </button>
+                        <div className="connector-form-actions">
+                          <button
+                            className="source-config-save"
+                            disabled={isUpdating}
+                            onClick={() =>
+                              void saveEditor(source, {
+                                default_company:
+                                  sourceConfigDrafts[source.source_id]?.default_company ??
+                                  "",
+                                pages_per_star: Number(
+                                  sourceConfigDrafts[source.source_id]?.pages_per_star ?? 1
+                                )
+                              })
+                            }
+                            type="button"
+                          >
+                            {isUpdating ? <Loader2 className="spin" size={14} /> : "Enregistrer"}
+                          </button>
+                          {source.is_configured ? (
+                            <button className="secondary-action" disabled={isUpdating} onClick={() => setEditingSourceId(null)} type="button">
+                              Annuler
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -4922,17 +4942,34 @@ function SourcesWorkspacePanel({
                           : "Mapping Texte requis"}
                       </strong>
                       <small>
-                        Configure les colonnes pendant le contrôle avant import CSV.
+                        {hasRequiredCsvColumnMapping(sourceCsvMapping)
+                          ? `Texte : ${sourceCsvMapping.verbatim} · ${countLabel(Object.keys(sourceCsvMapping).length, "colonne configurée", "colonnes configurées")}`
+                          : "Définissez les colonnes ici ou pendant le contrôle avant import."}
                       </small>
                     </div>
-                    <div className="csv-profile-list">
-                      {CSV_MAPPING_FIELDS.map((field) => (
-                        <div key={field.key}>
-                          <span>{field.label}</span>
-                          <strong>{sourceCsvMapping[field.key] ?? "Non defini"}</strong>
+                    {isEditing && source.can_configure && !isReadOnly ? (
+                      <div className="csv-mapping-editor" id="csv-source-editor">
+                        <p>Indiquez les noms des colonnes du fichier. Le contrôle avant import permet aussi de vérifier ce mapping sur un CSV.</p>
+                        <div className="csv-mapping-fields">
+                          {CSV_MAPPING_FIELDS.map((field) => (
+                            <label key={field.key}>
+                              <span>{field.label}{field.required ? " *" : ""}</span>
+                              <input
+                                onChange={(event) => setCsvMappingDraft((draft) => ({ ...draft, [field.key]: event.target.value }))}
+                                type="text"
+                                value={csvMappingDraft[field.key] ?? ""}
+                              />
+                            </label>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                        <div className="connector-form-actions">
+                          <button className="source-config-save" disabled={isUpdating || !hasRequiredCsvColumnMapping(csvMappingDraft)} onClick={() => void saveEditor(source, { column_mapping: compactCsvColumnMapping(csvMappingDraft) })} type="button">
+                            {isUpdating ? <Loader2 className="spin" size={14} /> : "Enregistrer"}
+                          </button>
+                          <button className="secondary-action" disabled={isUpdating} onClick={() => setEditingSourceId(null)} type="button">Annuler</button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -4953,6 +4990,16 @@ function SourcesWorkspacePanel({
                     <Play size={16} />
                     Utiliser pour une analyse
                   </button>
+                  {source.can_configure && !isReadOnly && source.is_configured && source.source_id === "trustpilot" ? (
+                    <button className="secondary-action" aria-controls="trustpilot-source-editor" aria-expanded={isEditing} onClick={() => isEditing ? setEditingSourceId(null) : openEditor(source)} type="button">
+                      {isEditing ? "Masquer la configuration" : "Modifier"}
+                    </button>
+                  ) : null}
+                  {source.can_configure && !isReadOnly && source.source_id === "csv" ? (
+                    <button className="secondary-action" aria-controls="csv-source-editor" aria-expanded={isEditing} onClick={() => isEditing ? setEditingSourceId(null) : openEditor(source)} type="button">
+                      {isEditing ? "Masquer le mapping" : hasRequiredCsvColumnMapping(sourceCsvMapping) ? "Modifier" : "Configurer le mapping"}
+                    </button>
+                  ) : null}
                   {source.can_configure && !isReadOnly ? (
                     <button
                       className="secondary-action"
@@ -4976,22 +5023,37 @@ function SourcesWorkspacePanel({
       </div>
 
       <section className="sources-reference">
-        <div>
-          <span className="section-kicker">Format CSV accepté</span>
-          <h3>Colonnes reconnues</h3>
-          <p>
-            Le fichier peut venir d'un export support, e-commerce ou BI. Le texte de
-            l'avis est obligatoire, les autres champs enrichissent le rapport.
-          </p>
+        <div className="sources-reference-heading">
+          <div>
+            <span className="section-kicker">Informations techniques</span>
+            <h3>Champs et format CSV</h3>
+          </div>
+          <button className="secondary-action" aria-controls="sources-technical-details" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)} type="button">
+            {detailsOpen ? "Masquer les détails" : "Voir les détails"}
+          </button>
         </div>
-        <div className="csv-format-grid">
-          {CSV_MAPPING_FIELDS.map((field) => (
-            <div key={field.key}>
-              <strong>{field.label}</strong>
-              <span>{field.required ? "Obligatoire" : "Optionnel"}</span>
+        {detailsOpen ? (
+          <div className="sources-technical-details" id="sources-technical-details">
+            <div className="connector-meta-grid">
+              {sources.filter((source) => source.status !== "planned").map((source) => (
+                <div key={source.source_id}>
+                  <strong>{source.label}</strong>
+                  <span>Champs requis : {source.required_fields.join(", ") || "Aucun"}</span>
+                  <span>Champs optionnels : {source.optional_fields.join(", ") || "Aucun"}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            <p>Le fichier peut venir d'un export support, e-commerce ou BI. Le texte de l'avis est obligatoire, les autres champs enrichissent le rapport.</p>
+            <div className="csv-format-grid">
+              {CSV_MAPPING_FIELDS.map((field) => (
+                <div key={field.key}>
+                  <strong>{field.label}</strong>
+                  <span>{field.required ? "Obligatoire" : "Optionnel"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {plannedSources.length > 0 ? (

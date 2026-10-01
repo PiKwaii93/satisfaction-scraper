@@ -424,9 +424,7 @@ a {
 .source-card-body small,
 .source-card-body span,
 .source-card-body em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .source-card-body strong {
@@ -633,6 +631,7 @@ a {
 .connector-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 14px;
 }
 
@@ -640,7 +639,7 @@ a {
 .sources-reference,
 .planned-connectors {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--border);
@@ -683,6 +682,7 @@ a {
   color: var(--muted);
   font-size: 0.82rem;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .connector-icon {
@@ -728,17 +728,16 @@ a {
 .connector-meta-grid strong,
 .connector-config-summary strong,
 .csv-profile-list strong {
-  overflow: hidden;
   color: #344054;
   font-size: 0.78rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .connector-config-summary small {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .connector-config-block {
@@ -747,8 +746,82 @@ a {
 }
 
 .connector-form {
+  grid-template-columns: minmax(0, 1fr);
   padding-top: 0;
   border-top: 0;
+}
+
+.connector-form label:first-child {
+  grid-column: auto;
+}
+
+.connector-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.connector-form-actions .secondary-action {
+  min-height: 34px;
+}
+
+.csv-mapping-editor,
+.sources-technical-details {
+  display: grid;
+  gap: 12px;
+}
+
+.csv-mapping-editor p,
+.sources-technical-details p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.csv-mapping-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.csv-mapping-fields label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.csv-mapping-fields input {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+.sources-reference {
+  grid-template-columns: 1fr;
+}
+
+.sources-reference-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sources-technical-details .connector-meta-grid > div span {
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .csv-profile-list,
@@ -777,15 +850,16 @@ a {
   gap: 10px;
 }
 
-.connector-actions .primary-action,
-.connector-actions .secondary-action {
+.connector-actions .primary-action {
+  flex: 1 1 210px;
   min-width: 190px;
   padding: 0 14px;
 }
 
-.sources-reference {
-  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
-  align-items: start;
+.connector-actions .secondary-action {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 12px;
 }
 
 .csv-format-grid {
@@ -793,10 +867,11 @@ a {
 }
 
 .planned-connector-card {
-  padding: 12px;
+  padding: 10px;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
   background: #fbfcfd;
+  box-shadow: none;
 }
 
 .planned-connector-card small {
@@ -4132,7 +4207,6 @@ tbody tr:last-child td {
 
   .source-dashboard-grid,
   .connector-grid,
-  .sources-reference,
   .csv-format-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
