@@ -1,6 +1,6 @@
 # Preuves DevOps pour la soutenance
 
-État au 22 septembre 2026. Les liens GitHub pointent vers des runs réels. Les contrôles effectués manuellement sur la VM sont signalés comme tels ; ils ne sont pas présentés comme des jobs Actions. Aucune adresse publique, clé privée ou valeur de secret n'est conservée ici.
+Preuves initiales établies le 22 septembre 2026, complétées par une mesure de déploiement le 30 septembre 2026. Les liens GitHub pointent vers des runs réels. Les contrôles effectués manuellement sur la VM sont signalés comme tels ; ils ne sont pas présentés comme des jobs Actions. Aucune adresse publique, clé privée ou valeur de secret n'est conservée ici.
 
 ## CI et reproductibilité
 
@@ -20,6 +20,7 @@ Le playbook [prepare-test-vm.yml](../deploy/prepare-test-vm.yml) a donné `ok=4 
 | --- | --- | --- |
 | [Run 35712061341](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35712061341) | `72517acbf156efab454e6496670b67526b109c3f` | Succès : archive du SHA, Ansible, build/démarrage Compose, API et frontend vérifiés. |
 | [Run 35716640160](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35716640160) | `a50c69836f3117c224c017af84456e8ec2e1461b` | Second succès et mise à jour de `current.sha`. |
+| [Run 36788014928](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/36788014928) | `a890033e4b178bb1a56d1de28618662372812df4` | Succès après restauration d'une baseline saine ; remplacement réel de l'API et mesure indépendante de sa disponibilité. |
 
 L'API a répondu `{"status":"ok","database":"ok"}` ; PostgreSQL, Redis, MLflow, API et frontend étaient healthy, Celery actif. Une connexion à l'application via tunnel SSH a été validée manuellement. Le second SHA provient d'un **commit vide** créé pour éprouver le suivi des versions, sans changement fonctionnel de l'application.
 
@@ -28,6 +29,10 @@ L'API a répondu `{"status":"ok","database":"ok"}` ; PostgreSQL, Redis, MLflow, 
 Après le second déploiement, le rollback exécuté sur la VM a rendu `DEPLOYED_SHA=72517acbf156efab454e6496670b67526b109c3f` et `HEALTHCHECK=passed`. Les marqueurs ont été inversés : `current.sha` est revenu à `72517ac...`, `previous.sha` à `a50c698...`. L'API et la base répondaient encore. C'est une preuve manuelle rapportée par l'équipe ; [test-deploy.sh](../deploy/test-deploy.sh) et ses [tests isolés](../deploy/test-deploy-tests.sh) décrivent le mécanisme.
 
 Le rollback démontré revient entre **deux révisions Git**, dont la seconde est vide. Le retour de fonctionnalités distinctes, le downgrade d'une migration PostgreSQL et le rollback automatique après un candidat réellement défaillant n'ont pas été démontrés sur la VM. Le script ne supprime pas les volumes et ne restaure pas la base.
+
+## Interruption mesurée pendant un déploiement réel
+
+La [preuve de downtime](DEPLOYMENT_DOWNTIME_EVIDENCE.md) distingue l'indisponibilité initiale de la VM, la restauration des mêmes conteneurs sans rebuild, puis la mesure du déploiement normal [36788014928](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/36788014928). Sur la fenêtre mesurée, 20 des 313 sondes API ont échoué ; de la première panne au premier succès suivi de trois succès consécutifs, l'interruption observée a duré **21,177 s**. Les 320 sondes frontend ont toutes rendu HTTP 200 : aucune interruption observée à la résolution nominale d'environ une seconde. Le workflow a réussi, l'API et Celery ont été recréés, et le rollback n'a pas été utilisé. Cette preuve satisfait l'exigence de limitation documentée des interruptions sur la VM de test, sans revendiquer un déploiement blue/green ni un SLA.
 
 ## KPI DevOps mesurés sur GitHub Actions
 
@@ -56,7 +61,7 @@ Le code de supervision avec traçabilité des incidents récupérés est présen
 | Disque `/` | Environ 11,82 GiB libres |
 | Alerte, remédiation, résultat | `null`, `null`, `healthy` |
 
-Le SHA servi est antérieur à `main` parce que la VM avait été volontairement rollbackée. La sonde lit `current.sha` : elle rapporte l'état réel, pas le dernier commit du dépôt. [monitor-test.yml](../.github/workflows/monitor-test.yml) publie un Step Summary et un JSON. Deux échecs applicatifs espacés de 30 secondes peuvent provoquer **un seul** restart de l'API ou du frontend si les dépendances sont saines. Un incident récupéré reste `alert` et la sonde post-restart est archivée ; un échec persistant reste `incident`. Sous 5 GiB libres, alerte sans remédiation. Aucune panne volontaire ni remédiation réelle n'a été provoquée sur la VM scolaire.
+Lors de ce contrôle historique, le SHA servi était antérieur à `main` parce que la VM avait été volontairement rollbackée. Depuis le run 36788014928, `current.sha` correspond au SHA cible déployé. La sonde lit `current.sha` : elle rapporte l'état réel, pas nécessairement le dernier commit du dépôt. [monitor-test.yml](../.github/workflows/monitor-test.yml) publie un Step Summary et un JSON. Deux échecs applicatifs espacés de 30 secondes peuvent provoquer **un seul** restart de l'API ou du frontend si leurs dépendances sont saines. Un incident récupéré reste `alert` et la sonde post-restart est archivée ; un échec persistant reste `incident`. Sous 5 GiB libres, alerte sans remédiation. Aucune panne volontaire ni remédiation réelle n'a été provoquée sur la VM scolaire.
 
 ## Scheduler : événements démontrés, sonde VM planifiée en attente
 

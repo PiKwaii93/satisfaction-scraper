@@ -282,6 +282,30 @@ a reussi ; aucune sonde VM planifiee active n'est prouvee. Le restart conditionn
 unique de l'API ou du frontend est teste par le code, sans restart reel apres
 incident demontre sur la VM.
 
+### 12.1 Interruption mesuree pendant un deploiement
+
+Le 30 septembre 2026, deux sondes HTTP independantes ont interroge chaque
+seconde environ l'API `/health` et le frontend `/` sur la VM de test. Elles ont
+demarre avant le [workflow de deploiement 36788014928](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/36788014928)
+et continue apres ses healthchecks. Le SHA servi est passe de
+`72517acbf156efab454e6496670b67526b109c3f` a
+`a890033e4b178bb1a56d1de28618662372812df4`.
+
+L'API a connu 20 echecs sur 313 sondes : de la premiere requete non saine
+au premier succes suivi de trois succes consecutifs, l'interruption observee
+est de **21,177 s**. Le frontend a repondu HTTP 200 sur **320/320 sondes** :
+aucune interruption observee a la resolution nominale d'environ une seconde.
+Le build a precede le remplacement des conteneurs par Compose, sans
+`docker compose down` global ; les healthchecks ont valide le retour en
+service. Le rollback applicatif etait disponible, mais n'a pas ete utilise.
+
+Le mecanisme actuel limite l'interruption sans l'eliminer. Cette mesure
+sur une architecture mono-instance ne prouve ni blue/green, ni haute
+disponibilite, ni garantie de zero interruption. La panne initiale de la VM,
+restauree avant le test par demarrage des conteneurs existants, est exclue de
+ces metriques. Protocole, agregats et limites figurent dans la
+[preuve de downtime assainie](docs/DEPLOYMENT_DOWNTIME_EVIDENCE.md).
+
 ## 13. Securite et cadre reglementaire
 
 Mesures deja presentes :
@@ -309,6 +333,7 @@ Points a renforcer pour une production reelle :
 - Les corrections humaines doivent rester coherentes pour ne pas degrader le modele.
 - Le monitoring GitHub Actions concerne la VM de test, pas un SLA de production ; des evenements `schedule` sont prouves, mais pas encore une sonde planifiee active de la VM.
 - Le deploiement automatise cible une VM scolaire existante, sans provisioning cloud.
+- La mesure de deploiement porte sur un seul run de test ; l'API a subi 21,177 s d'indisponibilite observee, sans garantie de continuite de tous les parcours metier.
 - Le rollback DB/migrations n'a pas ete demontre.
 - Le rollback applicatif a ete teste entre deux revisions Git dont la seconde
   est un commit vide ; le retour de fonctionnalites differentes n'est pas prouve.
@@ -325,7 +350,8 @@ Les evolutions les plus pertinentes sont :
 4. brancher d'autres sources d'avis via API ou CSV ;
 5. verifier une sonde planifiee active avec le cron horaire deja retabli ;
 6. preparer un eventuel provisioning cloud distinct de la VM scolaire ;
-7. formaliser RGPD, retention et securite de production.
+7. formaliser RGPD, retention et securite de production ;
+8. ajuster les restart policies pour le retour automatique des services apres reboot, puis envisager plusieurs instances avec bascule de trafic si une disponibilite plus forte devient necessaire.
 
 ## 16. Conclusion technique
 
