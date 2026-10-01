@@ -179,6 +179,15 @@ type WorkspaceView =
   | "admin"
   | "platform";
 
+type AnalysisView = "overview" | "insights" | "reviews" | "execution";
+
+const ANALYSIS_VIEWS: Array<{ id: AnalysisView; label: string }> = [
+  { id: "overview", label: "Vue d’ensemble" },
+  { id: "insights", label: "Insights" },
+  { id: "reviews", label: "Avis" },
+  { id: "execution", label: "Exécution" }
+];
+
 type WorkspaceNavItem = {
   id: WorkspaceView;
   label: string;
@@ -1484,6 +1493,7 @@ export default function App() {
   );
   const [runs, setRuns] = useState<AnalysisRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [analysisView, setAnalysisView] = useState<AnalysisView>("overview");
   const [summary, setSummary] = useState<RunSummary | null>(null);
   const [trend, setTrend] = useState<AnalysisRunTrend | null>(null);
   const [isTrendLoading, setIsTrendLoading] = useState(false);
@@ -2845,6 +2855,8 @@ export default function App() {
 
     const section = item.action_target.section;
     if (typeof section === "string") {
+      if (section === "reviews_feedback") setAnalysisView("reviews");
+      if (section === "report_overview") setAnalysisView("overview");
       setActiveView(viewForWorkspaceSection(section));
       scrollToWorkspaceSection(section, 120);
     } else if (Number.isFinite(runId) && runId > 0) {
@@ -2900,6 +2912,8 @@ export default function App() {
     if (step.runId) {
       setSelectedRunId(step.runId);
     }
+    if (step.targetId === "reviews_feedback") setAnalysisView("reviews");
+    if (step.targetId === "report_overview") setAnalysisView("overview");
     setActiveView(viewForWorkspaceSection(step.targetId));
     scrollToWorkspaceSection(step.targetId, step.runId ? 120 : 50);
   }
@@ -3149,6 +3163,7 @@ export default function App() {
             });
       upsertRun(run);
       setSelectedRunId(run.run_id);
+      setAnalysisView("overview");
       const refreshResults = await Promise.allSettled([
         refreshRuns(false, run),
         refreshActionCenter(),
@@ -3185,6 +3200,7 @@ export default function App() {
     try {
       const run = await executeRun(runId);
       setSelectedRunId(run.run_id);
+      setAnalysisView("overview");
       setSummary(null);
       setTrend(null);
       setTrendError(null);
@@ -3806,6 +3822,7 @@ export default function App() {
                 key={run.run_id}
                 onClick={() => {
                   setSelectedRunId(run.run_id);
+                  setAnalysisView("overview");
                   setActiveView("analyses");
                 }}
                 type="button"
@@ -4157,10 +4174,12 @@ export default function App() {
                 <span className="eyebrow">Rapport entreprise</span>
                 <h2>{selectedRun.company_name}</h2>
                 <p>
-                  {SOURCE_LABELS[selectedRun.source]} - Analyse nº {selectedRun.run_id} -{" "}
-                  {selectedRun.total_reviews} avis
-                  {selectedRunDuration ? ` - ${selectedRunDuration}` : ""}
+                  {SOURCE_LABELS[selectedRun.source]} · Analyse nº {selectedRun.run_id}
+                  {selectedRun.created_at ? ` · ${formatDate(selectedRun.created_at)}` : ""}
                 </p>
+                {selectedRun.status === "failed" && selectedRun.error_message ? (
+                  <p className="report-header-error">{selectedRun.error_message}</p>
+                ) : null}
               </div>
               <div className="header-actions">
                 <StatusBadge status={selectedRun.status} />
@@ -4221,14 +4240,63 @@ export default function App() {
               </div>
             </header>
 
-            {isSummaryLoading && (
+            <div className="analysis-tabs" role="tablist" aria-label="Vues de l'analyse">
+              {ANALYSIS_VIEWS.map((view, index) => (
+                <button
+                  aria-controls={`analysis-panel-${view.id}`}
+                  aria-selected={analysisView === view.id}
+                  className={analysisView === view.id ? "active" : ""}
+                  id={`analysis-tab-${view.id}`}
+                  key={view.id}
+                  onClick={() => setAnalysisView(view.id)}
+                  onKeyDown={(event) => {
+                    const nextIndex = event.key === "ArrowRight"
+                      ? (index + 1) % ANALYSIS_VIEWS.length
+                      : event.key === "ArrowLeft"
+                        ? (index - 1 + ANALYSIS_VIEWS.length) % ANALYSIS_VIEWS.length
+                        : event.key === "Home"
+                          ? 0
+                          : event.key === "End"
+                            ? ANALYSIS_VIEWS.length - 1
+                            : null;
+                    if (nextIndex === null) return;
+                    event.preventDefault();
+                    setAnalysisView(ANALYSIS_VIEWS[nextIndex].id);
+                    document.getElementById(`analysis-tab-${ANALYSIS_VIEWS[nextIndex].id}`)?.focus();
+                  }}
+                  role="tab"
+                  tabIndex={analysisView === view.id ? 0 : -1}
+                  type="button"
+                >
+                  {view.label}
+                </button>
+              ))}
+            </div>
+            {ANALYSIS_VIEWS.filter((view) => view.id !== analysisView).map((view) => (
+              <div
+                aria-labelledby={`analysis-tab-${view.id}`}
+                hidden
+                id={`analysis-panel-${view.id}`}
+                key={view.id}
+                role="tabpanel"
+              />
+            ))}
+
+            {analysisView !== "execution" && isSummaryLoading && (
               <div className="loading-line">
                 <Loader2 className="spin" size={18} />
                 Chargement du rapport...
               </div>
             )}
 
-            {(selectedRun.status === "pending" ||
+            <div
+              className="analysis-view-panel"
+              id={`analysis-panel-${analysisView}`}
+              role="tabpanel"
+              aria-labelledby={`analysis-tab-${analysisView}`}
+              tabIndex={0}
+            >
+            {analysisView === "overview" && (selectedRun.status === "pending" ||
               selectedRun.status === "running") && (
               <div className="processing-state">
                 <Hourglass size={28} />
@@ -4253,11 +4321,11 @@ export default function App() {
               </div>
             )}
 
-            {selectedRun.status === "empty" && (
+            {analysisView === "overview" && selectedRun.status === "empty" && (
               <EmptyRunState run={selectedRun} />
             )}
 
-            {selectedRun.status === "failed" && (
+            {analysisView === "overview" && selectedRun.status === "failed" && (
               <FailedRunState
                 canRetry={canManageWorkspace}
                 errorMessage={selectedRun.error_message}
@@ -4266,10 +4334,45 @@ export default function App() {
               />
             )}
 
-            <RunEventLog events={runEvents} runStatus={selectedRun.status} />
+            {analysisView === "execution" ? (
+              <>
+                <section className="analysis-execution-summary insight-section">
+                  <div className="section-heading"><h3>État de l'exécution</h3></div>
+                  <p><strong>Statut :</strong> <StatusBadge status={selectedRun.status} /></p>
+                  <p><strong>Créée :</strong> {formatDate(selectedRun.created_at)}</p>
+                  {selectedRun.started_at ? <p><strong>Démarrée :</strong> {formatDate(selectedRun.started_at)}</p> : null}
+                  {selectedRun.finished_at ? <p><strong>Terminée :</strong> {formatDate(selectedRun.finished_at)}</p> : null}
+                  {selectedRunDuration ? <p><strong>Durée :</strong> {selectedRunDuration}</p> : null}
+                  {((selectedRun.pages_processed ?? 0) > 0 || selectedRun.pages_requested != null) ? (
+                    <p>
+                      <strong>Pages traitées :</strong> {selectedRun.pages_processed ?? 0}
+                      {selectedRun.pages_requested != null ? ` / ${selectedRun.pages_requested}` : ""}
+                    </p>
+                  ) : null}
+                  {selectedRun.error_message ? <p className="form-error">{selectedRun.error_message}</p> : null}
+                </section>
+                <RunEventLog events={runEvents} runStatus={selectedRun.status} />
+              </>
+            ) : null}
 
-            {selectedRun.status === "completed" && summary && (
+            {analysisView !== "overview" && analysisView !== "execution" && selectedRun.status !== "completed" ? (
+              <div className="empty-inline-state analysis-unavailable">
+                <strong>Contenu indisponible pour cette analyse.</strong>
+                <span>Statut : {selectedRun.status === "pending" ? "En attente" : selectedRun.status === "running" ? "En cours" : selectedRun.status === "failed" ? "Échec" : "Aucune donnée"}. Consultez Exécution pour suivre le traitement.</span>
+                <button className="secondary-action" onClick={() => setAnalysisView("execution")} type="button">Voir l'exécution</button>
+              </div>
+            ) : null}
+
+            {analysisView !== "execution" && selectedRun.status === "completed" && !summary && !isSummaryLoading ? (
+              <div className="empty-inline-state analysis-unavailable">
+                <strong>Rapport indisponible.</strong>
+                <span>Les résultats de cette analyse ne sont pas disponibles pour le moment.</span>
+              </div>
+            ) : null}
+
+            {selectedRun.status === "completed" && summary && analysisView !== "execution" && (
               <div className="report-grid">
+                {analysisView === "overview" ? <>
                 <BusinessKpiScopeNotice run={summary.run} />
                 <section className="kpi-strip">
                   <Kpi
@@ -4294,6 +4397,11 @@ export default function App() {
                   />
                 </section>
 
+                <section className="analysis-overview-summary insight-section wide">
+                  <div className="section-heading"><h3>Résumé métier</h3></div>
+                  <p>{summary.business_insights.executive_summary}</p>
+                </section>
+
                 <CompletedReportReadout
                   linkedAlerts={businessAlerts.filter(
                     (alert) => alert.run_id === selectedRun.run_id
@@ -4301,18 +4409,24 @@ export default function App() {
                   onOpenCockpit={() => setActiveView("home")}
                   summary={summary}
                 />
+                </> : null}
 
+                {analysisView === "insights" ? <>
+                <BusinessKpiScopeNotice run={summary.run} />
+                <h3 className="analysis-insight-group-heading">Décisions</h3>
                 <DecisionPanel
                   insights={summary.business_insights}
                   run={summary.run}
                 />
 
+                <h3 className="analysis-insight-group-heading">Évolution</h3>
                 <TrendPanel
                   error={trendError}
                   isLoading={isTrendLoading}
                   trend={trend}
                 />
 
+                <h3 className="analysis-insight-group-heading">Satisfaction</h3>
                 <section className="insight-section">
                   <div className="section-heading">
                     <h3>{corpusScopedLabel("Sentiment", summary.run)}</h3>
@@ -4329,7 +4443,8 @@ export default function App() {
                   <RatingBars rows={summary.rating_distribution} />
                 </section>
 
-                <section className="insight-section wide" id="reviews_feedback">
+                <h3 className="analysis-insight-group-heading">Irritants</h3>
+                <section className="insight-section wide">
                   <div className="section-heading">
                     <h3>Irritants détectés</h3>
                     <AlertTriangle size={18} />
@@ -4337,6 +4452,7 @@ export default function App() {
                   <TopicBars rows={summary.top_topics} />
                 </section>
 
+                <h3 className="analysis-insight-group-heading">Signaux à surveiller</h3>
                 <section className="insight-section">
                   <div className="section-heading">
                     <h3>Avis critiques</h3>
@@ -4358,8 +4474,9 @@ export default function App() {
                     reviews={summary.rating_text_mismatches}
                   />
                 </section>
+                </> : null}
 
-                <section className="insight-section wide">
+                {analysisView === "reviews" ? <section className="insight-section wide" id="reviews_feedback">
                   <div className="section-heading table-heading">
                     <div>
                       <h3>Avis analysés</h3>
@@ -4426,9 +4543,10 @@ export default function App() {
                     onSaveFeedback={handleSaveReviewFeedback}
                     reviews={reviews}
                   />
-                </section>
+                </section> : null}
               </div>
             )}
+            </div>
           </>
         )}
       </section>

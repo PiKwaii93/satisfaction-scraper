@@ -1252,6 +1252,7 @@ describe("App authentication and permissions", () => {
         "Cette analyse n'est pas en échec technique, mais elle ne contient pas assez de données exploitables pour afficher les KPI et irritants."
       )
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Exécution" }));
     expect(screen.getByText("1 événement")).toBeInTheDocument();
     expect(screen.getByText("1 avertissement")).toBeInTheDocument();
     expect(screen.getByText(/Dernière étape : Scraping/)).toBeInTheDocument();
@@ -1314,6 +1315,7 @@ describe("App authentication and permissions", () => {
     expect(
       await screen.findByText("Analyse terminée, aucun avis exploitable")
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Exécution" }));
     expect(
       screen.getByText(
         "Aucun événement journalisé pour cette analyse. Le message affiché au-dessus reste la référence."
@@ -1436,11 +1438,13 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("Avis analysés").length).toBeGreaterThan(0);
     expect(screen.getByText("10 verbatims")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Insights" }));
     expect(screen.getByText("Priorités recommandées")).toBeInTheDocument();
     expect(screen.queryByText("Portée limitée des KPI métier")).not.toBeInTheDocument();
 
+    await user.click(screen.getByRole("tab", { name: "Vue d’ensemble" }));
     await user.click(
-      withinReadout.getByRole("button", { name: "Ouvrir le cockpit" })
+      screen.getByRole("button", { name: "Ouvrir le cockpit" })
     );
     expect(
       await screen.findByRole("heading", { name: "Priorités opérationnelles" })
@@ -1480,12 +1484,78 @@ describe("App authentication and permissions", () => {
     expect(await screen.findByText("Portée limitée des KPI métier")).toBeInTheDocument();
     expect(screen.getByText(warning)).toBeInTheDocument();
     expect(screen.getByText("Note moyenne du corpus")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Insights" }));
+    expect(screen.getByText("Portée limitée des KPI métier")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Sentiment du corpus" })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Irritants détectés" })
     ).toBeInTheDocument();
+  });
+
+  it("keeps a completed analysis selected across accessible report views", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const completedRun = makeAnalysisRun({ status: "completed", total_reviews: 3 });
+    apiMocks.listRuns.mockResolvedValue([completedRun]);
+    apiMocks.getSummary.mockResolvedValue(makeRunSummary({ run: completedRun }));
+    apiMocks.getReviews.mockResolvedValue({
+      run_id: completedRun.run_id,
+      total: 1,
+      limit: 30,
+      offset: 0,
+      reviews: [makeReview()]
+    });
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+
+    const overview = screen.getByRole("tab", { name: "Vue d’ensemble" });
+    expect(overview).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { name: "Résumé métier" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Irritants détectés" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Journal d'exécution" })).not.toBeInTheDocument();
+
+    overview.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Insights" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { name: "Irritants détectés" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Résumé métier" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Avis" }));
+    expect(screen.getByRole("tab", { name: "Avis" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText("La livraison est arrivee trop tard et sans information claire.")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Filtre sentiment" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Exécution" }));
+    expect(screen.getByRole("tab", { name: "Exécution" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "État de l'exécution" })).toBeInTheDocument();
+    expect(screen.getByText(/Pages traitées/)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Irritants détectés" })).not.toBeInTheDocument();
+
+    await user.click(overview);
+    expect(overview).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Résumé métier" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /example\.com/i })).toBeInTheDocument();
+  });
+
+  it("explains unavailable insights while an analysis is pending", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([makeAnalysisRun({ status: "pending" })]);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    expect(await screen.findByText("Analyse en file d'attente")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Insights" }));
+    expect(screen.getByText("Contenu indisponible pour cette analyse.")).toBeInTheDocument();
+    expect(screen.queryByText("Avis analysés")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Voir l'exécution" }));
+    expect(screen.getByRole("tab", { name: "Exécution" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "État de l'exécution" })).toBeInTheDocument();
   });
 
   it("keeps Première lecture neutral without priority in a completed report", async () => {
@@ -1544,6 +1614,7 @@ describe("App authentication and permissions", () => {
       screen.getByText("Aucune alerte ouverte liée à cette analyse")
     ).toBeInTheDocument();
     expect(screen.getAllByText("Aucune priorité critique détectée").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("tab", { name: "Insights" }));
     expect(
       screen.getByText("Aucune action suivante proposée pour ce rapport.")
     ).toBeInTheDocument();
@@ -1558,6 +1629,7 @@ describe("App authentication and permissions", () => {
     expect(
       screen.getByText("Aucun décalage note/texte détecté dans cette analyse.")
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Avis" }));
     expect(screen.getByText("La livraison est arrivee trop tard et sans information claire.")).toBeInTheDocument();
   });
 
@@ -1606,10 +1678,12 @@ describe("App authentication and permissions", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getAllByText("Timeout Trustpilot.").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("tab", { name: "Exécution" }));
     expect(screen.getByText("2 événements")).toBeInTheDocument();
     expect(screen.getByText("1 erreur")).toBeInTheDocument();
     expect(screen.getByText(/Dernière étape : Échec/)).toBeInTheDocument();
 
+    await user.click(screen.getByRole("tab", { name: "Vue d’ensemble" }));
     await user.click(screen.getByRole("button", { name: "Relancer l'analyse" }));
     await waitFor(() => expect(apiMocks.executeRun).toHaveBeenCalledWith(21));
     expect(await screen.findByText("Analyse en cours")).toBeInTheDocument();

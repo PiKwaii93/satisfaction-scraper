@@ -3046,6 +3046,79 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.report-header .report-header-error {
+  max-width: 56ch;
+  color: #b42318;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.analysis-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.analysis-tabs button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.analysis-tabs button.active {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.analysis-view-panel {
+  min-width: 0;
+}
+
+.analysis-view-panel:focus-visible,
+.analysis-tabs button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.analysis-overview-summary p,
+.analysis-execution-summary p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.analysis-execution-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.analysis-insight-group-heading {
+  grid-column: 1 / -1;
+  margin: 6px 0 -6px;
+  color: #344054;
+  font-size: 0.9rem;
+}
+
+.analysis-unavailable {
+  display: grid;
+  gap: 8px;
+}
+
+.analysis-unavailable .secondary-action {
+  justify-self: start;
+}
+
 .report-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
