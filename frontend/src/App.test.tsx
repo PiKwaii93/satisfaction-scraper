@@ -749,6 +749,83 @@ describe("App authentication and permissions", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps every onboarding step visible while configuration is incomplete", async () => {
+    configureAuthenticatedSession(adminUser);
+
+    render(<App />);
+    const panel = (await screen.findByText("Parcours de configuration")).closest(
+      ".onboarding-panel"
+    );
+    expect(panel).not.toBeNull();
+    expect(within(panel as HTMLElement).getAllByRole("article")).toHaveLength(5);
+    expect(within(panel as HTMLElement).queryByRole("button", { name: "Voir le détail" })).not.toBeInTheDocument();
+  });
+
+  it("shows completed onboarding compactly, then opens and closes its actions", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([makeAnalysisRun({ status: "completed" })]);
+    apiMocks.getSummary.mockResolvedValue(makeRunSummary());
+    apiMocks.getReviews.mockResolvedValue({ reviews: [], total: 0 });
+    apiMocks.getRunTrend.mockResolvedValue(null);
+    apiMocks.getFeedbackQuality.mockResolvedValue({
+      ...feedbackQuality,
+      total_corrections: 1
+    });
+    apiMocks.listOrganizationUsers.mockResolvedValue([
+      { user_id: adminUser.user_id },
+      { user_id: 2 }
+    ]);
+
+    render(<App />);
+    const panel = (await screen.findByText("Configuration terminée")).closest(
+      ".onboarding-panel"
+    );
+    expect(panel).not.toBeNull();
+    const completedPanel = within(panel as HTMLElement);
+    expect(completedPanel.getByText("5/5 étapes complétées")).toBeInTheDocument();
+    expect(completedPanel.queryByRole("article")).not.toBeInTheDocument();
+    const toggle = completedPanel.getByRole("button", { name: "Voir le détail" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(completedPanel.getByRole("button", { name: "Masquer le détail" })).toHaveAttribute(
+      "aria-expanded", "true"
+    );
+    expect(completedPanel.getAllByRole("article")).toHaveLength(5);
+    expect(completedPanel.getByRole("button", { name: "Voir les sources" })).toBeEnabled();
+    await user.click(completedPanel.getByRole("button", { name: "Masquer le détail" }));
+    expect(completedPanel.queryByRole("article")).not.toBeInTheDocument();
+    expect(completedPanel.getByRole("button", { name: "Voir le détail" })).toHaveAttribute(
+      "aria-expanded", "false"
+    );
+    expect(screen.getByRole("heading", { name: "Priorités opérationnelles" })).toBeInTheDocument();
+    await user.keyboard("{Enter}");
+    expect(completedPanel.getAllByRole("article")).toHaveLength(5);
+    await user.click(completedPanel.getByRole("button", { name: "Voir les sources" }));
+    expect(screen.getByRole("heading", { name: "Analyses" })).toBeInTheDocument();
+    expect(document.getElementById("review_sources")).toBeInTheDocument();
+  });
+
+  it("keeps sidebar navigation and contextual controls available", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.listRuns.mockResolvedValue([makeAnalysisRun()]);
+
+    render(<App />);
+    await screen.findByText(adminUser.email);
+    const navigation = screen.getByRole("navigation", { name: "Espaces produit" });
+    expect(within(navigation).getAllByRole("button")).toHaveLength(6);
+    expect(within(navigation).queryByText("Priorités et alertes")).not.toBeInTheDocument();
+    await user.click(within(navigation).getByRole("button", { name: /Analyses/ }));
+    expect(await screen.findByRole("heading", { name: "Historique" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Entreprise ou URL Trustpilot")).toBeInTheDocument();
+    await user.click(within(navigation).getByRole("button", { name: /Benchmark/ }));
+    expect(screen.getByRole("button", { name: "Effacer la sélection" })).toBeInTheDocument();
+    await user.click(within(navigation).getByRole("button", { name: /Accueil/ }));
+    expect(screen.getByRole("heading", { name: "Priorités opérationnelles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Se déconnecter" })).toBeInTheDocument();
+  });
+
   it("lets an admin launch a Trustpilot analysis", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);

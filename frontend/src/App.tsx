@@ -3535,11 +3535,8 @@ export default function App() {
                 onClick={() => setActiveView(item.id)}
                 type="button"
               >
-                <Icon size={18} />
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </span>
+                <Icon aria-hidden="true" size={18} />
+                <strong>{item.label}</strong>
                 <em>{workspaceNavStats[item.id]}</em>
               </button>
             );
@@ -3910,12 +3907,14 @@ export default function App() {
 
         {activeView === "home" && (
           <>
-            <OnboardingPanel
-              canManage={canManageWorkspace}
-              completedCount={onboardingCompletedCount}
-              onStepAction={handleOnboardingStepAction}
-              steps={onboardingSteps}
-            />
+            {onboardingCompletedCount < onboardingSteps.length ? (
+              <OnboardingPanel
+                canManage={canManageWorkspace}
+                completedCount={onboardingCompletedCount}
+                onStepAction={handleOnboardingStepAction}
+                steps={onboardingSteps}
+              />
+            ) : null}
 
             <HomeCockpitPanel
               actionCenter={actionCenter}
@@ -3959,6 +3958,14 @@ export default function App() {
               updatingAlertId={updatingAlertId}
               updatingCustomerActionId={updatingCustomerActionId}
             />
+            {onboardingCompletedCount === onboardingSteps.length ? (
+              <OnboardingPanel
+                canManage={canManageWorkspace}
+                completedCount={onboardingCompletedCount}
+                onStepAction={handleOnboardingStepAction}
+                steps={onboardingSteps}
+              />
+            ) : null}
           </>
         )}
 
@@ -4586,33 +4593,53 @@ function OnboardingPanel({
   onStepAction: (step: OnboardingStep) => void;
   steps: OnboardingStep[];
 }) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const totalSteps = steps.length;
+  const isComplete = totalSteps > 0 && completedCount === totalSteps;
   const progress = Math.round((completedCount / Math.max(totalSteps, 1)) * 100);
   const nextStep = steps.find((step) => !step.completed);
 
   return (
-    <section className="onboarding-panel insight-section wide">
+    <section className={`onboarding-panel insight-section wide ${isComplete ? "is-complete" : ""}`}>
       <div className="section-heading onboarding-heading">
         <div>
           <span className="eyebrow">Démarrage client</span>
-          <h3>Parcours de configuration</h3>
-          <p>
-            {nextStep
-              ? `Prochaine action recommandée : ${nextStep.title}.`
-              : "L'espace client est prêt pour un usage récurrent."}
-          </p>
+          <h3>{isComplete ? "Configuration terminée" : "Parcours de configuration"}</h3>
+          {!isComplete ? (
+            <p>Prochaine action recommandée : {nextStep?.title}.</p>
+          ) : (
+            <p>{completedCount}/{totalSteps} étapes complétées</p>
+          )}
         </div>
-        <div className="onboarding-score">
-          <strong>{completedCount}/{totalSteps}</strong>
-          <span>{progress}% prêt</span>
-        </div>
+        {isComplete ? (
+          <button
+            aria-controls="onboarding-details"
+            aria-expanded={detailsExpanded}
+            className="secondary-action compact-action onboarding-toggle"
+            onClick={() => setDetailsExpanded((expanded) => !expanded)}
+            type="button"
+          >
+            {detailsExpanded ? "Masquer le détail" : "Voir le détail"}
+          </button>
+        ) : (
+          <div className="onboarding-score">
+            <strong>{completedCount}/{totalSteps}</strong>
+            <span>{progress}% prêt</span>
+          </div>
+        )}
       </div>
 
-      <div className="onboarding-progress" aria-label={`Progression ${progress}%`}>
-        <span style={{ width: `${progress}%` }} />
-      </div>
+      {(!isComplete || detailsExpanded) && (
+        <div className="onboarding-progress" aria-label={`Progression ${progress}%`}>
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      )}
 
-      <div className="onboarding-step-list">
+      <div
+        className="onboarding-step-list"
+        hidden={isComplete && !detailsExpanded}
+        id="onboarding-details"
+      >
         {steps.map((step, index) => {
           const isLocked = step.requiresAdmin && !canManage && !step.completed;
           return (

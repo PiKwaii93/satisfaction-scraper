@@ -164,8 +164,8 @@ a {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 24px;
+  gap: 16px;
+  padding: 20px;
   border-right: 1px solid var(--border);
   background: #fbfcfd;
 }
@@ -212,7 +212,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -241,17 +241,17 @@ a {
 
 .product-nav {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .product-nav-item {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   width: 100%;
-  min-height: 58px;
-  padding: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
@@ -269,14 +269,8 @@ a {
   color: currentColor;
 }
 
-.product-nav-item span {
-  display: grid;
+.product-nav-item strong {
   min-width: 0;
-  gap: 2px;
-}
-
-.product-nav-item strong,
-.product-nav-item small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -285,12 +279,6 @@ a {
 .product-nav-item strong {
   color: var(--text);
   font-size: 0.84rem;
-}
-
-.product-nav-item small {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 800;
 }
 
 .product-nav-item em {
@@ -2451,12 +2439,16 @@ input:focus-visible {
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .benchmark-select-list {
   display: grid;
   gap: 8px;
   margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .benchmark-choice {
@@ -2811,6 +2803,20 @@ input:focus-visible {
   margin-bottom: 18px;
 }
 
+.onboarding-panel.is-complete {
+  margin-bottom: 0;
+  padding: 14px 18px;
+}
+
+.onboarding-panel.is-complete .onboarding-heading p {
+  margin-top: 3px;
+}
+
+.onboarding-toggle:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
 .onboarding-heading {
   align-items: flex-start;
 }
@@ -2849,6 +2855,10 @@ input:focus-visible {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+}
+
+.onboarding-step-list[hidden] {
+  display: none;
 }
 
 .onboarding-step {
