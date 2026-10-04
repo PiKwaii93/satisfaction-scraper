@@ -3883,17 +3883,125 @@ tbody tr:last-child td {
   text-transform: capitalize;
 }
 
-.review-verbatim {
-  min-width: 420px;
-  max-width: 860px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.reviews-table {
+  min-width: 0;
+  table-layout: fixed;
 }
 
-.feedback-cell {
+.reviews-table th,
+.reviews-table td {
+  padding: 10px;
+}
+
+.review-col-rating { width: 9%; }
+.review-col-sentiment { width: 18%; }
+.review-col-text { width: 39%; }
+.review-col-reply { width: 13%; }
+.review-col-actions { width: 21%; }
+
+.review-row.expanded {
+  background: #f8faff;
+}
+
+.review-sentiment-summary,
+.review-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.review-sentiment-summary {
+  flex-direction: column;
+}
+
+.review-scan-text {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+}
+
+.review-reply-status {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.review-row-actions button {
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.review-detail-row td {
+  background: #f8faff;
+}
+
+.review-detail {
   display: grid;
-  min-width: 220px;
-  gap: 8px;
+  gap: 16px;
+  padding: 8px;
+  min-width: 0;
+}
+
+.review-detail h4,
+.review-detail p {
+  margin: 0;
+}
+
+.review-detail h4 {
+  margin-bottom: 6px;
+}
+
+.review-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.review-detail-meta strong {
+  color: #344054;
+}
+
+.review-detail-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+  gap: 18px;
+}
+
+.review-detail-body > div {
+  min-width: 0;
+}
+
+.review-detail-body .topic-tags {
+  margin-bottom: 10px;
+}
+
+.review-detail-verbatim {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 75ch;
+}
+
+.review-detail-feedback {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
 .feedback-status {

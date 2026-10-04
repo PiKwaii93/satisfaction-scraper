@@ -1541,6 +1541,137 @@ describe("App authentication and permissions", () => {
     expect(screen.getByRole("heading", { name: /example\.com/i })).toBeInTheDocument();
   });
 
+  it("keeps review rows compact while exposing full details and existing corrections", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const run = makeAnalysisRun({ status: "completed" });
+    const longVerbatim = `Livraison en retard. ${"Le service client ne répond pas. ".repeat(20)}`;
+    apiMocks.listRuns.mockResolvedValue([run]);
+    apiMocks.getSummary.mockResolvedValue(makeRunSummary({ run }));
+    apiMocks.getRunTrend.mockRejectedValue(new Error("Aucune analyse précédente"));
+    apiMocks.getReviews.mockResolvedValue({
+      run_id: run.run_id,
+      total: 3,
+      limit: 30,
+      offset: 0,
+      reviews: [
+        makeReview({ review_id: 301, verbatim: longVerbatim, company_responded: true }),
+        makeReview({ review_id: 302, rating: 5, sentiment_label: "Positif", corrected_label: "Négatif", verbatim: "Avis positif court." }),
+        makeReview({ review_id: 303, rating: 3, sentiment_label: "Neutre", verbatim: "Avis neutre." })
+      ]
+    });
+    apiMocks.saveReviewFeedback.mockImplementation(async (_runId: number, _reviewId: number, label: string) => ({
+      corrected_label: label,
+      comment: null,
+      updated_at: "2026-08-28"
+    }));
+    apiMocks.deleteReviewFeedback.mockResolvedValue(undefined);
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await user.click(screen.getByRole("tab", { name: "Avis" }));
+    expect(await screen.findByText(/Livraison en retard\. Le service client/)).toBeInTheDocument();
+    expect(screen.queryByText(longVerbatim)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Note", "Sentiment", "Avis", "Réponse", "Actions"
+    ]);
+    const firstRow = screen.getByRole("button", { name: "Voir le détail de l'avis nº 301" }).closest("tr") as HTMLElement;
+    expect(within(firstRow).getByText("Répondu")).toBeInTheDocument();
+    expect(within(firstRow).getByText("Non corrigé")).toBeInTheDocument();
+    const openFirst = within(firstRow).getByRole("button", { name: "Voir le détail de l'avis nº 301" });
+    expect(openFirst).toHaveAttribute("aria-expanded", "false");
+    await user.click(openFirst);
+    expect(screen.getByText(longVerbatim.trim())).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Texte de l'avis" })).toBeInTheDocument();
+    expect(within(firstRow).getByRole("button", { name: "Masquer le détail de l'avis nº 301" })).toHaveAttribute("aria-expanded", "true");
+    await user.click(within(firstRow).getByRole("button", { name: "Masquer le détail de l'avis nº 301" }));
+    expect(screen.queryByText(longVerbatim)).not.toBeInTheDocument();
+
+    const correctedRow = screen.getByRole("button", { name: "Voir le détail de l'avis nº 302" }).closest("tr") as HTMLElement;
+    expect(within(correctedRow).getByText("Correction : Négatif")).toBeInTheDocument();
+    expect(within(correctedRow).getByText("Sans réponse")).toBeInTheDocument();
+    expect(within(correctedRow).getByText("5 / 5")).toBeInTheDocument();
+    expect(screen.getByText("Avis neutre.")).toBeInTheDocument();
+    await user.click(within(correctedRow).getByRole("button", { name: "Modifier la correction de l'avis nº 302" }));
+    const detail = document.getElementById("review-detail-302") as HTMLElement;
+    expect(within(detail).getByText("Sentiment corrigé : Négatif")).toBeInTheDocument();
+    await user.click(within(detail).getByRole("button", { name: "Neutre" }));
+    await waitFor(() => expect(apiMocks.saveReviewFeedback).toHaveBeenCalledWith(run.run_id, 302, "Neutre"));
+    expect(await within(correctedRow).findByText("Correction : Neutre")).toBeInTheDocument();
+    await user.click(within(detail).getByRole("button", { name: "Retirer la correction" }));
+    await waitFor(() => expect(apiMocks.deleteReviewFeedback).toHaveBeenCalledWith(run.run_id, 302));
+    expect(await within(correctedRow).findByText("Non corrigé")).toBeInTheDocument();
+    await user.click(within(detail).getByRole("button", { name: "Positif" }));
+    await waitFor(() => expect(apiMocks.saveReviewFeedback).toHaveBeenCalledWith(run.run_id, 302, "Positif"));
+    expect(await within(correctedRow).findByText("Correction : Positif")).toBeInTheDocument();
+    await user.click(within(detail).getByRole("button", { name: "Négatif" }));
+    await waitFor(() => expect(apiMocks.saveReviewFeedback).toHaveBeenCalledWith(run.run_id, 302, "Négatif"));
+    expect(await within(correctedRow).findByText("Correction : Négatif")).toBeInTheDocument();
+  });
+
+  it("closes review details on pagination, filtering and page-size changes", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    const run = makeAnalysisRun({ status: "completed" });
+    apiMocks.listRuns.mockResolvedValue([run]);
+    apiMocks.getSummary.mockResolvedValue(makeRunSummary({ run }));
+    apiMocks.getRunTrend.mockRejectedValue(new Error("Aucune analyse précédente"));
+    apiMocks.getReviews.mockImplementation(async (_runId: number, filter: string, limit: number, offset: number) => ({
+      run_id: run.run_id,
+      total: filter === "Négatif" ? 0 : 31,
+      limit,
+      offset,
+      reviews: filter === "Négatif" ? [] : [makeReview({ review_id: offset ? 302 : 301, verbatim: offset ? "Avis page deux." : "Avis page un." })]
+    }));
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await user.click(screen.getByRole("tab", { name: "Avis" }));
+    await user.click(await screen.findByRole("button", { name: "Voir le détail de l'avis nº 301" }));
+    expect(within(document.getElementById("review-detail-301") as HTMLElement).getByText("Avis page un.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Suivant" }));
+    expect(await screen.findByRole("button", { name: "Voir le détail de l'avis nº 302" })).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("review-detail-301")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Voir le détail de l'avis nº 302" }));
+    await user.click(within(screen.getByRole("group", { name: "Filtre sentiment" })).getByRole("button", { name: "Négatif" }));
+    expect(await screen.findByText("Aucun avis pour ce filtre.")).toBeInTheDocument();
+    expect(document.getElementById("review-detail-302")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tous" }));
+    expect(await screen.findByRole("button", { name: "Voir le détail de l'avis nº 301" })).toHaveAttribute("aria-expanded", "false");
+    await user.selectOptions(screen.getByLabelText("Par page"), "60");
+    await waitFor(() => expect(apiMocks.getReviews).toHaveBeenCalledWith(run.run_id, "Tous", 60, 0));
+  });
+
+  it("keeps full review details available without correction actions in read-only mode", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(memberUser);
+    const run = makeAnalysisRun({ status: "completed" });
+    apiMocks.listRuns.mockResolvedValue([run]);
+    apiMocks.getSummary.mockResolvedValue(makeRunSummary({ run }));
+    apiMocks.getRunTrend.mockRejectedValue(new Error("Aucune analyse précédente"));
+    apiMocks.getReviews.mockResolvedValue({
+      run_id: run.run_id,
+      total: 1,
+      limit: 30,
+      offset: 0,
+      reviews: [makeReview({ corrected_label: "Positif", company_responded: true })]
+    });
+
+    render(<App />);
+    expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Analyses/ }));
+    await user.click(screen.getByRole("tab", { name: "Avis" }));
+    const open = await screen.findByRole("button", { name: "Voir le détail de l'avis nº 301" });
+    expect(screen.queryByRole("button", { name: /Modifier la correction de l'avis/ })).not.toBeInTheDocument();
+    await user.click(open);
+    expect(screen.getByText("Sentiment corrigé : Positif")).toBeInTheDocument();
+    expect(screen.getByText("Répondu", { selector: ".review-reply-status" })).toBeInTheDocument();
+    expect(screen.getByText("Lecture seule")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retirer la correction" })).not.toBeInTheDocument();
+  });
+
   it("explains unavailable insights while an analysis is pending", async () => {
     const user = userEvent.setup();
     configureAuthenticatedSession(adminUser);

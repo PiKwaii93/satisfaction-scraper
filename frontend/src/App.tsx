@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -4537,6 +4537,7 @@ export default function App() {
                     </div>
                   </div>
                   <ReviewsTable
+                    key={`${selectedRun.run_id}-${sentimentFilter}-${reviewsLimit}-${reviewsOffset}`}
                     canManageFeedback={canManageWorkspace}
                     correctingReviewId={correctingReviewId}
                     onDeleteFeedback={handleDeleteReviewFeedback}
@@ -8869,88 +8870,139 @@ function ReviewsTable({
   onSaveFeedback: (reviewId: number, label: SentimentLabel) => void;
   reviews: Review[];
 }) {
+  const [expandedReviewId, setExpandedReviewId] = useState<number | null>(null);
+
   if (reviews.length === 0) {
     return <p className="muted">Aucun avis pour ce filtre.</p>;
   }
 
   return (
-    <div className="table-wrap">
-      <table>
+    <div className="table-wrap reviews-table-wrap">
+      <table className="reviews-table">
+        <colgroup>
+          <col className="review-col-rating" />
+          <col className="review-col-sentiment" />
+          <col className="review-col-text" />
+          <col className="review-col-reply" />
+          <col className="review-col-actions" />
+        </colgroup>
         <thead>
           <tr>
-            <th>ID</th>
             <th>Note</th>
             <th>Sentiment</th>
-            <th>Correction</th>
-            <th>Score</th>
-            <th>Irritants</th>
-            <th>Verbatim</th>
+            <th>Avis</th>
+            <th>Réponse</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {reviews.map((review) => (
-            <tr key={review.review_id}>
-              <td>{review.review_id}</td>
-              <td>{review.rating ?? "-"}</td>
-              <td>
-                <SentimentPill label={review.sentiment_label} />
-              </td>
-              <td>
-                <div className="feedback-cell">
-                  {review.corrected_label ? (
-                    <span className="feedback-status corrected">
-                      Corrigé en {review.corrected_label}
-                    </span>
-                  ) : (
-                    <span className="feedback-status">Non corrigé</span>
-                  )}
-                  {canManageFeedback ? (
-                    <div className="feedback-actions">
-                      {FEEDBACK_SENTIMENTS.map((sentiment) => (
-                        <button
-                          className={
-                            review.corrected_label === sentiment ? "active" : ""
-                          }
-                          disabled={correctingReviewId === review.review_id}
-                          key={sentiment}
-                          onClick={() => onSaveFeedback(review.review_id, sentiment)}
-                          type="button"
-                        >
-                          {sentiment}
-                        </button>
-                      ))}
+          {reviews.map((review) => {
+            const isExpanded = expandedReviewId === review.review_id;
+            const detailId = `review-detail-${review.review_id}`;
+            const verbatim = (review.verbatim ?? "").trim() || "Avis sans verbatim";
+            return (
+              <Fragment key={review.review_id}>
+                <tr className={isExpanded ? "review-row expanded" : "review-row"}>
+                  <td>{review.rating != null ? `${review.rating} / 5` : "—"}</td>
+                  <td>
+                    <div className="review-sentiment-summary">
+                      <SentimentPill label={review.sentiment_label} />
+                      {review.corrected_label ? (
+                        <span className="feedback-status corrected">Correction : {review.corrected_label}</span>
+                      ) : (
+                        <span className="feedback-status">Non corrigé</span>
+                      )}
+                    </div>
+                  </td>
+                  <td><span className="review-scan-text">{compactText(review.verbatim, 150)}</span></td>
+                  <td><span className="review-reply-status">{review.company_responded ? "Répondu" : "Sans réponse"}</span></td>
+                  <td>
+                    <div className="review-row-actions">
                       <button
-                        className="remove-feedback"
-                        disabled={
-                          !review.corrected_label ||
-                          correctingReviewId === review.review_id
-                        }
-                        onClick={() => onDeleteFeedback(review.review_id)}
+                        aria-controls={isExpanded ? detailId : undefined}
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? "Masquer" : "Voir"} le détail de l'avis nº ${review.review_id}`}
+                        onClick={() => setExpandedReviewId(isExpanded ? null : review.review_id)}
                         type="button"
                       >
-                        Retirer
+                        {isExpanded ? "Masquer le détail" : "Voir le détail"}
                       </button>
+                      {canManageFeedback ? (
+                        <button
+                          aria-controls={isExpanded ? detailId : undefined}
+                          aria-expanded={isExpanded}
+                          aria-label={`${review.corrected_label ? "Modifier la correction" : "Corriger"} de l'avis nº ${review.review_id}`}
+                          onClick={() => setExpandedReviewId(review.review_id)}
+                          type="button"
+                        >
+                          {review.corrected_label ? "Modifier la correction" : "Corriger"}
+                        </button>
+                      ) : null}
                     </div>
-                  ) : (
-                    <span className="feedback-readonly">Lecture seule</span>
-                  )}
-                </div>
-              </td>
-              <td>{formatNumber(review.sentiment_score, 2)}</td>
-              <td>
-                <div className="topic-tags">
-                  {review.topics.length === 0
-                    ? "-"
-                    : review.topics.slice(0, 3).map((topic) => (
-                        <span key={topic}>{topic.replaceAll("_", " ")}</span>
-                      ))}
-                </div>
-              </td>
-              <td className="review-verbatim">
-                {(review.verbatim ?? "").trim() || "Avis sans verbatim"}
-              </td>
-            </tr>
-          ))}
+                  </td>
+                </tr>
+                {isExpanded ? (
+                  <tr className="review-detail-row">
+                    <td colSpan={5}>
+                      <div className="review-detail" id={detailId}>
+                        <div className="review-detail-meta">
+                          <span><strong>Avis nº</strong> {review.review_id}</span>
+                          <span><strong>Note</strong> {review.rating != null ? `${review.rating} / 5` : "Non renseignée"}</span>
+                          <span><strong>Sentiment prédit</strong> {review.sentiment_label}</span>
+                          <span><strong>Score</strong> {formatNumber(review.sentiment_score, 2)}</span>
+                          {review.raw_date ? <span><strong>Date</strong> {review.raw_date}</span> : null}
+                          {review.author_name ? <span><strong>Auteur</strong> {review.author_name}</span> : null}
+                        </div>
+                        <div className="review-detail-body">
+                          <div>
+                            <h4>Texte de l'avis</h4>
+                            <p className="review-detail-verbatim">{verbatim}</p>
+                          </div>
+                          <div>
+                            <h4>Irritants détectés</h4>
+                            <div className="topic-tags">
+                              {review.topics.length === 0 ? "Aucun" : review.topics.map((topic) => (
+                                <span key={topic}>{topic.replaceAll("_", " ")}</span>
+                              ))}
+                            </div>
+                            <p><strong>Réponse entreprise :</strong> {review.company_responded ? "Répondu" : "Sans réponse"}</p>
+                          </div>
+                        </div>
+                        <div className="review-detail-feedback">
+                          <h4>Correction humaine</h4>
+                          <p>{review.corrected_label ? `Sentiment corrigé : ${review.corrected_label}` : "Aucune correction humaine"}</p>
+                          {review.feedback_comment ? <p>{review.feedback_comment}</p> : null}
+                          {canManageFeedback ? (
+                            <div className="feedback-actions">
+                              {FEEDBACK_SENTIMENTS.map((sentiment) => (
+                                <button
+                                  className={review.corrected_label === sentiment ? "active" : ""}
+                                  disabled={correctingReviewId === review.review_id}
+                                  key={sentiment}
+                                  onClick={() => onSaveFeedback(review.review_id, sentiment)}
+                                  type="button"
+                                >
+                                  {sentiment}
+                                </button>
+                              ))}
+                              <button
+                                className="remove-feedback"
+                                disabled={!review.corrected_label || correctingReviewId === review.review_id}
+                                onClick={() => onDeleteFeedback(review.review_id)}
+                                type="button"
+                              >
+                                Retirer la correction
+                              </button>
+                            </div>
+                          ) : <span className="feedback-readonly">Lecture seule</span>}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
