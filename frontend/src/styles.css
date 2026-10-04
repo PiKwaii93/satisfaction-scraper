@@ -940,6 +940,39 @@ a {
   gap: 16px;
 }
 
+.page-subsection-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.page-subsection-heading h4,
+.page-subsection-heading p {
+  margin: 0;
+}
+
+.page-subsection-heading h4 {
+  color: var(--ink);
+  font-size: 0.96rem;
+}
+
+.page-subsection-heading p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.admin-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.admin-section .organization-settings-form {
+  max-width: 720px;
+}
+
 .client-space-heading {
   align-items: flex-start;
 }
@@ -986,6 +1019,22 @@ a {
   font-size: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.client-space-panel .client-card span,
+.client-space-panel .client-card small,
+.client-space-panel .client-card strong,
+.client-space-panel .member-row strong,
+.client-space-panel .member-row small,
+.client-space-panel .member-row a,
+.client-space-panel .upgrade-request-row strong,
+.client-space-panel .upgrade-request-row p,
+.client-space-panel .upgrade-request-row small,
+.client-space-panel .audit-event-row strong,
+.client-space-panel .audit-event-row small {
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .organization-usage-panel {
@@ -2607,6 +2656,14 @@ input:focus-visible {
   font-size: 0.86rem;
 }
 
+.quality-block h5 {
+  margin: 8px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: #344054;
+  font-size: 0.78rem;
+}
+
 .quality-list,
 .transition-list,
 .recent-correction-list {
@@ -2662,10 +2719,18 @@ input:focus-visible {
 }
 
 .recent-corrections {
-  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.recent-correction-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .recent-correction {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2673,9 +2738,19 @@ input:focus-visible {
 }
 
 .recent-correction p {
-  margin: 8px 0 0;
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
   color: #344054;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.recent-correction .transition-row.compact {
+  margin-top: 0;
 }
 
 .model-training-panel {
@@ -2697,6 +2772,10 @@ input:focus-visible {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.model-training-kpis .kpi small {
+  overflow-wrap: anywhere;
 }
 
 .training-active-state,
@@ -4452,6 +4531,7 @@ tbody tr:last-child td {
   .home-cockpit-layout,
   .ai-quality-kpis,
   .ai-quality-grid,
+  .recent-correction-list,
   .model-training-kpis,
   .benchmark-highlight-grid,
   .onboarding-step-list,

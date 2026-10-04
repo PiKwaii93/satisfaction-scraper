@@ -2416,4 +2416,86 @@ describe("App authentication and permissions", () => {
       within(screen.getByRole("button", { name: /Qualité IA/ })).getByText("—")
     ).toBeInTheDocument();
   });
+
+  it("groups available correction KPIs and recent changes without implying model error", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getFeedbackQuality.mockResolvedValue({
+      ...feedbackQuality,
+      total_corrections: 2,
+      changed_label_count: 1,
+      confirmed_label_count: 1,
+      apparent_error_rate: 0.5,
+      training_ready_count: 2,
+      corrected_company_count: 1,
+      by_company: [{ company_id: 3, company_name: "example.com", correction_count: 2, changed_label_count: 1, run_count: 1 }],
+      corrected_label_distribution: [{ label: "Positif", count: 1 }],
+      transitions: [{ predicted_label: "Négatif", corrected_label: "Positif", count: 1 }],
+      recent_corrections: [{
+        feedback_id: 9,
+        review_id: 301,
+        run_id: 21,
+        company_name: "example.com",
+        rating: 1,
+        predicted_label: "Négatif",
+        corrected_label: "Positif",
+        feedback_comment: null,
+        feedback_updated_at: null,
+        verbatim: "Correction de démonstration"
+      }]
+    });
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Qualité IA/ }));
+
+    expect(screen.getByRole("heading", { name: "Indicateurs de correction" })).toBeInTheDocument();
+    expect(screen.getByText("Parmi les corrections humaines")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Détail des corrections" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dernières corrections" })).toBeInTheDocument();
+    expect(screen.getByText("Analyse nº 21")).toBeInTheDocument();
+    expect(screen.getByText("Correction de démonstration")).toBeInTheDocument();
+    expect(screen.getByText("Aucun entraînement lancé depuis l'interface pour le moment.")).toBeInTheDocument();
+  });
+
+  it("separates empty correction data from unavailable training data", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.getModelTrainingOverview.mockRejectedValue(new Error("Training unavailable"));
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Qualité IA/ }));
+
+    expect(screen.getByText("Aucune correction humaine enregistrée pour le moment.")).toBeInTheDocument();
+    expect(screen.getByText("Historique des entraînements indisponible.")).toBeInTheDocument();
+    expect(screen.queryByText("Aucun entraînement lancé depuis l'interface pour le moment.")).not.toBeInTheDocument();
+  });
+
+  it("groups administration without changing member invitation", async () => {
+    const user = userEvent.setup();
+    configureAuthenticatedSession(adminUser);
+    apiMocks.inviteOrganizationUser.mockResolvedValue({ email: "invite@example.test", invitation_accept_url: null });
+
+    render(<App />);
+    expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Administration/ }));
+
+    for (const section of ["Organisation", "Membres", "Plan et usage", "Activité"]) {
+      expect(screen.getByRole("region", { name: section })).toBeInTheDocument();
+    }
+    expect(screen.getByText("Plan actif et quotas")).toBeInTheDocument();
+    expect(screen.getByText("Aucune activité d'administration enregistrée pour le moment.")).toBeInTheDocument();
+    expect(screen.getByText("Aucune demande ouverte.")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Membres" })).getByText(adminUser.email)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Adresse e-mail"), "invite@example.test");
+    await user.type(screen.getByLabelText("Nom complet"), "Invité Test");
+    await user.click(screen.getByRole("button", { name: "Inviter" }));
+    expect(apiMocks.inviteOrganizationUser).toHaveBeenCalledWith({
+      email: "invite@example.test",
+      full_name: "Invité Test",
+      role: "member"
+    });
+  });
 });

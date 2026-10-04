@@ -5570,9 +5570,9 @@ function ClientSpacePanel({
           <Users size={20} />
           <div>
             <span>Membres</span>
-            <strong>{users.length}</strong>
+            <strong>{isLoadingUsers || usersError ? "—" : users.length}</strong>
             <small>
-              {countLabel(activeUsers.length, "membre actif", "membres actifs")}, {pendingUsers.length} en attente
+              {isLoadingUsers ? "Chargement..." : usersError ? "Indisponible" : `${countLabel(activeUsers.length, "membre actif", "membres actifs")}, ${pendingUsers.length} en attente`}
             </small>
           </div>
         </div>
@@ -5586,34 +5586,16 @@ function ClientSpacePanel({
         </div>
       </div>
 
-      {usage ? (
-        <OrganizationUsagePanel
-          canManagePlan={canUpdatePlan}
-          isSavingPlan={isSavingPlan}
-          onUpdatePlan={onUpdatePlan}
-          usage={usage}
-        />
-      ) : null}
-
-      {isOrgAdmin ? (
-        <UpgradeRequestsPanel
-          canUpdate={canUpdateUpgradeRequests}
-          error={upgradeRequestsError}
-          isLoading={isLoadingUpgradeRequests}
-          message={upgradeRequestMessage}
-          onRefresh={onRefreshUpgradeRequests}
-          onUpdateStatus={onUpdateUpgradeRequestStatus}
-          requests={upgradeRequests}
-          updatingRequestId={updatingUpgradeRequestId}
-        />
-      ) : null}
-
       {usersError ? <p className="form-error">{usersError}</p> : null}
       {settingsError ? <p className="form-error">{settingsError}</p> : null}
       {message ? <p className="form-success">{message}</p> : null}
       {settingsMessage ? <p className="form-success">{settingsMessage}</p> : null}
 
-      <div className="client-ops-layout">
+      <section className="admin-section" aria-labelledby="admin-organization-heading">
+        <div className="page-subsection-heading">
+          <h4 id="admin-organization-heading">Organisation</h4>
+          <p>Nom et préférences utilisés pour les prochaines analyses.</p>
+        </div>
         <form className="organization-settings-form" onSubmit={onSaveSettings}>
           <div className="mini-heading">
             <strong>Paramètres de l'organisation</strong>
@@ -5668,54 +5650,24 @@ function ClientSpacePanel({
           )}
         </form>
 
-        <div className="audit-events-card">
-          <div className="mini-heading">
-            <strong>Journal d'activité</strong>
-            <button
-              className="icon-button"
-              disabled={!isOrgAdmin || isLoadingAudit}
-              onClick={onRefreshAudit}
-              aria-label="Actualiser le journal d'activité"
-              type="button"
-            >
-              {isLoadingAudit ? (
-                <Loader2 className="spin" size={14} />
-              ) : (
-                <RefreshCw size={14} />
-              )}
-            </button>
-          </div>
-          {auditError ? <p className="form-error">{auditError}</p> : null}
-          {!isOrgAdmin ? (
-            <p className="muted">Le journal d'activité est réservé aux administrateurs.</p>
-          ) : auditEvents.length === 0 && !isLoadingAudit ? (
-            <p className="muted">Aucune activité d'administration enregistrée pour le moment.</p>
-          ) : (
-            <div className="audit-event-list">
-              {auditEvents.map((event) => (
-                <div className="audit-event-row" key={event.audit_event_id}>
-                  <div>
-                    <strong>{event.summary}</strong>
-                    <small>
-                      {formatAuditEventType(event.event_type)}
-                      {event.actor_email ? ` par ${event.actor_email}` : ""}
-                    </small>
-                  </div>
-                  <span>{formatDate(event.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      </section>
 
+      <section className="admin-section" aria-labelledby="admin-members-heading">
+        <div className="page-subsection-heading">
+          <h4 id="admin-members-heading">Membres</h4>
+          <p>Comptes de l'espace client et invitations.</p>
+        </div>
       <div className="client-members-layout">
         <div className="client-members-list">
           <div className="mini-heading">
             <strong>Utilisateurs de l'organisation</strong>
             <span>{isLoadingUsers ? "Chargement..." : countLabel(users.length, "compte")}</span>
           </div>
-          {users.length === 0 && !isLoadingUsers ? (
+          {isLoadingUsers && users.length === 0 ? (
+            <p className="muted">Chargement des membres...</p>
+          ) : usersError && users.length === 0 ? (
+            <p className="muted">Liste des membres indisponible.</p>
+          ) : users.length === 0 ? (
             <p className="muted">Aucun utilisateur rattaché pour le moment.</p>
           ) : (
             <div className="member-table">
@@ -5793,11 +5745,83 @@ function ClientSpacePanel({
             <p className="muted">Seuls les administrateurs peuvent inviter un membre.</p>
           ) : (
             <p className="muted">
-              MVP local : copie le lien genere pour que le membre active son compte.
+              MVP local : copie le lien généré pour que le membre active son compte.
             </p>
           )}
         </form>
       </div>
+      </section>
+
+      <section className="admin-section" aria-labelledby="admin-plan-heading">
+        <div className="page-subsection-heading">
+          <h4 id="admin-plan-heading">Plan et usage</h4>
+          <p>Plan actif, limites et demandes de changement de plan.</p>
+        </div>
+        {usage ? (
+          <OrganizationUsagePanel
+            canManagePlan={canUpdatePlan}
+            isSavingPlan={isSavingPlan}
+            onUpdatePlan={onUpdatePlan}
+            usage={usage}
+          />
+        ) : null}
+        {isOrgAdmin ? (
+          <UpgradeRequestsPanel
+            canUpdate={canUpdateUpgradeRequests}
+            error={upgradeRequestsError}
+            isLoading={isLoadingUpgradeRequests}
+            message={upgradeRequestMessage}
+            onRefresh={onRefreshUpgradeRequests}
+            onUpdateStatus={onUpdateUpgradeRequestStatus}
+            requests={upgradeRequests}
+            updatingRequestId={updatingUpgradeRequestId}
+          />
+        ) : null}
+      </section>
+
+      <section className="admin-section" aria-labelledby="admin-activity-heading">
+        <div className="page-subsection-heading">
+          <h4 id="admin-activity-heading">Activité</h4>
+          <p>Événements récents de l'espace client.</p>
+        </div>
+        <div className="audit-events-card">
+          <div className="mini-heading">
+            <strong>Journal d'activité</strong>
+            <button
+              className="icon-button"
+              disabled={!isOrgAdmin || isLoadingAudit}
+              onClick={onRefreshAudit}
+              aria-label="Actualiser le journal d'activité"
+              type="button"
+            >
+              {isLoadingAudit ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
+            </button>
+          </div>
+          {auditError ? <p className="form-error">{auditError}</p> : null}
+          {!isOrgAdmin ? (
+            <p className="muted">Le journal d'activité est réservé aux administrateurs.</p>
+          ) : isLoadingAudit && auditEvents.length === 0 ? (
+            <p className="muted">Chargement du journal d'activité...</p>
+          ) : auditError && auditEvents.length === 0 ? null : auditEvents.length === 0 ? (
+            <p className="muted">Aucune activité d'administration enregistrée pour le moment.</p>
+          ) : (
+            <div className="audit-event-list">
+              {auditEvents.map((event) => (
+                <div className="audit-event-row" key={event.audit_event_id}>
+                  <div>
+                    <strong>{event.summary}</strong>
+                    <small>
+                      {formatAuditEventType(event.event_type)}
+                      {event.actor_email ? ` par ${event.actor_email}` : ""}
+                    </small>
+                  </div>
+                  <span>{formatDate(event.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </section>
   );
 }
@@ -6098,7 +6122,7 @@ function OrganizationUsagePanel({
     <div className="organization-usage-panel">
       <div className="mini-heading usage-heading">
         <div>
-          <strong>Plan et usage</strong>
+          <strong>Plan actif et quotas</strong>
           <span>{usage.plan_label}</span>
         </div>
         <label className="plan-selector" htmlFor="organization-plan">
@@ -6220,12 +6244,12 @@ function UpgradeRequestsPanel({
         </p>
       ) : null}
 
-      {requests.length === 0 && !isLoading ? (
+      {requests.length === 0 && !isLoading && !error ? (
         <div className="empty-inline-state">
           <strong>Aucune demande ouverte.</strong>
           <span>Les demandes de changement de plan apparaîtront ici.</span>
         </div>
-      ) : (
+      ) : requests.length > 0 ? (
         <div className="upgrade-request-list">
           {requests.map((request) => {
             const isUpdating = updatingRequestId === request.upgrade_request_id;
@@ -6299,7 +6323,7 @@ function UpgradeRequestsPanel({
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -7776,7 +7800,7 @@ function AIQualityPanel({
       <div className="section-heading ai-quality-heading">
         <div>
           <span className="eyebrow">Qualité IA</span>
-          <h3>Boucle de correction humaine</h3>
+          <h3>Corrections humaines</h3>
           <p>
             {error || (!isLoading && !quality)
               ? "Les indicateurs ne sont pas disponibles pour le moment."
@@ -7805,16 +7829,15 @@ function AIQualityPanel({
         <p className="form-error" role="alert">Qualité IA indisponible{error ? ` : ${error}` : "."}</p>
       ) : (
         <>
+          <div className="page-subsection-heading">
+            <h4>Indicateurs de correction</h4>
+            <p>Le taux ci-dessous décrit les corrections humaines, pas l'erreur globale du modèle.</p>
+          </div>
           <div className="ai-quality-kpis">
             <Kpi
               label="Corrections"
               value={String(quality?.total_corrections ?? 0)}
               helper={countLabel(quality?.corrected_company_count ?? 0, "entreprise")}
-            />
-            <Kpi
-              label="Labels modifiés"
-              value={String(quality?.changed_label_count ?? 0)}
-              helper={countLabel(quality?.confirmed_label_count ?? 0, "confirmation")}
             />
             <Kpi
               label="Corrections ayant changé le sentiment"
@@ -7826,6 +7849,11 @@ function AIQualityPanel({
               value={String(quality?.training_ready_count ?? 0)}
               helper={quality?.latest_feedback_at ? formatDate(quality.latest_feedback_at) : "Aucune date"}
             />
+            <Kpi
+              label="Labels modifiés"
+              value={String(quality?.changed_label_count ?? 0)}
+              helper={countLabel(quality?.confirmed_label_count ?? 0, "confirmation")}
+            />
           </div>
 
           {!hasCorrections ? (
@@ -7834,6 +7862,11 @@ function AIQualityPanel({
               vue et le prochain dataset d'entraînement.
             </p>
           ) : (
+            <>
+            <div className="page-subsection-heading">
+              <h4>Détail des corrections</h4>
+              <p>Entreprises concernées et évolution des sentiments prédits.</p>
+            </div>
             <div className="ai-quality-grid">
               <div className="quality-block">
                 <h4>Entreprises corrigées</h4>
@@ -7867,10 +7900,7 @@ function AIQualityPanel({
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="quality-block">
-                <h4>Labels corrigés</h4>
+                <h5>Labels corrigés</h5>
                 <div className="quality-list compact">
                   {quality?.corrected_label_distribution.map((row) => (
                     <div className="quality-list-row" key={row.label}>
@@ -7880,9 +7910,12 @@ function AIQualityPanel({
                   ))}
                 </div>
               </div>
-
+            </div>
+            <div className="page-subsection-heading">
+              <h4>Dernières corrections</h4>
+              <p>Entreprise, analyse et changement de sentiment en un coup d'œil.</p>
+            </div>
               <div className="quality-block recent-corrections">
-                <h4>Dernières corrections</h4>
                 <div className="recent-correction-list">
                   {quality?.recent_corrections.map((correction) => (
                     <article className="recent-correction" key={correction.feedback_id}>
@@ -7901,7 +7934,7 @@ function AIQualityPanel({
                   ))}
                 </div>
               </div>
-            </div>
+            </>
           )}
         </>
       )}
@@ -7943,7 +7976,7 @@ function ModelTrainingPanel({
       <div className="section-heading model-training-heading">
         <div>
           <span className="eyebrow">Entraînement IA</span>
-          <h3>Pilotage du modèle de sentiment</h3>
+          <h3>Réentraînement et modèle</h3>
           <p>
             Lance un réentraînement avec les corrections humaines et suis la
             version MLflow de production.
@@ -7996,26 +8029,30 @@ function ModelTrainingPanel({
         />
       ) : null}
 
+      <div className="page-subsection-heading">
+        <h4>État du modèle</h4>
+        <p>Version active, dernier entraînement et résultats disponibles.</p>
+      </div>
       <div className="model-training-kpis">
         <Kpi
           label="Modèle en production"
-          value={productionModel ? `v${productionModel.version}` : "Non detecte"}
+          value={productionModel ? `v${productionModel.version}` : overview ? "Non détecté" : "—"}
           helper={productionModel?.model_uri ?? "Alias MLflow production"}
         />
         <Kpi
-          label="Dernier entrainement"
-          value={latestRun ? `#${latestRun.training_run_id}` : "Aucun"}
-          helper={latestRun ? formatTrainingStatus(latestRun.status) : "Pas encore lancé"}
+          label="Dernier entraînement"
+          value={latestRun ? `#${latestRun.training_run_id}` : overview ? "Aucun" : "—"}
+          helper={latestRun ? formatTrainingStatus(latestRun.status) : overview ? "Pas encore lancé" : "Indisponible"}
         />
         <Kpi
           label="Accuracy"
-          value={formatPercent((latestRun?.accuracy ?? 0) * 100)}
-          helper={`Macro F1 ${formatPercent((latestRun?.macro_f1 ?? 0) * 100)}`}
+          value={latestRun?.accuracy != null ? formatPercent(latestRun.accuracy * 100) : "—"}
+          helper={latestRun?.macro_f1 != null ? `Macro F1 ${formatPercent(latestRun.macro_f1 * 100)}` : "Aucune évaluation disponible"}
         />
         <Kpi
           label="Corrections prêtes"
-          value={String(feedbackQuality?.training_ready_count ?? 0)}
-          helper={`Poids x${formatNumber(latestRun?.feedback_sample_weight ?? 6, 1)}`}
+          value={feedbackQuality ? String(feedbackQuality.training_ready_count) : "—"}
+          helper={feedbackQuality ? (latestRun?.feedback_sample_weight != null ? `Poids x${formatNumber(latestRun.feedback_sample_weight, 1)}` : "Pour un prochain entraînement") : "Indisponible"}
         />
       </div>
 
@@ -8042,14 +8079,14 @@ function ModelTrainingPanel({
 
       <div className="training-history">
         <div className="training-history-heading">
-          <h4>Historique des entrainements</h4>
+          <h4>Historique des entraînements</h4>
             {latestDuration && <small>Dernière durée : {latestDuration}</small>}
         </div>
 
         {isLoading && !overview ? (
           <div className="loading-line">
             <Loader2 className="spin" size={18} />
-            Chargement des entrainements...
+            Chargement des entraînements...
           </div>
         ) : overview?.runs.length ? (
           <div className="training-run-list">
@@ -8061,12 +8098,14 @@ function ModelTrainingPanel({
                 </div>
                 <TrainingStatusBadge status={run.status} />
                 <span>{run.model_version ? `v${run.model_version}` : "-"}</span>
-                <span>{formatPercent((run.accuracy ?? 0) * 100)}</span>
+                <span>{run.accuracy != null ? formatPercent(run.accuracy * 100) : "—"}</span>
                 <span>{countLabel(run.training_feedback_rows, "correction")}</span>
                 <span>{formatDuration(run.execution_duration_seconds) ?? "-"}</span>
               </div>
             ))}
           </div>
+        ) : !overview ? (
+          <p className="muted">Historique des entraînements indisponible.</p>
         ) : (
           <p className="muted">
             Aucun entraînement lancé depuis l'interface pour le moment.
