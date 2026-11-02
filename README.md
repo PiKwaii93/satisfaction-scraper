@@ -274,6 +274,14 @@ double lancement et la relance d'un run `failed` jusqu'à `completed` sans avis
 dupliqué. `/execute` renvoie HTTP 409 pour un run `pending` ou `running` ; un
 run `completed` reste relançable.
 
+`python -m scripts.operational_snapshot --hours 24` produit un état JSON des
+analyses depuis PostgreSQL, en lecture seule. Il utilise les variables `DB_*`
+ci-dessous et exige des horodatages de base en UTC ; `--format text` donne un
+résumé lisible. Les runs actifs sont comptés sur toute l'histoire, sans seuil
+d'incident implicite.
+La fenêtre décrit l'état courant des runs : une relance écrase l'ancien statut,
+elle ne mesure donc pas séparément chaque tentative historique.
+
 Pour les tests backend hors Docker, disposer d'un PostgreSQL de test distinct,
 installer `requirements-dev.txt`, definir `DB_HOST`, `DB_PORT`, `DB_USER`,
 `DB_PASSWORD`, `DB_NAME` et `DEMO_ADMIN_PASSWORD`, puis lancer

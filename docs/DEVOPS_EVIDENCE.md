@@ -91,6 +91,42 @@ limite globale de durée d'un run métier n'est démontrée. Les 120 s du smoke
 E2E bornent le test, pas le produit. Ces observations ne prouvent pas une
 garantie de traitement « exactly once ».
 
+## Snapshot opérationnel des analyses
+
+Depuis la racine du dépôt, `python scripts/operational_snapshot.py` produit un
+JSON ponctuel en lecture seule depuis PostgreSQL (`DB_HOST`, `DB_PORT`,
+`DB_USER`, `DB_PASSWORD`, `DB_NAME`). `--hours 24` est la fenêtre par défaut ;
+`--since` accepte une date ISO 8601 avec fuseau et exclut `--hours`.
+`--failure-limit` borne les erreurs affichées et `--format json|text` choisit la
+sortie. Les timestamps de la base sont sans fuseau : le script refuse une
+session PostgreSQL qui n'est pas en UTC.
+
+L'état courant des runs dans la fenêtre donne le total, la répartition par
+statut, la source et les derniers échecs avec messages inconnus masqués. Le
+taux de succès terminal est exactement `completed / (completed + failed)` ;
+`pending`, `running` et `empty` sont exclus, et le taux est `null` sans run dans
+ce dénominateur. Les runs actifs sont comptés sur toute l'histoire, avec l'âge
+du plus ancien, sans seuil implicite d'incident. Pour les seuls runs
+`completed` aux deux dates valides, la durée est `finished_at - started_at` :
+elle n'inclut pas l'attente en file. Le volume est la somme des `total_reviews`
+persistés des runs `completed` de la fenêtre, pas un décompte d'avis uniques
+entre analyses. Ce snapshot peut montrer des échecs métier lorsque
+`celery inspect ping` répond.
+
+La validation sur PostgreSQL Compose isolé a créé cinq runs synthétiques :
+`completed`, `failed`, `pending`, `running` et `empty`. Attendu et observé :
+**5 runs**, **2 actifs**, taux terminal **0,5**, **15 avis traités**, durée du
+run terminé **60 s** et ancien message sensible masqué. Les **14 tests ciblés**
+ont réussi avec cette base ; sans base d'intégration, **13 réussissent et 1 est
+ignoré**. La suite backend complète sur la base isolée a réussi (**235 tests**).
+Le conteneur, le réseau et le volume temporaires ont été supprimés.
+
+Le snapshot lit l'état **courant** des runs. Une relance réutilise le même run
+et remplace son ancien état : ni le nombre de tentatives historiques ni leur
+taux réel de succès ne peuvent être reconstruits. L'outil n'est ni un daemon,
+ni une alerte automatique, ni un SLA, et n'est pas intégré à la sonde VM dans
+ce lot.
+
 ## KPI DevOps mesurés sur GitHub Actions
 
 La source est l'historique du workflow [Deploy test VM](../.github/workflows/deploy-test.yml), lisible par [deployment_kpis.py](../scripts/deployment_kpis.py) avec une période ou une limite de runs. **Deployment Cycle Time** va du `workflow_dispatch` à la fin réussie de l'étape `Deploy and check API and frontend` ; la durée totale du workflow est une mesure distincte.

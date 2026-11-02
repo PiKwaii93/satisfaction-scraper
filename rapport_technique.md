@@ -341,6 +341,27 @@ assaini afin de ne pas exposer de chemin interne ou de détail technique au
 client. Le test de collecte utilise un scraper simulé. Ce contrôle ciblé ne
 prouve pas l'assainissement de toutes les erreurs possibles.
 
+### 12.4 Snapshot opérationnel des analyses
+
+La supervision de la VM vérifie Docker health, HTTP, la réponse de Celery,
+l'espace disque et le SHA servi. `celery inspect ping` prouve que le worker
+répond, sans prouver que les analyses métier réussissent. Le
+[snapshot applicatif](scripts/operational_snapshot.py) lit ponctuellement
+PostgreSQL, sans modifier les données : il rapporte les états courants des
+analyses, le taux `completed / (completed + failed)`, l'âge du plus vieux run
+actif, les durées `finished_at - started_at` disponibles, les volumes traités
+et les échecs récents dont les messages inconnus sont masqués. Les runs actifs
+sont comptés hors fenêtre temporelle ; `empty` n'entre pas dans le taux. La
+[validation isolée](docs/DEVOPS_EVIDENCE.md#snapshot-opérationnel-des-analyses)
+compare cinq runs synthétiques aux résultats attendus.
+
+Ces deux niveaux sont complémentaires : le snapshot peut constater un run
+`failed` alors que Celery répond. Il ne tourne pas en daemon, ne déclenche pas
+d'alerte et ne s'intègre pas encore au monitoring VM. Une relance remplace
+l'ancien statut du même run ; aucun historique par tentative n'en découle.
+Aucun seuil métier global de durée d'analyse ni SLA n'est établi. Ce lot
+n'ajoute ni Prometheus ni Grafana.
+
 ## 13. Securite et cadre reglementaire
 
 Mesures deja presentes :
