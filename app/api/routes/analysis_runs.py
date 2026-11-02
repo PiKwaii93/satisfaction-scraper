@@ -37,6 +37,7 @@ from app.api.services.alert_service import (
 )
 from app.api.services.analysis_service import (
     ActiveAnalysisRunError,
+    JobDispatchError,
     build_csv_import_preview,
     create_analysis_run,
     create_csv_analysis_run,
@@ -166,6 +167,8 @@ def create_run(
         )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except JobDispatchError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except UsageLimitError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
@@ -263,6 +266,8 @@ async def import_csv_run(
         )
     except ActiveAnalysisRunError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except JobDispatchError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except UsageLimitError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
@@ -447,6 +452,8 @@ def execute_run(
             entity_id=run_id,
             metadata={"skip_scrape": skip_scrape},
         )
+    except JobDispatchError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

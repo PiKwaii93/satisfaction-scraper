@@ -7,5 +7,6 @@ def enqueue_analysis_run(run_id, skip_scrape=False, task_id=None):
         "app.api.tasks.analyze_run",
         args=[run_id, skip_scrape],
         task_id=task_id,
+        retry=False,
     )
     return task_id

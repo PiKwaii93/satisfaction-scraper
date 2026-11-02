@@ -69,6 +69,10 @@ class ActiveAnalysisRunError(ValueError):
     pass
 
 
+class JobDispatchError(RuntimeError):
+    """The broker did not confirm publication of an analysis task."""
+
+
 def normalize_sentiment_label(value):
     label = str(value or "").strip().replace("Ã©", "é")
     if label not in SENTIMENT_LABELS:
@@ -801,6 +805,7 @@ def create_csv_analysis_run(
 
 def queue_analysis_run(run_id, skip_scrape=False):
     from app.api.services.job_queue import enqueue_analysis_run
+    from kombu.exceptions import OperationalError as BrokerOperationalError
 
     task_id = f"analysis-run-{run_id}"
     reset_run_events(run_id)
@@ -833,7 +838,22 @@ def queue_analysis_run(run_id, skip_scrape=False):
         "Analyse placee dans la file d'attente.",
         step="queued",
     )
-    enqueue_analysis_run(run_id, skip_scrape=skip_scrape, task_id=task_id)
+    try:
+        enqueue_analysis_run(run_id, skip_scrape=skip_scrape, task_id=task_id)
+    except BrokerOperationalError as exc:
+        message = "Service de traitement temporairement indisponible."
+        with get_cursor(commit=True) as cursor:
+            cursor.execute(
+                """
+                UPDATE analysis_runs
+                SET status = 'failed', celery_task_id = NULL,
+                    error_message = %s, finished_at = NOW(), updated_at = NOW()
+                WHERE run_id = %s;
+                """,
+                (message, run_id),
+            )
+        record_run_event(run_id, message, step="queued", level="error")
+        raise JobDispatchError(message) from exc
     record_run_event(
         run_id,
         f"Tache Celery envoyee: {task_id}.",

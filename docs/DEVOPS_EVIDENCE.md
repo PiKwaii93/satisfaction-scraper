@@ -34,6 +34,28 @@ Le rollback démontré revient entre **deux révisions Git**, dont la seconde es
 
 La [preuve de downtime](DEPLOYMENT_DOWNTIME_EVIDENCE.md) distingue l'indisponibilité initiale de la VM, la restauration des mêmes conteneurs sans rebuild, puis la mesure du déploiement normal [36788014928](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/36788014928). Sur la fenêtre mesurée, 20 des 313 sondes API ont échoué ; de la première panne au premier succès suivi de trois succès consécutifs, l'interruption observée a duré **21,177 s**. Les 320 sondes frontend ont toutes rendu HTTP 200 : aucune interruption observée à la résolution nominale d'environ une seconde. Le workflow a réussi, l'API et Celery ont été recréés, et le rollback n'a pas été utilisé. Cette preuve satisfait l'exigence de limitation documentée des interruptions sur la VM de test, sans revendiquer un déploiement blue/green ni un SLA.
 
+## Tests de résilience isolés
+
+La commande `python scripts/verify_resilience.py` a été exécutée localement
+sur un projet Compose temporaire distinct de la stack habituelle. Les pannes
+ci-dessous n'ont pas été provoquées sur la VM. Le script vérifie aussi le
+nettoyage de ses conteneurs, réseaux, volumes et images propres au projet.
+
+| Dépendance | Panne et reprise observées | Durée observée |
+| --- | --- | --- |
+| PostgreSQL | `/health` a rendu HTTP 503 avec « PostgreSQL indisponible. » ; après redémarrage, HTTP 200 et lecture métier réussie. | 4,84 s de l'arrêt au constat du 503 ; reprise en 5,59 s. |
+| Worker Celery | Import accepté, run `pending` et API disponible sans worker ; après redémarrage, run `completed`, 15 avis distincts, résumé, KPI et distribution présents. Aucune duplication observée dans ce scénario. | 14,64 s. |
+| Redis au dispatch | Avant correction, la sonde n'obtenait aucune réponse en 15 s alors que le run avait déjà été placé en `pending`. Après correction : publication sans retry, erreur broker interceptée, HTTP 503 avec message générique et run `failed`. Après retour de Redis, un nouvel import s'est terminé. | Refus en 5,03 s ; scénario et reprise en 11,88 s. |
+| `model_bootstrap` | Dans un autre projet isolé, chemin d'empreinte inexistant : sortie 1 et API non démarrée. Le modèle versionné n'a pas été modifié. | 21,53 s, nettoyage compris. |
+
+La matrice principale a duré **59,38 s avant nettoyage**. Aucun conteneur,
+réseau, volume ou image spécifique au projet temporaire ne subsistait après
+nettoyage. Les [tests du dispatch](../tests/test_job_dispatch_failure.py)
+vérifient l'état `failed` et l'absence de détail sensible du broker dans la
+réponse. Ces scénarios ne démontrent ni haute disponibilité, ni garantie de
+traitement « exactly once ». Une coupure de MLflow après chargement du modèle
+n'a pas été simulée : le parcours CSV testé utilise le modèle déjà chargé.
+
 ## KPI DevOps mesurés sur GitHub Actions
 
 La source est l'historique du workflow [Deploy test VM](../.github/workflows/deploy-test.yml), lisible par [deployment_kpis.py](../scripts/deployment_kpis.py) avec une période ou une limite de runs. **Deployment Cycle Time** va du `workflow_dispatch` à la fin réussie de l'étape `Deploy and check API and frontend` ; la durée totale du workflow est une mesure distincte.

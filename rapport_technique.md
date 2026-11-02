@@ -309,6 +309,22 @@ restauree avant le test par demarrage des conteneurs existants, est exclue de
 ces metriques. Protocole, agregats et limites figurent dans la
 [preuve de downtime assainie](docs/DEPLOYMENT_DOWNTIME_EVIDENCE.md).
 
+### 12.2 Gestion des pannes des dépendances
+
+Une [matrice de résilience locale](docs/DEVOPS_EVIDENCE.md#tests-de-résilience-isolés)
+utilise des projets Compose temporaires isolés, sans panne provoquée sur la VM.
+`/health` vérifie PostgreSQL : il a rendu HTTP 503 pendant son arrêt, puis
+HTTP 200 après sa reprise. Un import soumis pendant l'arrêt du worker Celery
+est resté `pending`, sa tâche attendant dans Redis ; après redémarrage du worker, l'analyse testée
+est passée à `completed` avec 15 avis distincts.
+
+Si Redis est indisponible au moment de publier la tâche, le run est marqué
+`failed` et l'API renvoie HTTP 503 sans exposer l'erreur interne du broker.
+Après rétablissement de Redis, l'utilisateur doit relancer son action. Un
+échec isolé de `model_bootstrap` a empêché le démarrage de l'API. Aucun calcul
+ML n'a été modifié. Ces observations ne constituent pas une garantie de
+traitement « exactly once » ni de haute disponibilité.
+
 ## 13. Securite et cadre reglementaire
 
 Mesures deja presentes :

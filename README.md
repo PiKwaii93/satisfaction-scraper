@@ -259,6 +259,15 @@ succes de ces trois jobs, ou manuellement via `workflow_dispatch` ; il est ignor
 pull requests. Il utilise une stack Compose isolee et le mode smoke du script,
 sans repeter les suites deja validees. Sans option, `verify-repro.ps1` conserve
 le controle complet de reproductibilite.
+
+Le script `python scripts/verify_resilience.py` teste séparément, dans un projet
+Compose temporaire isolé, l'arrêt de PostgreSQL, du worker Celery et de Redis,
+ainsi qu'un échec de `model_bootstrap` (`--bootstrap-failure`). Pendant l'arrêt
+de PostgreSQL, `/health` renvoie HTTP 503 puis retrouve HTTP 200 après reprise.
+Sans worker, un job reste en attente dans Redis et se termine après son retour.
+Si Redis est indisponible au dispatch, l'API renvoie HTTP 503 et le run passe à
+`failed` ; l'utilisateur doit relancer son action après rétablissement du broker.
+
 Pour les tests backend hors Docker, disposer d'un PostgreSQL de test distinct,
 installer `requirements-dev.txt`, definir `DB_HOST`, `DB_PORT`, `DB_USER`,
 `DB_PASSWORD`, `DB_NAME` et `DEMO_ADMIN_PASSWORD`, puis lancer
