@@ -1,9 +1,11 @@
 param(
-    [switch]$SkipFrontend
+    [switch]$SkipFrontend,
+    [switch]$SkipBackendTests
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$workflowDir = (Resolve-Path (Join-Path $projectRoot ".github")).Path.Replace("\", "/")
 Set-Location $projectRoot
 $projectName = "satisfaction-ch8-" + [guid]::NewGuid().ToString("N").Substring(0, 12)
 $timer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -15,6 +17,28 @@ function Invoke-Checked {
     if ($LASTEXITCODE -ne 0) {
         throw "$Step failed (exit $LASTEXITCODE)"
     }
+}
+
+function Wait-HttpReady {
+    param([string]$Url, [string]$Step, [int]$TimeoutSeconds = 120)
+    $watch = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastResult = "no response"
+    Write-Host "[*] Waiting for $Step ($Url)"
+    while ($watch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 5 -UseBasicParsing
+            if ($response.StatusCode -eq 200) {
+                Write-Host "[+] $Step returned HTTP 200 in $([math]::Round($watch.Elapsed.TotalSeconds, 1))s"
+                return
+            }
+            $lastResult = "HTTP $($response.StatusCode)"
+        }
+        catch {
+            $lastResult = $_.Exception.Message
+        }
+        Start-Sleep -Seconds 2
+    }
+    throw "$Step did not return HTTP 200 within ${TimeoutSeconds}s. Last result: $lastResult"
 }
 
 $env:DB_HOST = "postgres_db"
@@ -49,14 +73,18 @@ try {
     Invoke-Checked {
         docker compose -p $projectName up -d --build postgres_db mlflow redis model_bootstrap api celery_worker frontend
     } "Isolated stack startup"
-    Invoke-Checked {
-        docker compose -p $projectName run --rm --no-deps --entrypoint sh api -c "python -m pip install -q -r requirements-dev.txt && python -m pytest -q tests"
-    } "Backend and migration tests"
+    if (-not $SkipBackendTests) {
+        Invoke-Checked {
+            docker compose -p $projectName run --rm --no-deps --volume "${workflowDir}:/app/.github:ro" --entrypoint sh api -c "python -m pip install -q -r requirements-dev.txt && python -m pytest -q tests"
+        } "Backend and migration tests"
+    }
     if (-not $SkipFrontend) {
         Invoke-Checked {
             docker compose -p $projectName run --rm --no-deps --entrypoint sh frontend -c "VITE_API_BASE_URL=http://localhost:8000 npm test && npm run build"
         } "Frontend tests and build"
     }
+    Wait-HttpReady -Url "http://localhost:$env:API_HOST_PORT/health" -Step "Isolated API health"
+    Wait-HttpReady -Url "http://localhost:$env:FRONTEND_HOST_PORT/" -Step "Isolated frontend HTTP"
     Invoke-Checked {
         docker compose -p $projectName run --rm --no-deps --entrypoint python api scripts/verify_e2e.py
     } "CSV HTTP E2E smoke test"

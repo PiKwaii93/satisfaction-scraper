@@ -88,7 +88,8 @@ jobs:
         run: docker run --rm satisfaction-app python --version
 
   e2e-smoke:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [backend-tests, frontend-build, docker-build]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -96,4 +97,4 @@ jobs:
         uses: actions/checkout@v4
       - name: Run isolated backend, frontend and CSV smoke checks
         shell: pwsh
-        run: ./scripts/verify-repro.ps1
+        run: ./scripts/verify-repro.ps1 -SkipBackendTests -SkipFrontend

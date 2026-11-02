@@ -10,7 +10,7 @@ Preuves initiales établies le 22 septembre 2026, complétées par une mesure de
 | CI automatique | [Run 35652347316](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35652347316) | 136 tests backend, 34 tests frontend et build Docker réussis à cette date. |
 | E2E manuel | [Run 35652549430](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35652549430) | Stack Compose isolée, authentification, import CSV de 15 avis, run terminé et synthèse vérifiée par [verify_e2e.py](../scripts/verify_e2e.py). |
 
-Le script [verify-repro.ps1](../scripts/verify-repro.ps1) utilise un projet Compose temporaire. Le job `e2e-smoke` de [ci.yml](../.github/workflows/ci.yml) est manuel ; les trois jobs CI classiques s'exécutent à chaque push sur `main`. Le nombre de tests ci-dessus décrit **ce run historique**, pas nécessairement la taille actuelle de la suite.
+Le script [verify-repro.ps1](../scripts/verify-repro.ps1) utilise un projet Compose temporaire isolé. Dans [ci.yml](../.github/workflows/ci.yml), `e2e-smoke` s'exécute sur les push vers `main` après succès de `backend-tests`, `frontend-build` et `docker-build` ; il reste déclenchable via `workflow_dispatch` et ignoré sur `pull_request`. En CI, son mode smoke ne répète pas les suites backend/frontend déjà validées ; sans option, le script conserve la vérification complète. Le nombre de tests ci-dessus décrit **ce run manuel historique**, pas nécessairement la taille actuelle de la suite ni un run automatique du nouveau workflow.
 
 ## Préparation et déploiement de la VM existante
 

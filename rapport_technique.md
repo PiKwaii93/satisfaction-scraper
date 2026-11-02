@@ -253,9 +253,12 @@ Cette organisation rend le projet reproductible sur une autre machine equipee de
 ## 12. CI/CD et qualite
 
 La CI GitHub Actions execute les tests backend, les tests et le build frontend,
-puis construit l'image Docker. Un job `e2e-smoke` manuel valide un demarrage
-Compose isole et un import CSV de 15 avis. Le workflow de deploiement manuel
-vise une VM de test existante et verifie API et frontend. Les runs exacts et
+et construit l'image Docker. Apres succes de ces trois jobs, `e2e-smoke` se lance
+automatiquement sur push vers `main` ; il reste declenchable manuellement et
+ignore les pull requests. Sur une stack Compose isolee, son mode smoke valide
+l'import CSV de 15 avis sans repeter les suites deja passees. Le script sans
+option conserve la verification complete de reproductibilite. Le workflow de
+deploiement manuel vise une VM de test existante et verifie API et frontend. Les runs exacts et
 leurs limites sont dans [les preuves DevOps](docs/DEVOPS_EVIDENCE.md).
 
 Les validations disponibles incluent :

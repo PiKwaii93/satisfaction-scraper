@@ -253,9 +253,12 @@ l'etape en echec et supprime uniquement son projet Compose temporaire :
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-repro.ps1
 ```
 
-La CI lance automatiquement `python -m pytest -q tests`, les tests frontend et
-le build. Le job `e2e-smoke` de la CI se lance manuellement et execute la
-meme commande isolee, car le build des images et MLflow allongent ce controle.
+La CI lance automatiquement les tests backend et frontend, le build frontend
+et le build Docker. Le job `e2e-smoke` s'execute sur les push vers `main` apres
+succes de ces trois jobs, ou manuellement via `workflow_dispatch` ; il est ignore sur les
+pull requests. Il utilise une stack Compose isolee et le mode smoke du script,
+sans repeter les suites deja validees. Sans option, `verify-repro.ps1` conserve
+le controle complet de reproductibilite.
 Pour les tests backend hors Docker, disposer d'un PostgreSQL de test distinct,
 installer `requirements-dev.txt`, definir `DB_HOST`, `DB_PORT`, `DB_USER`,
 `DB_PASSWORD`, `DB_NAME` et `DEMO_ADMIN_PASSWORD`, puis lancer
