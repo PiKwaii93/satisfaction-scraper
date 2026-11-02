@@ -442,7 +442,7 @@ def execute_run(
         raise HTTPException(status_code=404, detail="Analyse introuvable")
 
     try:
-        queue_analysis_run(run_id, skip_scrape=skip_scrape)
+        queue_analysis_run(run_id, skip_scrape=skip_scrape, reject_active=True)
         record_audit_event(
             organization_id=current_user.organization_id,
             actor_user=current_user,
@@ -452,6 +452,8 @@ def execute_run(
             entity_id=run_id,
             metadata={"skip_scrape": skip_scrape},
         )
+    except ActiveAnalysisRunError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except JobDispatchError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:

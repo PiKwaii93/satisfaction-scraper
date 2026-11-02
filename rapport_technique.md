@@ -182,7 +182,7 @@ L'API expose les principaux endpoints suivants.
 | `POST /analysis-runs/import-csv` | Import et analyse d'un CSV. |
 | `GET /analysis-runs` | Historique des analyses. |
 | `GET /analysis-runs/{run_id}` | Detail d'un run. |
-| `POST /analysis-runs/{run_id}/execute` | Relance d'un run. |
+| `POST /analysis-runs/{run_id}/execute` | Relance d'un run `failed` ou `completed` ; HTTP 409 si `pending` ou `running`. |
 | `GET /analysis-runs/{run_id}/events` | Journal d'execution. |
 | `GET /analysis-runs/{run_id}/summary` | Rapport synthetique. |
 | `GET /analysis-runs/{run_id}/reviews` | Avis pagines et filtrables. |
@@ -324,6 +324,22 @@ Après rétablissement de Redis, l'utilisateur doit relancer son action. Un
 échec isolé de `model_bootstrap` a empêché le démarrage de l'API. Aucun calcul
 ML n'a été modifié. Ces observations ne constituent pas une garantie de
 traitement « exactly once » ni de haute disponibilité.
+
+### 12.3 Erreurs utilisateur et reprise d'une analyse
+
+La [matrice applicative isolée](docs/DEVOPS_EVIDENCE.md#récupération-applicative-isolée)
+vérifie les refus d'import CSV invalide, l'analyse déjà active et la relance.
+`POST /analysis-runs/{run_id}/execute` refuse en HTTP 409 un run `pending` ou
+`running` avant d'effacer ses événements ou d'envoyer une nouvelle tâche.
+Un run `completed` reste relançable ; un run `failed` peut reprendre sur le
+même identifiant lorsque son entrée redevient exploitable. L'essai CSV a fini
+avec 15 avis distincts et sans ancienne erreur résiduelle.
+
+Lors d'une erreur inattendue testée, le worker conserve l'exception détaillée
+pour le diagnostic ; le message enregistré dans le run et les événements est
+assaini afin de ne pas exposer de chemin interne ou de détail technique au
+client. Le test de collecte utilise un scraper simulé. Ce contrôle ciblé ne
+prouve pas l'assainissement de toutes les erreurs possibles.
 
 ## 13. Securite et cadre reglementaire
 

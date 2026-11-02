@@ -268,6 +268,12 @@ Sans worker, un job reste en attente dans Redis et se termine après son retour.
 Si Redis est indisponible au dispatch, l'API renvoie HTTP 503 et le run passe à
 `failed` ; l'utilisateur doit relancer son action après rétablissement du broker.
 
+`python scripts/verify_application_recovery.py` vérifie aussi, sur une stack
+Compose temporaire nettoyée en fin de test, les validations CSV, le refus d'un
+double lancement et la relance d'un run `failed` jusqu'à `completed` sans avis
+dupliqué. `/execute` renvoie HTTP 409 pour un run `pending` ou `running` ; un
+run `completed` reste relançable.
+
 Pour les tests backend hors Docker, disposer d'un PostgreSQL de test distinct,
 installer `requirements-dev.txt`, definir `DB_HOST`, `DB_PORT`, `DB_USER`,
 `DB_PASSWORD`, `DB_NAME` et `DEMO_ADMIN_PASSWORD`, puis lancer

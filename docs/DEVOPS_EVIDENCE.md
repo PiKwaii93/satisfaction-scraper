@@ -56,6 +56,41 @@ réponse. Ces scénarios ne démontrent ni haute disponibilité, ni garantie de
 traitement « exactly once ». Une coupure de MLflow après chargement du modèle
 n'a pas été simulée : le parcours CSV testé utilise le modèle déjà chargé.
 
+## Récupération applicative isolée
+
+La commande `python scripts/verify_application_recovery.py` a été exécutée sur
+une autre stack Compose temporaire. Un CSV vide ou blanc a rendu HTTP 400 en
+preview et en import, sans créer de run ni envoyer de tâche. Une preview avec
+colonne obligatoire absente ou en-tête seul a rendu HTTP 200 avec
+`error_message` et zéro avis, conformément au contrat existant ; l'import
+correspondant a rendu HTTP 400. Les mappings JSON invalides ont rendu HTTP 400.
+
+Un second import identique pendant `pending` a rendu HTTP 409, avec un seul run.
+Avant correction, `/execute` acceptait ce run actif en HTTP 200 et le
+redispatchait. Après correction, il rend HTTP 409 : la mise à jour SQL
+conditionnelle protège atomiquement `pending` et `running`, avant tout reset
+des événements ou envoi Celery. Le cas `running` a été couvert par test ciblé,
+sans être forcé en observation live. Un run `completed` a été relancé sur le
+même identifiant, avec 15 avis distincts ; une nouvelle analyse après
+`completed` a également réussi.
+
+Dans le volume temporaire uniquement, le JSON d'un import CSV de test a été
+momentanément rendu indisponible. Le run est passé à `failed` ; l'API est restée
+saine, son événement d'échec était lisible et le message persisté ne contenait
+pas le chemin interne. Après restauration du fichier, une nouvelle analyse a
+réussi ; la relance du run échoué avec `skip_scrape=true` a terminé ce **même**
+run en `completed`, avec 15 avis distincts et sans ancienne erreur affichée.
+Un [test backend](../tests/test_analysis_run_recovery.py) simule séparément une
+erreur de scraper : l'exception détaillée reste disponible au worker, tandis
+que le run et ses événements reçoivent un message assaini. Aucun appel réel à
+Trustpilot n'a été nécessaire.
+
+La matrice a duré **56,02 s avant nettoyage** ; aucune ressource temporaire du
+projet ne subsistait. La navigation du scraper est bornée à 60 s, mais aucune
+limite globale de durée d'un run métier n'est démontrée. Les 120 s du smoke
+E2E bornent le test, pas le produit. Ces observations ne prouvent pas une
+garantie de traitement « exactly once ».
+
 ## KPI DevOps mesurés sur GitHub Actions
 
 La source est l'historique du workflow [Deploy test VM](../.github/workflows/deploy-test.yml), lisible par [deployment_kpis.py](../scripts/deployment_kpis.py) avec une période ou une limite de runs. **Deployment Cycle Time** va du `workflow_dispatch` à la fin réussie de l'étape `Deploy and check API and frontend` ; la durée totale du workflow est une mesure distincte.

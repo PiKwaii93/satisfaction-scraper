@@ -803,13 +803,11 @@ def create_csv_analysis_run(
     return get_analysis_run(run_id)
 
 
-def queue_analysis_run(run_id, skip_scrape=False):
+def queue_analysis_run(run_id, skip_scrape=False, reject_active=False):
     from app.api.services.job_queue import enqueue_analysis_run
     from kombu.exceptions import OperationalError as BrokerOperationalError
 
     task_id = f"analysis-run-{run_id}"
-    reset_run_events(run_id)
-
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             """
@@ -828,10 +826,18 @@ def queue_analysis_run(run_id, skip_scrape=False):
                 started_at = NULL,
                 finished_at = NULL,
                 updated_at = NOW()
-            WHERE run_id = %s;
+            WHERE run_id = %s
+              AND (%s = FALSE OR status NOT IN ('pending', 'running'));
             """,
-            (task_id, run_id),
+            (task_id, run_id, reject_active),
         )
+        if reject_active and cursor.rowcount == 0:
+            raise ActiveAnalysisRunError(
+                "Cette analyse est deja en attente ou en cours. "
+                "Attends sa fin avant de la relancer."
+            )
+
+    reset_run_events(run_id)
 
     record_run_event(
         run_id,
@@ -1141,6 +1147,21 @@ def execute_analysis_run(run_id, skip_scrape=False):
         return get_analysis_run(run_id)
 
     except Exception as exc:
+        if isinstance(exc, FileNotFoundError):
+            public_message = (
+                "Les donnees de cette analyse sont introuvables. "
+                "Verifie la source avant de relancer l'analyse."
+            )
+        elif run["source"] == "trustpilot":
+            public_message = (
+                "La collecte ou l'analyse Trustpilot a echoue. "
+                "Verifie la cible avant de relancer l'analyse."
+            )
+        else:
+            public_message = (
+                "L'analyse du CSV a echoue. "
+                "Verifie l'import avant de relancer l'analyse."
+            )
         with get_cursor(commit=True) as cursor:
             cursor.execute(
                 """
@@ -1151,11 +1172,11 @@ def execute_analysis_run(run_id, skip_scrape=False):
                     updated_at = NOW()
                 WHERE run_id = %s;
                 """,
-                (str(exc), run_id),
+                (public_message, run_id),
             )
         record_run_event(
             run_id,
-            f"Analyse echouee: {exc}",
+            f"Analyse echouee: {public_message}",
             step="failed",
             level="error",
         )
