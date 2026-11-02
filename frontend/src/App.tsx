@@ -8916,7 +8916,9 @@ function ReviewsTable({
   }
 
   return (
-    <div className="table-wrap reviews-table-wrap">
+    <>
+    <p className="review-scroll-hint">Fais défiler le tableau horizontalement pour voir toutes les colonnes et actions.</p>
+    <div className="table-wrap reviews-table-wrap" role="region" aria-label="Tableau des avis, défilement horizontal" tabIndex={0}>
       <table className="reviews-table">
         <colgroup>
           <col className="review-col-rating" />
@@ -9045,6 +9047,7 @@ function ReviewsTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

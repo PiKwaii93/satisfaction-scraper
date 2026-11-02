@@ -1572,6 +1572,8 @@ describe("App authentication and permissions", () => {
     await user.click(screen.getByRole("button", { name: /Analyses/ }));
     await user.click(screen.getByRole("tab", { name: "Avis" }));
     expect(await screen.findByText(/Livraison en retard\. Le service client/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Tableau des avis, défilement horizontal" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByText("Fais défiler le tableau horizontalement pour voir toutes les colonnes et actions.")).toBeInTheDocument();
     expect(screen.queryByText(longVerbatim)).not.toBeInTheDocument();
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
       "Note", "Sentiment", "Avis", "Réponse", "Actions"
