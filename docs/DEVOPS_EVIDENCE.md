@@ -1,6 +1,6 @@
 # Preuves DevOps pour la soutenance
 
-Preuves initiales établies le 22 septembre 2026, complétées par une mesure de déploiement le 30 septembre 2026. Les liens GitHub pointent vers des runs réels. Les contrôles effectués manuellement sur la VM sont signalés comme tels ; ils ne sont pas présentés comme des jobs Actions. Aucune adresse publique, clé privée ou valeur de secret n'est conservée ici.
+Preuves initiales établies le 22 septembre 2026, complétées par une mesure de déploiement le 30 septembre et les contrôles du candidat de release en novembre 2026. Les liens GitHub pointent vers des runs réels. Les contrôles effectués manuellement sur la VM sont signalés comme tels ; ils ne sont pas présentés comme des jobs Actions. Aucune adresse publique, clé privée ou valeur de secret n'est conservée ici.
 
 ## CI et reproductibilité
 
@@ -10,7 +10,15 @@ Preuves initiales établies le 22 septembre 2026, complétées par une mesure de
 | CI automatique | [Run 35652347316](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35652347316) | 136 tests backend, 34 tests frontend et build Docker réussis à cette date. |
 | E2E manuel | [Run 35652549430](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35652549430) | Stack Compose isolée, authentification, import CSV de 15 avis, run terminé et synthèse vérifiée par [verify_e2e.py](../scripts/verify_e2e.py). |
 
-Le script [verify-repro.ps1](../scripts/verify-repro.ps1) utilise un projet Compose temporaire isolé. Dans [ci.yml](../.github/workflows/ci.yml), `e2e-smoke` s'exécute sur les push vers `main` après succès de `backend-tests`, `frontend-build` et `docker-build` ; il reste déclenchable via `workflow_dispatch` et ignoré sur `pull_request`. En CI, son mode smoke ne répète pas les suites backend/frontend déjà validées ; sans option, le script conserve la vérification complète. Le nombre de tests ci-dessus décrit **ce run manuel historique**, pas nécessairement la taille actuelle de la suite ni un run automatique du nouveau workflow.
+Le script [verify-repro.ps1](../scripts/verify-repro.ps1) utilise un projet Compose temporaire isolé. Dans [ci.yml](../.github/workflows/ci.yml), `e2e-smoke` s'exécute sur les push vers `main` après succès de `backend-tests`, `frontend-build` et `docker-build` ; il reste déclenchable via `workflow_dispatch` et ignoré sur `pull_request`. En CI, son mode smoke ne répète pas les suites backend/frontend déjà validées ; sans option, le script conserve la vérification complète. Les nombres de tests ci-dessus décrivent **la CI historique** ; le smoke cité était manuel à cette date.
+
+### Candidat de release vérifié depuis Git (lot 10A)
+
+Le SHA `f99789099fc3fa16a0c6cc2e0537e00eafc56776` a été extrait par `git archive HEAD` dans un répertoire temporaire : **196 fichiers versionnés, aucun fichier ajouté ou manquant**. Un projet Compose au nom aléatoire, avec ports et identifiants synthétiques dédiés et volumes vierges, a construit les images applicatives avec `--no-cache` en **126,9 s**. API et frontend ont répondu HTTP 200 après **26,7 s** de premier démarrage ; PostgreSQL, Redis et MLflow étaient healthy, Celery répondait au ping, et `model_bootstrap` s'est terminé avec le code 0. Alembic était au head `20260921_0008`.
+
+Le pickle versionné et son SHA-256 ont permis d'initialiser un registre MLflow vierge : l'alias `production` y pointait vers une **nouvelle v1**, sans reconstituer le registre privé historique v53. Le smoke CSV a terminé une analyse de **15 avis**, avec résumé, KPI et distribution ; le snapshot a lu **1 run completed, 0 failed, 15 avis traités**. Les suites ont donné **246 tests backend réussis et 1 ignoré**, **50 tests frontend réussis** et un build TypeScript/Vite réussi. Après arrêt puis redémarrage sur les mêmes volumes, le run et ses 15 avis, le head Alembic et l'alias v1 étaient conservés ; le bootstrap n'a pas créé de nouvelle version. Nettoyage final : aucun conteneur, volume, réseau ou image propre au projet temporaire.
+
+La [CI push du même SHA, run 41608401904](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41608401904), a terminé `backend-tests`, `frontend-build`, `docker-build` et `e2e-smoke` en `success`. Cette reproductibilité est **fonctionnelle à la date du test** : plusieurs dépendances Python et images de base ne sont pas figées par digest/version immuable ; un build identique octet pour octet dans le futur n'est pas garanti.
 
 ## Préparation et déploiement de la VM existante
 
@@ -162,10 +170,26 @@ ci-dessus a renvoyé un JSON valide, avec **0 run avant et après** et aucune
 mutation observée. La compilation Python et `git diff --check` ont réussi.
 Après nettoyage : **0 conteneur, 0 volume, 0 réseau** du projet temporaire.
 
-Cette intégration est démontrée par tests automatisés et validation Compose
-isolée. Elle n'a pas encore été exécutée contre la VM scolaire avec une release
-9A/9B déployée. Le [run manuel 35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
-reste une preuve historique du monitoring d'infrastructure, sans preuve 9B.
+Ces validations locales précèdent la preuve VM du candidat de release décrite
+ci-dessous. Le [run manuel 35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
+reste une preuve historique du monitoring d'infrastructure, sans preuve 9B à cette date.
+
+## Déploiement et supervision réels du candidat (lot 10B)
+
+Le [Deploy test VM 41639303247](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41639303247), déclenché manuellement sur le SHA `f99789099fc3fa16a0c6cc2e0537e00eafc56776`, s'est terminé en `success` : CI préalable, SSH vérifié, Ansible, archive Git immuable, build/démarrage, contrôles API/frontend et relecture de `current.sha` égale au SHA demandé (`HEALTHCHECK=passed`). Les logs de fin montraient PostgreSQL, Redis, MLflow, API, Celery et frontend sains, et `model_bootstrap` terminé. La VM pédagogique s'est ensuite arrêtée ; cette perte d'accès ultérieure n'invalide pas le déploiement réussi.
+
+Après rallumage, `current.sha` désignait encore le candidat. Les conteneurs et volumes étaient conservés, mais **seul PostgreSQL**, configuré avec `restart: always`, était revenu automatiquement. Les conteneurs existants ont été redémarrés sans rebuild, recréation, suppression de volume ou nouveau déploiement. Les contrôles indépendants ont ensuite confirmé PostgreSQL (`accepting connections`), Redis (`PONG`), MLflow (`OK`), API (`{"status":"ok","database":"ok"}`), frontend HTTP et Celery (`pong`, un nœud en ligne) ; `model_bootstrap` était `Exited (0)`. Le smoke CSV synthétique exécuté une fois sur cette VM a produit `run 1 completed`, **15 avis** et un résumé.
+
+Le snapshot exécuté dans l'API de la release servie a retourné **1 run total : 1 completed, 0 failed/pending/running/empty**, taux terminal **1,0**, durée completed **5,948 s** (moyenne, médiane et maximum sur un run), **15 avis traités**, source `csv: 1`, aucun échec récent. Il s'agit de l'état courant des runs persistés, pas d'un historique de toutes les tentatives.
+
+| Monitor manuel | Conclusion Actions | Rapport `monitor-report.json` | Lecture |
+| --- | --- | --- | --- |
+| [41646917782](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41646917782) | `failure` ; étapes `Probe test VM` et `Fail on incident or alert` en échec, Summary et archivage réussis | `result=alert` ; `served_sha` exact ; `application_snapshot.supported=true`, `available=true` ; stack saine et snapshot cohérent ; disque libre **4 748 591 104 octets**, sous 5 GiB ; `remediation=null`. | Alerte disque réelle correctement détectée, sans panne applicative. |
+| [41662964180](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41662964180) | `success` | `result=healthy` ; même SHA, snapshot disponible ; disque libre **5 657 210 880 octets**, au-dessus de 5 GiB ; aucune alerte ni remédiation. | Retour à l'état sain vérifié après maintenance. |
+
+Les deux runs sont `workflow_dispatch`. Leurs artefacts machine-readable ont été contrôlés ; le Step Summary et l'archivage ont réussi. Entre eux, la maintenance manuelle non destructive a utilisé `apt-get clean`, `docker builder prune -f`, la réduction des journaux systemd, la suppression du cache pip utilisateur et `conda clean --all -y`. Aucun volume applicatif PostgreSQL/MLflow n'a été supprimé, et ni `docker system prune -a`, ni `docker volume prune`, ni rebuild ou redeploy n'ont été exécutés. L'espace libre mesuré après maintenance puis après remise en route était respectivement **5 677 580 288** et **5 657 444 352 octets** ; la sonde healthy a ensuite relevé **5 657 210 880 octets**. Ces mesures ponctuelles peuvent différer légèrement.
+
+Cette séquence démontre l'alerte, le diagnostic et le retour vérifié à `healthy` sur la VM de test. Elle ne démontre ni sonde VM planifiée active, ni SLA, ni remédiation automatique du disque ou d'un run métier. L'IP publique de la VM pédagogique peut changer après arrêt/redémarrage ; l'environnement GitHub `test` peut alors nécessiter l'actualisation de `TEST_HOST` et `TEST_SSH_KNOWN_HOSTS` après vérification de la clé hôte.
 
 ## KPI DevOps mesurés sur GitHub Actions
 
@@ -194,7 +218,7 @@ Le code de supervision avec traçabilité des incidents récupérés est présen
 | Disque `/` | Environ 11,82 GiB libres |
 | Alerte, remédiation, résultat | `null`, `null`, `healthy` |
 
-Lors de ce contrôle historique, le SHA servi était antérieur à `main` parce que la VM avait été volontairement rollbackée. Depuis le run 36788014928, `current.sha` correspond au SHA cible déployé. La sonde lit `current.sha` : elle rapporte l'état réel, pas nécessairement le dernier commit du dépôt. [monitor-test.yml](../.github/workflows/monitor-test.yml) publie un Step Summary et un JSON. Deux échecs applicatifs espacés de 30 secondes peuvent provoquer **un seul** restart de l'API ou du frontend si leurs dépendances sont saines. Un incident récupéré reste `alert` et la sonde post-restart est archivée ; un échec persistant reste `incident`. Sous 5 GiB libres, alerte sans remédiation. Aucune panne volontaire ni remédiation réelle n'a été provoquée sur la VM scolaire.
+Lors de ce contrôle historique, le SHA servi était antérieur à `main` parce que la VM avait été volontairement rollbackée. Le run 36788014928 a ensuite déployé son SHA cible ; le lot 10B a déployé le candidat plus récent. La sonde lit `current.sha` : elle rapporte l'état réel, pas nécessairement le dernier commit du dépôt. [monitor-test.yml](../.github/workflows/monitor-test.yml) publie un Step Summary et un JSON. Deux échecs applicatifs espacés de 30 secondes peuvent provoquer **un seul** restart de l'API ou du frontend si leurs dépendances sont saines. Un incident récupéré reste `alert` et la sonde post-restart est archivée ; un échec persistant reste `incident`. Sous 5 GiB libres, alerte sans remédiation. Aucune panne volontaire ni remédiation automatique réelle n'a été provoquée sur la VM scolaire ; la maintenance disque 10B a été manuelle.
 
 ## Scheduler : événements démontrés, sonde VM planifiée en attente
 

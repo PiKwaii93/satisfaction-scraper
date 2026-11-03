@@ -435,10 +435,12 @@ snapshot opérationnel dans le conteneur API et ajoute ses métriques à
 supporté mais indisponible produit une `alert`. Une release antérieure à 9A est
 indiquée comme non compatible, sans alerte supplémentaire. Les runs actifs et
 l'âge du plus ancien restent informatifs : aucun run n'est relancé et aucun
-restart Celery n'est déclenché par ces signaux. Cette intégration est validée
-localement, sans exécution 9B encore démontrée sur la VM.
+restart Celery n'est déclenché par ces signaux. L'intégration 9B a depuis été
+vérifiée sur la VM par les runs manuels [41646917782](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41646917782)
+(`alert` disque réelle) et [41662964180](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41662964180)
+(`healthy` après maintenance).
 
-Premiere preuve reelle du chantier 10 : le run manuel
+Preuve historique antérieure à l'intégration 9B : le run manuel
 [35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
 de `Monitor test VM` a reussi. Son artefact `test-vm-monitor-35726582579`
 contient `monitor-report.json` : SSH `ok` ; PostgreSQL, Redis, MLflow, API et
@@ -448,6 +450,20 @@ ni remediation ; `result=healthy`. Le SHA effectivement servi et releve par la
 sonde etait `72517acbf156efab454e6496670b67526b109c3f`. C'est attendu
 apres le rollback manuel de la VM, meme si `main` est plus recent : le
 monitoring rapporte le SHA servi, sans supposer qu'il correspond a `main`.
+
+Le candidat de release `f99789099fc3fa16a0c6cc2e0537e00eafc56776` a été
+reconstruit depuis une archive Git propre (lot 10A) : cold start, bootstrap
+MLflow vierge en v1, Alembic au head, E2E 15 avis, 246 tests backend réussis
+(1 ignoré), 50 tests frontend réussis et redémarrage avec volumes conservés.
+La [CI push 41608401904](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41608401904)
+et le [déploiement officiel 41639303247](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41639303247)
+ont réussi sur ce SHA ; `current.sha` a été validé par le workflow. Après un
+arrêt de la VM pédagogique, la stack conservée a nécessité un redémarrage des
+conteneurs existants : seul PostgreSQL revenait automatiquement. Le smoke CSV
+réel de 15 avis et le snapshot applicatif ont ensuite réussi sur la VM. La
+[preuve DevOps](docs/DEVOPS_EVIDENCE.md#déploiement-et-supervision-réels-du-candidat-lot-10b)
+détaille la séquence, l'alerte disque et ses limites. La reproductibilité
+fonctionnelle constatée n'est pas une garantie de build identique dans le futur.
 
 URLs utiles :
 

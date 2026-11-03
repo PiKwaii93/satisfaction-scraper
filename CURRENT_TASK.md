@@ -1,40 +1,40 @@
 # Current Task
 
-## État au 22 septembre 2026
+## Phase au 3 novembre 2026 : consolidation finale et freeze
 
-La branche de travail est `main`. Les chantiers 1 à 10 de préparation à la
-soutenance ont été validés. Les migrations de la base réelle sont à la révision
-`20260921_0008`, et le modèle MLflow v53 a été promu après évaluation propre.
-Le déploiement et le rollback sur la VM scolaire de test ont été exercés ; le
-premier contrôle manuel de supervision a réussi.
+Le candidat fonctionnel `f99789099fc3fa16a0c6cc2e0537e00eafc56776` a
+passé l'audit de reproductibilité depuis une archive Git propre (10A), la
+[CI push 41608401904](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41608401904)
+et le [déploiement officiel 41639303247](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41639303247)
+sur la VM de test (10B). Le smoke CSV réel de 15 avis et le snapshot applicatif
+ont réussi sur la release servie.
 
-Le chantier documentaire actuel relie les exigences aux preuves et à leurs
-limites dans [docs/TRACEABILITY.md](docs/TRACEABILITY.md), détaille les runs
-dans [docs/DEVOPS_EVIDENCE.md](docs/DEVOPS_EVIDENCE.md) et décrit
-l'exploitation dans [docs/TEST_VM_RUNBOOK.md](docs/TEST_VM_RUNBOOK.md).
+Le [Monitor 41646917782](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41646917782)
+a détecté une véritable alerte de disque sous 5 GiB, avec l'application saine.
+Après maintenance manuelle non destructive, le [Monitor 41662964180](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41662964180)
+a confirmé le retour à `healthy`. Ces deux runs démontrent l'intégration 9B
+sur la VM. Leur détail et leurs limites figurent dans
+[docs/DEVOPS_EVIDENCE.md](docs/DEVOPS_EVIDENCE.md) et
+[docs/TRACEABILITY.md](docs/TRACEABILITY.md).
 
-## Point ouvert
+Le lot 10C consolide ces preuves et audite la documentation, sans changement
+fonctionnel. Après ce lot, le projet entre en **freeze fonctionnel** : aucune
+nouvelle feature, refonte ou modification ML ; seules des corrections bloquantes
+démontrées pourront être examinées. La soutenance sera préparée séparément.
 
-Le scheduler GitHub a maintenant produit un [heartbeat planifié réussi](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35765192366)
-et un [événement Monitor planifié](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35764642522)
-dont le job a été `skipped` par le garde. Le workflow heartbeat de diagnostic a été retiré ;
-le cron final de Monitor est horaire à la minute 17. `TEST_MONITOR_SCHEDULE_ENABLED` reste
-à `false` et n'a pas été activé pour une sonde planifiée réelle. La création d'événements `schedule`
-est démontrée, **pas** l'exécution d'une sonde VM planifiée.
+## Distinctions à conserver
 
-Les sources académiques Markdown et leurs rendus PPTX/PDF/DOCX sont indexés
-dans [deliverables/README.md](deliverables/README.md). Le schéma détaillé et
-l'ETL figurent dans [docs/SCHEMA_DONNEES_ETL.md](docs/SCHEMA_DONNEES_ETL.md).
-Mise à jour au 30 septembre 2026 : la [preuve assainie Vapoter](docs/TRUSTPILOT_VAPOTER_EVIDENCE.md)
-établit 11 281 IDs uniques sur 16 vues accessibles parcourues jusqu'à leur fin
-naturelle. Le corpus brut reste privé. Les captures du registre MLflow v53 restent à constituer.
+- Le bootstrap d'un registre MLflow vierge crée une v1 ; il ne reconstitue pas
+  le registre historique privé où le modèle retenu est v53.
+- La collecte privée Vapoter établit 11 281 IDs uniques sur 16 vues parcourues
+  jusqu'à leur fin naturelle, sans représenter un instantané simultané.
+- Le Monitor planifié est encore gardé par `TEST_MONITOR_SCHEDULE_ENABLED` ;
+  les preuves 9B sur VM sont deux exécutions **manuelles**.
+- La VM pédagogique peut changer d'IP après arrêt/redémarrage. Après reboot,
+  seule la politique `restart: always` de PostgreSQL a assuré son retour ;
+  les autres conteneurs ont nécessité un redémarrage contrôlé, sans rebuild.
+- Le commit documentaire final fera avancer `main` sans changer le code servi.
+  Ne pas redéployer automatiquement ce nouveau SHA.
 
-## Contraintes durables
-
-- Ne pas refactorer globalement `frontend/src/App.tsx` sans demande explicite.
-- Respecter l'isolation par `organization_id` et les rôles `admin` / `member`.
-- Ne pas présenter une source préparée comme un connecteur fonctionnel.
-- Ne pas committer de secrets, d'archives de base ou de clés SSH.
-- Ne pas modifier la VM scolaire ou ses ressources MicroK8s sans demande explicite.
-- Ne pas committer ou pousser sans autorisation utilisateur ; le chantier 12
-  doit être revu avant tout commit ou push.
+Voir [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) pour les évolutions futures hors
+freeze et [docs/TEST_VM_RUNBOOK.md](docs/TEST_VM_RUNBOOK.md) pour l'exploitation.

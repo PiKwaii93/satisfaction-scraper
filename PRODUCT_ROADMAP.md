@@ -6,6 +6,17 @@ Ce fichier décrit la trajectoire produit actuelle de Satisfaction Client.
 
 Le code, les tests et Git restent les sources de vérité. Les statuts indiqués ici doivent être vérifiés dans le dépôt avant toute nouvelle implémentation.
 
+## État du candidat de release de test
+
+Le périmètre fonctionnel du MVP est gelé après la consolidation 10C. Les lots
+7 (smoke E2E automatique), 8 (résilience et récupération), 9 (snapshot et
+monitoring intégré), 10A (reproductibilité depuis Git) et 10B (déploiement et
+preuve VM réelle) sont validés pour l'environnement de **test**. Le SHA
+fonctionnel éprouvé est `f99789099fc3fa16a0c6cc2e0537e00eafc56776` ;
+la [traçabilité](docs/TRACEABILITY.md) distingue cette preuve d'une mise en
+production SaaS. Les évolutions ci-dessous décrivent des perspectives futures,
+pas des tâches à démarrer pendant le freeze.
+
 ## Vision produit
 
 Transformer Satisfaction Client en un SaaS B2B multi-clients permettant à chaque organisation de :
@@ -57,7 +68,7 @@ Transformer Satisfaction Client en un SaaS B2B multi-clients permettant à chaqu
 * MFA ;
 * SSO ;
 * gestion avancée des sessions ;
-* tests frontend automatisés de l’authentification.
+* tests de sécurité supplémentaires adaptés à une production réelle.
 
 ### Critère de sortie SaaS
 
@@ -164,7 +175,7 @@ Chaque version du modèle doit être mesurée, traçable, comparable et promue s
 
 ## Jalon 5 — Industrialisation
 
-**Statut : Partiellement commencé**
+**Statut : Terminé et vérifié pour le candidat de test ; durcissement production partiel**
 
 ### Présent
 
@@ -175,17 +186,20 @@ Chaque version du modèle doit être mesurée, traçable, comparable et promue s
 * build frontend automatisable ;
 * PostgreSQL ;
 * Redis et Celery ;
-* MLflow.
+* MLflow ;
+* migrations Alembic versionnées ;
+* déploiement automatisé sur VM scolaire existante et rollback applicatif ;
+* smoke E2E automatique sur `main` ;
+* supervision Docker/HTTP/Celery/disque et snapshot applicatif ;
+* alerte disque réelle puis retour à `healthy` vérifiés sur la VM ;
+* reproductibilité fonctionnelle démontrée depuis une archive Git propre.
 
 ### Travail restant prioritaire
 
-* étendre les tests frontend aux imports CSV, alertes et corrections ;
 * lint frontend ;
 * découpage progressif du frontend monolithique ;
-* migrations de base de données versionnées ;
 * gestion sécurisée des secrets ;
 * durcissement de l’authentification ;
-* monitoring applicatif ;
 * logs structurés ;
 * sauvegardes PostgreSQL ;
 * déploiement cloud ;
@@ -329,13 +343,14 @@ Préparer un environnement de démonstration ou de production fiable.
 
 ---
 
-# Prochain chantier recommandé
+# Perspectives après le freeze
 
-Le prochain chantier recommandé est :
+Pour une mise en ligne de production ultérieure, le premier chantier recommandé serait :
 
 > Durcir l'authentification et la gestion des secrets avant toute mise en ligne.
 
-Le chantier migrations est terminé pour le périmètre actuel. Le prochain audit doit couvrir :
+Le chantier migrations est terminé pour le périmètre actuel. Un futur audit de
+production pourrait couvrir :
 
 * le stockage et la révocation des JWT ;
 * la séparation des secrets de développement et de production ;

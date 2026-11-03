@@ -17,6 +17,16 @@ Avant toute modification :
 
 Ne pas lancer de refonte massive sans demande explicite.
 
+## Phase actuelle
+
+Le candidat fonctionnel `f99789099fc3fa16a0c6cc2e0537e00eafc56776` a
+réussi l'audit depuis une archive Git propre, la CI automatique, le déploiement
+sur la VM de test, un smoke CSV de 15 avis et le monitoring 9B réel. Le lot 10C
+consolide les preuves ; après publication documentaire, appliquer un **freeze
+fonctionnel**. Le SHA documentaire ultérieur de `main` pourra différer du SHA
+applicatif toujours servi sur la VM ; ne pas en déduire un déploiement à faire.
+Voir [CURRENT_TASK.md](CURRENT_TASK.md) et [docs/DEVOPS_EVIDENCE.md](docs/DEVOPS_EVIDENCE.md).
+
 ## Etat produit
 
 Le projet est devenu une application produit B2B multi-clients, pas seulement un scraper.
@@ -227,7 +237,7 @@ git diff --check
 Pour lancer l'app :
 
 ```powershell
-docker-compose up -d --build postgres_db mlflow redis celery_worker api frontend
+docker-compose up -d --build postgres_db mlflow redis model_bootstrap api celery_worker frontend
 ```
 
 ## Tests existants

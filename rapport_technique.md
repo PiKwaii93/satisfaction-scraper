@@ -368,8 +368,48 @@ un run actif ancien n'alerte pas automatiquement.
 Le snapshot reste une lecture ponctuelle, sans daemon ni historique par
 tentative : une relance remplace l'ancien statut du même run. Il n'y a ni
 seuil métier global de durée d'analyse, ni SLA, ni Prometheus ou Grafana.
-L'intégration a été validée localement et sur Compose isolé ; aucune exécution
-réelle de cette version du monitor sur la VM scolaire n'est encore revendiquée.
+L'intégration a d'abord été validée localement et sur Compose isolé. Elle a
+ensuite été exécutée avec la release compatible sur la VM scolaire : les deux
+runs et leurs résultats distincts figurent ci-dessous.
+
+### 12.5 Candidat de release et preuve sur la VM de test
+
+Le candidat `f99789099fc3fa16a0c6cc2e0537e00eafc56776` a été extrait du
+seul contenu versionné par `git archive HEAD`. Sur un projet Compose isolé à
+volumes vierges, le build sans cache, le démarrage, le bootstrap MLflow v1,
+Alembic au head `20260921_0008`, le smoke CSV de 15 avis et le redémarrage avec
+persistance ont réussi. Les suites ont donné **246 tests backend réussis et 1
+ignoré**, **50 tests frontend réussis**, et un build TypeScript/Vite réussi ;
+le snapshot après E2E indiquait 1 analyse terminée et 15 avis traités. La
+[CI push 41608401904](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41608401904)
+a réussi ses quatre jobs. Le bootstrap d'un MLflow vierge crée une **v1** ;
+il ne reconstitue pas le registre privé historique où le modèle retenu est v53.
+Les dépendances et images n'étant pas toutes figées par digest, la preuve porte
+sur la reproductibilité fonctionnelle actuelle, sans garantie d'identité des
+builds futurs.
+
+Le [workflow Deploy 41639303247](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41639303247)
+a déployé ce SHA sur la VM pédagogique : `current.sha` a été relu égal au SHA
+demandé et les healthchecks ont réussi. Après un arrêt ultérieur de la VM,
+les conteneurs et volumes étaient conservés, mais seul PostgreSQL revenait
+automatiquement. Le redémarrage des conteneurs existants, sans rebuild ni
+redéploiement, a rétabli une stack saine. Un smoke CSV réel a terminé le run 1
+avec **15 avis** ; le snapshot réel a rapporté 1 `completed`, 0 `failed`,
+15 avis traités, un taux terminal de 1,0 et une durée de 5,948 s.
+
+Le [Monitor 41646917782](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41646917782)
+a produit `result=alert` : application et snapshot 9B sains, mais seulement
+4 748 591 104 octets libres sur `/`, sous le seuil de 5 GiB. Son workflow
+GitHub s'est terminé en `failure` (`Probe test VM` et étape finale d'alerte),
+avec Summary et archivage réussis ; aucune
+remédiation automatique n'a été appliquée. Après maintenance disque manuelle
+non destructive, le [Monitor 41662964180](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/41662964180)
+a produit `result=healthy`, sans nouveau déploiement ni modification des
+volumes applicatifs. Les deux rapports ont confirmé le même SHA servi et
+`application_snapshot.supported=true`, `available=true`. Les artefacts JSON
+et Step Summaries constituent la preuve machine-readable ; ils ne démontrent
+ni une sonde planifiée active, ni un SLA ou une remédiation automatique du
+disque. L'IP publique changeante est une contrainte de la VM pédagogique.
 
 ## 13. Securite et cadre reglementaire
 
