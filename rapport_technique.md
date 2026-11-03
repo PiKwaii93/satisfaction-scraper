@@ -355,12 +355,21 @@ sont comptés hors fenêtre temporelle ; `empty` n'entre pas dans le taux. La
 [validation isolée](docs/DEVOPS_EVIDENCE.md#snapshot-opérationnel-des-analyses)
 compare cinq runs synthétiques aux résultats attendus.
 
-Ces deux niveaux sont complémentaires : le snapshot peut constater un run
-`failed` alors que Celery répond. Il ne tourne pas en daemon, ne déclenche pas
-d'alerte et ne s'intègre pas encore au monitoring VM. Une relance remplace
-l'ancien statut du même run ; aucun historique par tentative n'en découle.
-Aucun seuil métier global de durée d'analyse ni SLA n'est établi. Ce lot
-n'ajoute ni Prometheus ni Grafana.
+Ces deux niveaux alimentent désormais le même rapport de supervision pour une
+release compatible : le monitor lit le SHA servi, puis exécute le snapshot
+dans son conteneur API. La répartition des runs, le taux terminal, les runs
+actifs et leur âge, les volumes, les durées et les échecs récents rejoignent
+le JSON et le Step Summary. `celery inspect ping` peut réussir alors qu'un run
+métier reste `failed` : celui-ci produit une `alert`, comme l'indisponibilité
+du snapshot supporté. Un incident infrastructure garde priorité. Une ancienne
+release sans script snapshot reste compatible sans alerte supplémentaire ;
+un run actif ancien n'alerte pas automatiquement.
+
+Le snapshot reste une lecture ponctuelle, sans daemon ni historique par
+tentative : une relance remplace l'ancien statut du même run. Il n'y a ni
+seuil métier global de durée d'analyse, ni SLA, ni Prometheus ou Grafana.
+L'intégration a été validée localement et sur Compose isolé ; aucune exécution
+réelle de cette version du monitor sur la VM scolaire n'est encore revendiquée.
 
 ## 13. Securite et cadre reglementaire
 

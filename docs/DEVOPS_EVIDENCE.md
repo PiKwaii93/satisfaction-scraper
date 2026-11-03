@@ -123,9 +123,49 @@ Le conteneur, le réseau et le volume temporaires ont été supprimés.
 
 Le snapshot lit l'état **courant** des runs. Une relance réutilise le même run
 et remplace son ancien état : ni le nombre de tentatives historiques ni leur
-taux réel de succès ne peuvent être reconstruits. L'outil n'est ni un daemon,
-ni une alerte automatique, ni un SLA, et n'est pas intégré à la sonde VM dans
-ce lot.
+taux réel de succès ne peuvent être reconstruits. L'outil n'est ni un daemon
+ni un SLA ; son intégration à la sonde VM est décrite ci-dessous.
+
+## Intégration du snapshot au monitoring
+
+Le [monitor](../deploy/monitor-test-vm.py) lit `current.sha` et inspecte la
+release réellement servie. Si `scripts/operational_snapshot.py` y est absent,
+`application_snapshot.supported` vaut `false` : l'ancienne release reste
+compatible, sans alerte ni remédiation supplémentaire. Si le script est
+présent et PostgreSQL et l'API sont sains, le monitor réutilise son `compose()`
+pour lancer dans le conteneur `api` :
+
+```text
+exec -T api python scripts/operational_snapshot.py --hours 24 --failure-limit 5 --format json
+```
+
+Le timeout est de **20 s**. Un JSON valide est conservé sous
+`application_snapshot.snapshot` dans `monitor-report.json` et résumé dans le
+Step Summary existant. En cas de timeout, code non nul, sortie vide ou JSON
+invalide, `available` vaut `false` avec la raison générique
+`snapshot_collection_failed` ; stdout et stderr bruts ne sont pas publiés.
+
+La sévérité conserve l'ordre `incident` > `alert` > `healthy` : un incident
+d'infrastructure reste `incident` ; avec infrastructure saine, un ou plusieurs
+runs actuellement `failed` dans les dernières 24 h donnent `alert`, comme un
+snapshot supporté mais indisponible. Une ancienne release sans support ou un
+snapshot disponible sans `failed` restent `healthy` en l'absence d'autre
+anomalie. Aucun seuil d'âge d'un run actif ou de taux de succès n'est appliqué.
+Ces signaux ne déclenchent aucune remédiation métier, aucun restart Celery ou
+Redis, ni aucune relance automatique d'analyse.
+
+La validation du lot a donné **23 tests monitoring réussis**, **13 tests
+snapshot réussis et 1 test d'intégration ignoré** sans DB dédiée, puis **246
+tests backend réussis et 1 ignoré** sur PostgreSQL jetable. Dans une stack
+Compose isolée, l'API a répondu HTTP 200 ; la commande `compose exec -T api`
+ci-dessus a renvoyé un JSON valide, avec **0 run avant et après** et aucune
+mutation observée. La compilation Python et `git diff --check` ont réussi.
+Après nettoyage : **0 conteneur, 0 volume, 0 réseau** du projet temporaire.
+
+Cette intégration est démontrée par tests automatisés et validation Compose
+isolée. Elle n'a pas encore été exécutée contre la VM scolaire avec une release
+9A/9B déployée. Le [run manuel 35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
+reste une preuve historique du monitoring d'infrastructure, sans preuve 9B.
 
 ## KPI DevOps mesurés sur GitHub Actions
 

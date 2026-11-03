@@ -14,6 +14,8 @@ from urllib.request import urlopen
 ROOT = Path.home() / "satisfaction-test"
 SERVICES = ("postgres_db", "redis", "mlflow", "api", "frontend", "celery_worker")
 DISK_ALERT_BYTES = 5 * 1024**3
+SNAPSHOT_SCRIPT = Path("scripts/operational_snapshot.py")
+SNAPSHOT_TIMEOUT_SECONDS = 20
 COMPOSE_ENV = {
     "POSTGRES_HOST_PORT": "127.0.0.1:5432", "MLFLOW_HOST_PORT": "127.0.0.1:5000",
     "REDIS_HOST_PORT": "127.0.0.1:6379", "API_HOST_PORT": "127.0.0.1:8000",
@@ -94,7 +96,54 @@ def restart_target(first, second):
     return None
 
 
-def monitor(sleep=time.sleep, check=probe, restart=compose):
+def application_snapshot(sha, *, run=compose):
+    """Read the served release's snapshot without exposing command output on failure."""
+    if not (ROOT / "releases" / sha / SNAPSHOT_SCRIPT).is_file():
+        return {"supported": False, "available": False,
+                "reason": "served_release_predates_operational_snapshot"}
+    try:
+        result = run(sha, "exec", "-T", "api", "python",
+                     SNAPSHOT_SCRIPT.as_posix(), "--hours", "24",
+                     "--failure-limit", "5", "--format", "json",
+                     timeout=SNAPSHOT_TIMEOUT_SECONDS)
+        if result.returncode:
+            raise ValueError("snapshot command failed")
+        snapshot = json.loads(result.stdout)
+        if not isinstance(snapshot, dict) or not isinstance(snapshot.get("runs"), dict):
+            raise ValueError("invalid snapshot JSON")
+        counts = snapshot["runs"].get("by_status")
+        if not isinstance(counts, dict) or any(
+            type(counts.get(status)) is not int or counts[status] < 0
+            for status in ("pending", "running", "completed", "failed", "empty")
+        ):
+            raise ValueError("invalid snapshot statuses")
+        runs = snapshot["runs"]
+        active = snapshot.get("active")
+        reviews = snapshot.get("reviews")
+        durations = snapshot.get("completed_duration")
+        failures = snapshot.get("recent_failures")
+        rate = runs.get("terminal_success_rate")
+        if (type(runs.get("total")) is not int or runs["total"] < 0
+                or (rate is not None and (type(rate) not in (int, float) or not 0 <= rate <= 1))
+                or not isinstance(active, dict)
+                or type(active.get("count")) is not int or active["count"] < 0
+                or active.get("oldest_run_id") is not None and type(active["oldest_run_id"]) is not int
+                or active.get("oldest_age_seconds") is not None and type(active["oldest_age_seconds"]) not in (int, float)
+                or not isinstance(reviews, dict)
+                or reviews.get("processed") is not None and type(reviews["processed"]) is not int
+                or not isinstance(durations, dict)
+                or any(durations.get(key) is not None and type(durations[key]) not in (int, float)
+                       for key in ("mean_seconds", "median_seconds", "max_seconds"))
+                or not isinstance(failures, list)):
+            raise ValueError("incomplete snapshot JSON")
+        return {"supported": True, "available": True, "window_hours": 24,
+                "snapshot": snapshot}
+    except (OSError, subprocess.TimeoutExpired, ValueError, TypeError):
+        return {"supported": True, "available": False,
+                "reason": "snapshot_collection_failed"}
+
+
+def monitor(sleep=time.sleep, check=probe, restart=compose, collect=application_snapshot):
     stamp = datetime.now(timezone.utc).isoformat()
     marker = ROOT / "current.sha"
     try:
@@ -108,7 +157,9 @@ def monitor(sleep=time.sleep, check=probe, restart=compose):
         valid_source = False
     if not re.fullmatch(r"[0-9a-f]{40}", sha) or not valid_source:
         return {"timestamp_utc": stamp, "served_sha": None, "result": "incident",
-                "ssh": "ok", "alert": "Invalid or absent current SHA", "remediation": None, "probes": []}
+                "ssh": "ok", "alert": "Invalid or absent current SHA", "remediation": None,
+                "application_snapshot": {"supported": False, "available": False,
+                                         "reason": "served_release_unavailable"}, "probes": []}
     free = shutil.disk_usage("/").free
     first = check(sha)
     second = None
@@ -141,9 +192,29 @@ def monitor(sleep=time.sleep, check=probe, restart=compose):
         alert = "; ".join(filter(None, (alert, "Confirmed application incident recovered after restart")))
     if transient_app:
         alert = "; ".join(filter(None, (alert, "Application probe failed once; incident not confirmed")))
+    supported = (ROOT / "releases" / sha / SNAPSHOT_SCRIPT).is_file()
+    if not supported:
+        app_snapshot = {"supported": False, "available": False,
+                        "reason": "served_release_predates_operational_snapshot"}
+    elif final["healthy"]["postgres_db"] and final["healthy"]["api"]:
+        app_snapshot = collect(sha)
+    else:
+        app_snapshot = {"supported": True, "available": False,
+                        "reason": "dependencies_unhealthy"}
+    if app_snapshot["supported"]:
+        app_alert = None
+        if not app_snapshot["available"] and app_snapshot.get("reason") == "snapshot_collection_failed":
+            app_alert = "Application operational snapshot unavailable"
+        elif app_snapshot["available"]:
+            failed_count = app_snapshot["snapshot"]["runs"]["by_status"]["failed"]
+            if failed_count:
+                noun = "run" if failed_count == 1 else "runs"
+                app_alert = f"{failed_count} failed analysis {noun} in the last 24h"
+        if app_alert:
+            alert = "; ".join(filter(None, (alert, app_alert)))
     return {"timestamp_utc": stamp, "served_sha": sha, "ssh": "ok", "disk_free_bytes": free,
             "components": final, "probes": probes,
-            "alert": alert, "remediation": action,
+            "alert": alert, "remediation": action, "application_snapshot": app_snapshot,
             "result": "incident" if incident else "alert" if alert else "healthy"}
 
 
@@ -160,6 +231,31 @@ def summary(report):
         lines.append(f"- API HTTP: {components['api_http']}; frontend HTTP: {components['frontend_http']}; Celery ping: {components['celery_ping']}")
     free = report.get("disk_free_bytes")
     lines.append(f"- Disk free on /: {free / 1024**3:.2f} GiB" if free is not None else "- Disk free on /: unavailable")
+    lines.extend(["", "### Application analyses", ""])
+    application = report.get("application_snapshot", {})
+    if not application.get("supported"):
+        lines.append("- Application snapshot: unsupported by served release")
+    elif not application.get("available"):
+        lines.append("- Application snapshot: unavailable")
+    else:
+        snapshot = application["snapshot"]
+        runs, counts, active = snapshot["runs"], snapshot["runs"]["by_status"], snapshot["active"]
+        lines.append(f"- Runs in window: {runs['total']}")
+        for status in ("completed", "failed", "pending", "running", "empty"):
+            lines.append(f"- {status.capitalize()}: {counts[status]}")
+        rate = runs["terminal_success_rate"]
+        lines.append(f"- Terminal success rate: {rate * 100:.1f}%" if rate is not None
+                     else "- Terminal success rate: unavailable")
+        lines.append(f"- Active runs: {active['count']}")
+        lines.append(f"- Oldest active run: {active['oldest_run_id']} ({active['oldest_age_seconds']} s)"
+                     if active["oldest_run_id"] is not None else "- Oldest active run: none")
+        lines.append(f"- Processed reviews: {snapshot['reviews']['processed']}")
+        durations = snapshot["completed_duration"]
+        lines.append("- Completed duration mean / median / max: " + " / ".join(
+            str(durations[key]) if durations[key] is not None else "unavailable"
+            for key in ("mean_seconds", "median_seconds", "max_seconds")) + " s")
+        lines.append(f"- Recent failures: {counts['failed']} in window; "
+                     f"{len(snapshot['recent_failures'])} details included")
     lines.append(f"- Alert: {report.get('alert') or 'none'}")
     action = report.get("remediation")
     lines.append(f"- Remediation: {action['service']} restart once; healthy after: {action['healthy_after_restart']}" if action else "- Remediation: none")
@@ -180,7 +276,9 @@ def main():
     if len(sys.argv) == 2 and sys.argv[1] == "ssh-failure":
         print(json.dumps({"timestamp_utc": datetime.now(timezone.utc).isoformat(), "served_sha": None,
                           "ssh": "unreachable", "result": "incident", "alert": "SSH probe failed",
-                          "remediation": None, "probes": []}, indent=2))
+                          "remediation": None, "application_snapshot": {"supported": False,
+                          "available": False, "reason": "served_release_unavailable"},
+                          "probes": []}, indent=2))
         return 0
     print("Usage: monitor-test-vm.py probe | summary REPORT.json | ssh-failure", file=sys.stderr)
     return 2

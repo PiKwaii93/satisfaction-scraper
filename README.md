@@ -429,6 +429,15 @@ de la sonde, pas que toutes les taches metier reussissent. Les sondes planifiees
 peuvent etre differees par GitHub et ne garantissent pas un controle a l'heure
 exacte. Aucun incident volontaire n'a ete provoque sur la VM scolaire.
 
+Pour une release compatible réellement servie, le monitor exécute aussi le
+snapshot opérationnel dans le conteneur API et ajoute ses métriques à
+`monitor-report.json` et au Step Summary. Un run `failed` récent ou un snapshot
+supporté mais indisponible produit une `alert`. Une release antérieure à 9A est
+indiquée comme non compatible, sans alerte supplémentaire. Les runs actifs et
+l'âge du plus ancien restent informatifs : aucun run n'est relancé et aucun
+restart Celery n'est déclenché par ces signaux. Cette intégration est validée
+localement, sans exécution 9B encore démontrée sur la VM.
+
 Premiere preuve reelle du chantier 10 : le run manuel
 [35726582579](https://github.com/PiKwaii93/satisfaction-scraper/actions/runs/35726582579)
 de `Monitor test VM` a reussi. Son artefact `test-vm-monitor-35726582579`

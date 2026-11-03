@@ -2,8 +2,11 @@
 
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +65,130 @@ def monitor_root(monkeypatch, tmp_path, sha="d" * 40, free_gib=10):
     monkeypatch.setattr(monitor.shutil, "disk_usage",
                         lambda _: SimpleNamespace(free=free_gib * 1024**3))
     return sha
+
+
+def supported_release(monkeypatch, tmp_path):
+    sha = monitor_root(monkeypatch, tmp_path)
+    script = monitor.ROOT / "releases" / sha / "scripts" / "operational_snapshot.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("# synthetic test marker\n", encoding="utf-8")
+    return sha
+
+
+def sample_snapshot(*, failed=0, pending=0, running=0, age=None):
+    return {"runs": {"total": 2 + failed + pending + running,
+                     "by_status": {"completed": 2, "failed": failed, "pending": pending,
+                                   "running": running, "empty": 0},
+                     "terminal_success_rate": 2 / (2 + failed)},
+            "active": {"count": pending + running, "oldest_run_id": 7 if pending + running else None,
+                       "oldest_age_seconds": age},
+            "reviews": {"processed": 15},
+            "completed_duration": {"mean_seconds": 10, "median_seconds": 9,
+                                   "max_seconds": 14},
+            "recent_failures": [{"run_id": 9, "error_message": "safe"}] if failed else []}
+
+
+def available(snapshot):
+    return {"supported": True, "available": True, "window_hours": 24, "snapshot": snapshot}
+
+
+def test_old_release_remains_healthy_without_snapshot_or_remediation(monkeypatch, tmp_path):
+    monitor_root(monkeypatch, tmp_path)
+    report = monitor.monitor(check=lambda _: fake_probe(),
+                             collect=lambda _: (_ for _ in ()).throw(AssertionError("snapshot")),
+                             restart=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("restart")))
+    assert report["result"] == "healthy" and report["alert"] is None
+    assert report["application_snapshot"] == {
+        "supported": False, "available": False,
+        "reason": "served_release_predates_operational_snapshot"}
+    assert report["remediation"] is None
+    assert "unsupported by served release" in monitor.summary(report)
+
+
+def test_supported_snapshot_command_and_healthy_summary(monkeypatch, tmp_path):
+    sha = supported_release(monkeypatch, tmp_path)
+    calls = []
+
+    def run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(returncode=0, stdout=json.dumps(sample_snapshot(pending=1, age=90000)))
+
+    result = monitor.application_snapshot(sha, run=run)
+    assert calls == [((sha, "exec", "-T", "api", "python", "scripts/operational_snapshot.py",
+                       "--hours", "24", "--failure-limit", "5", "--format", "json"),
+                      {"timeout": 20})]
+    report = monitor.monitor(check=lambda _: fake_probe(), collect=lambda _: result,
+                             restart=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("restart")))
+    assert report["result"] == "healthy" and report["remediation"] is None
+    assert report["application_snapshot"]["snapshot"]["active"]["oldest_age_seconds"] == 90000
+    text = monitor.summary(report)
+    assert "### Application analyses" in text and "- Completed: 2" in text
+    assert "- Terminal success rate: 100.0%" in text
+    assert "- Active runs: 1" in text and "- Processed reviews: 15" in text
+
+
+@pytest.mark.parametrize("failed,expected", [
+    (1, "1 failed analysis run in the last 24h"),
+    (3, "3 failed analysis runs in the last 24h"),
+])
+def test_failed_runs_alert_without_remediation(monkeypatch, tmp_path, failed, expected):
+    supported_release(monkeypatch, tmp_path)
+    report = monitor.monitor(check=lambda _: fake_probe(),
+                             collect=lambda _: available(sample_snapshot(failed=failed)),
+                             restart=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("restart")))
+    assert report["result"] == "alert" and report["alert"] == expected
+    assert report["remediation"] is None
+    assert report["application_snapshot"]["snapshot"]["runs"]["by_status"]["failed"] == failed
+
+
+@pytest.mark.parametrize("outcome", [
+    SimpleNamespace(returncode=1, stdout="private path", stderr="secret"),
+    SimpleNamespace(returncode=0, stdout=""),
+    SimpleNamespace(returncode=0, stdout="not json"),
+    SimpleNamespace(returncode=0, stdout='{"runs": {"by_status": {"failed": 1}}}'),
+    subprocess.TimeoutExpired("docker", 20, output="private path", stderr="secret"),
+])
+def test_snapshot_collection_failure_is_alert_without_raw_output(monkeypatch, tmp_path, outcome):
+    sha = supported_release(monkeypatch, tmp_path)
+
+    def run(*args, **kwargs):
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    result = monitor.application_snapshot(sha, run=run)
+    report = monitor.monitor(check=lambda _: fake_probe(), collect=lambda _: result,
+                             restart=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("restart")))
+    assert report["application_snapshot"] == {"supported": True, "available": False,
+                                                "reason": "snapshot_collection_failed"}
+    assert report["result"] == "alert" and report["remediation"] is None
+    assert "private path" not in json.dumps(report) and "secret" not in json.dumps(report)
+    assert "Application snapshot: unavailable" in monitor.summary(report)
+
+
+def test_infrastructure_incident_precedes_application_alert(monkeypatch, tmp_path):
+    supported_release(monkeypatch, tmp_path)
+    report = monitor.monitor(check=lambda _: fake_probe(redis=False),
+                             collect=lambda _: available(sample_snapshot(failed=1)))
+    assert report["result"] == "incident"
+    assert "failed analysis run" in report["alert"]
+    assert report["remediation"] is None
+
+
+def test_unhealthy_database_skips_snapshot_and_keeps_incident(monkeypatch, tmp_path):
+    supported_release(monkeypatch, tmp_path)
+    report = monitor.monitor(check=lambda _: fake_probe(postgres=False),
+                             collect=lambda _: (_ for _ in ()).throw(AssertionError("snapshot")))
+    assert report["result"] == "incident"
+    assert report["application_snapshot"]["reason"] == "dependencies_unhealthy"
+
+
+def test_old_active_run_is_not_automatically_alerted(monkeypatch, tmp_path):
+    supported_release(monkeypatch, tmp_path)
+    report = monitor.monitor(check=lambda _: fake_probe(),
+                             collect=lambda _: available(sample_snapshot(running=1, age=999999)))
+    assert report["result"] == "healthy" and report["alert"] is None
+    assert "999999 s" in monitor.summary(report)
 
 
 def test_restart_requires_two_failures_and_healthy_dependencies():
